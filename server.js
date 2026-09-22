@@ -5,6 +5,7 @@ const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
@@ -16,20 +17,16 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
-const express = require('express');
-const fs = require('fs'); // Tambahkan modul File System
-const path = require('path');
-// ... (kode lainnya tetap sama)
-
-const app = express();
-
-// Pastikan folder public/uploads otomatis dibuat jika belum ada di server
-const uploadDir = path.join(__dirname, 'public/uploads');
-if (!fs.existsSync(uploadDir)) {
+// Pastikan folder public/uploads otomatis dibuat secara aman jika belum ada di server
+try {
+  const uploadDir = path.join(__dirname, 'public', 'uploads');
+  if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
     console.log('Folder public/uploads berhasil dibuat secara otomatis.');
+  }
+} catch (err) {
+  console.error('Gagal membuat folder uploads:', err);
 }
-
 
 // Konfigurasi Penyimpanan File Upload menggunakan Multer
 const storage = multer.diskStorage({
