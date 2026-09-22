@@ -43,6 +43,7 @@ async function handleRegister(event) {
     }
 }
 
+// Proses Login
 async function handleLogin(event) {
     event.preventDefault();
     const phone = document.getElementById('login-phone').value;
@@ -71,6 +72,52 @@ async function handleLogin(event) {
         console.error('Error login:', err);
     }
 }
+
+// Fungsi untuk memperbarui tampilan setelah login atau refresh (Sinkron Mobile & Desktop)
+function updateUserInterface() {
+    if (!currentUser) return;
+
+    // 1. Perbarui elemen teks dan foto profil di Mobile
+    const mobileName = document.getElementById('user-display-name');
+    if (mobileName) mobileName.innerText = currentUser.name;
+    
+    const mobileAvatar = document.getElementById('user-avatar');
+    if (mobileAvatar && currentUser.photo_url) {
+        mobileAvatar.src = currentUser.photo_url;
+    }
+
+    // 2. Perbarui elemen teks dan foto profil di Desktop
+    const desktopName = document.getElementById('user-display-name-desktop');
+    if (desktopName) desktopName.innerText = currentUser.name;
+    
+    const desktopAvatar = document.getElementById('user-avatar-desktop');
+    if (desktopAvatar && currentUser.photo_url) {
+        desktopAvatar.src = currentUser.photo_url;
+    }
+    
+    // 3. Sembunyikan halaman auth dan tampilkan halaman utama dengan benar
+    const authScreen = document.getElementById('auth-screen');
+    if (authScreen) {
+        authScreen.classList.remove('active');
+        authScreen.style.display = 'none';
+    }
+    
+    const mainScreen = document.getElementById('main-screen');
+    if (mainScreen) {
+        mainScreen.classList.add('active');
+        mainScreen.style.display = 'flex';
+    }
+}
+
+// Cek sesi otomatis saat halaman dimuat ulang (Refresh) agar tidak tertutup
+window.addEventListener('DOMContentLoaded', () => {
+    const savedUser = sessionStorage.getItem('kitachat_user');
+    if (savedUser) {
+        currentUser = JSON.parse(savedUser);
+        updateUserInterface();
+        socket.emit('register_call_user', currentUser.id);
+    }
+});
 
 // Navigasi Menu Samping & Bawah (Responsif Mobile)
 function switchTabNav(tabName, element) {
@@ -109,6 +156,7 @@ function toggleTheme() {
 // Logout
 function logout() {
     currentUser = null;
+    sessionStorage.removeItem('kitachat_user'); // Hapus sesi
     
     const mainScreen = document.getElementById('main-screen');
     if (mainScreen) {
@@ -244,23 +292,34 @@ async function loadAlbumPhotos() {
                 return;
             }
 
-            photos.forEach(item => {
-                const card = document.createElement('div');
-                card.style.background = 'var(--card-bg)';
-                card.style.border = '1px solid var(--border-color)';
-                card.style.borderRadius = '8px';
-                card.style.overflow = 'hidden';
-                card.style.boxShadow = '0 2px 5px rgba(0,0,0,0.05)';
+            photos.forEach((item, index) => {
+    const card = document.createElement('div');
+    card.style.background = 'var(--card-bg)';
+    card.style.border = '1px solid var(--border-color)';
+    card.style.borderRadius = '8px';
+    card.style.overflow = 'hidden';
+    card.style.boxShadow = '0 2px 5px rgba(0,0,0,0.05)';
+    card.style.position = 'relative';
 
-                card.innerHTML = `
-                    <img src="${item.image_url}" alt="Foto Album" style="width: 100%; height: 160px; object-fit: cover;" onerror="this.src='https://via.placeholder.com/220?text=Gagal+Muat+Gambar'">
-                    <div style="padding: 10px;">
-                        <p style="margin: 0; font-size: 14px; font-weight: bold; color: var(--text-light);">${item.caption || 'Tanpa keterangan'}</p>
-                        <p style="margin: 5px 0 0 0; font-size: 11px; color: gray;">Oleh: ${item.uploader_name}</p>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
+    const menuId = `album-menu-${item.id || index}`;
+    const isOwner = currentUser && String(currentUser.id) === String(item.user_id);
+
+    card.innerHTML = `
+        <div class="media-wrapper" style="width: 100%;">
+            <img src="${item.image_url}" alt="Foto Album" onclick="openZoomModal('${item.image_url}')" onerror="this.src='https://via.placeholder.com/220?text=Gagal+Muat+Gambar'">
+            <button class="photo-menu-btn" onclick="togglePhotoMenu(event, '${menuId}')"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+            <div id="${menuId}" class="photo-dropdown">
+                <button onclick="downloadPhoto('${item.image_url}')"><i class="fa-solid fa-download"></i> Simpan</button>
+                ${isOwner ? `<button onclick="deleteAlbumPhoto('${item.id}')" style="color: #e74c3c;"><i class="fa-solid fa-trash"></i> Hapus</button>` : ''}
+            </div>
+        </div>
+        <div style="padding: 10px;">
+            <p style="margin: 0; font-size: 14px; font-weight: bold; color: var(--text-light);">${item.caption || 'Tanpa keterangan'}</p>
+            <p style="margin: 5px 0 0 0; font-size: 11px; color: gray;">Oleh: ${item.uploader_name}</p>
+        </div>
+    `;
+    container.appendChild(card);
+});
         }
     } catch (err) {
         console.error('Gagal memuat album:', err);
@@ -425,7 +484,17 @@ async function handleUpdateProfilePhoto(event) {
         if (response.ok) {
             alert(data.message);
             currentUser = data.user;
-            document.getElementById('user-avatar').src = currentUser.photo_url;
+            
+            // Perbarui sesi di sessionStorage
+            sessionStorage.setItem('kitachat_user', JSON.stringify(currentUser));
+
+            // Perbarui foto profil secara instan di mobile dan desktop
+            const mobileAvatar = document.getElementById('user-avatar');
+            if (mobileAvatar) mobileAvatar.src = currentUser.photo_url;
+
+            const desktopAvatar = document.getElementById('user-avatar-desktop');
+            if (desktopAvatar) desktopAvatar.src = currentUser.photo_url;
+
             fileInput.value = '';
         } else {
             alert(data.error);
@@ -568,6 +637,87 @@ function hangUpCall() {
     modal.classList.add('hidden');
     
     socket.emit('end_call', {});
+}
+
+// --- FITUR ZOOM, SIMPAN, DAN HAPUS FOTO ---
+
+// Membuka modal foto diperbesar
+function openZoomModal(imageUrl) {
+    const modal = document.getElementById('photo-zoom-modal');
+    const zoomedImg = document.getElementById('zoomed-img-element');
+    zoomedImg.src = imageUrl;
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+}
+
+// Menutup modal foto diperbesar
+function closeZoomModal() {
+    const modal = document.getElementById('photo-zoom-modal');
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+}
+
+// Menampilkan / Menyembunyikan menu dropdown titik tiga
+function togglePhotoMenu(event, menuId) {
+    event.stopPropagation();
+    // Tutup semua dropdown lain yang mungkin sedang terbuka
+    document.querySelectorAll('.photo-dropdown').forEach(el => {
+        if (el.id !== menuId) el.classList.remove('active');
+    });
+
+    const dropdown = document.getElementById(menuId);
+    if (dropdown) {
+        dropdown.classList.toggle('active');
+    }
+}
+
+// Klik di luar untuk menutup dropdown
+window.addEventListener('click', () => {
+    document.querySelectorAll('.photo-dropdown').forEach(el => {
+        el.classList.remove('active');
+    });
+});
+
+// Fitur Simpan / Download Foto
+async function downloadPhoto(imageUrl) {
+    try {
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `kitachat-foto-${Date.now()}.jpg`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+    } catch (err) {
+        console.error('Gagal mengunduh foto:', err);
+        alert('Gagal menyimpan foto.');
+    }
+}
+
+// Fitur Hapus Foto Album
+async function deleteAlbumPhoto(photoId) {
+    if (!confirm('Apakah Anda yakin ingin menghapus foto ini dari album?')) return;
+
+    try {
+        const response = await fetch(`/api/albums/${photoId}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: currentUser.id })
+        });
+        const data = await response.json();
+
+        if (response.ok) {
+            alert(data.message);
+            loadAlbumPhotos(); // Muat ulang galeri album
+        } else {
+            alert(data.error || 'Gagal menghapus foto.');
+        }
+    } catch (err) {
+        console.error('Error hapus foto:', err);
+    }
 }
 
 socket.on('call_ended', () => {

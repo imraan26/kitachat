@@ -126,7 +126,7 @@ app.get('/api/users', async (req, res) => {
 app.get('/api/albums', async (req, res) => {
   try {
     const albumsResult = await pool.query(
-      `SELECT albums.id, albums.image_url, albums.caption, albums.created_at, users.name as uploader_name 
+      `SELECT albums.id, albums.user_id, albums.image_url, albums.caption, albums.created_at, users.name as uploader_name 
        FROM albums 
        JOIN users ON albums.user_id = users.id 
        ORDER BY albums.created_at DESC`
@@ -171,7 +171,20 @@ app.post('/api/albums', upload.single('image'), async (req, res) => {
   }
 });
 
-// 6. API GET /api/agendas (Mengambil daftar agenda keluarga)
+// 6. API DELETE /api/albums/:id (Menghapus foto album keluarga)
+app.delete('/api/albums/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        // Diselaraskan menggunakan tabel 'albums' sesuai struktur database utama
+        await pool.query('DELETE FROM albums WHERE id = $1', [id]);
+        res.json({ message: 'Foto berhasil dihapus dari album.' });
+    } catch (err) {
+        console.error('Gagal menghapus foto:', err);
+        res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
+    }
+});
+
+// 7. API GET /api/agendas (Mengambil daftar agenda keluarga)
 app.get('/api/agendas', async (req, res) => {
   try {
     const agendasResult = await pool.query('SELECT * FROM agendas ORDER BY event_date ASC');
@@ -182,7 +195,7 @@ app.get('/api/agendas', async (req, res) => {
   }
 });
 
-// 7. API POST /api/agendas (Menambah agenda baru)
+// 8. API POST /api/agendas (Menambah agenda baru)
 app.post('/api/agendas', async (req, res) => {
   const { title, event_date, description } = req.body;
 
@@ -207,8 +220,7 @@ app.post('/api/agendas', async (req, res) => {
   }
 });
 
-
-// 8. API POST /api/update-photo (Memperbarui foto profil pengguna)
+// 9. API POST /api/update-photo (Memperbarui foto profil pengguna)
 app.post('/api/update-photo', upload.single('image'), async (req, res) => {
   try {
     const { user_id } = req.body;
@@ -223,7 +235,6 @@ app.post('/api/update-photo', upload.single('image'), async (req, res) => {
 
     const photo_url = `/uploads/${req.file.filename}`;
 
-    // Perbarui database users
     const updateResult = await pool.query(
       `UPDATE users SET photo_url = $1 WHERE id = $2 RETURNING id, phone, name, birthdate, photo_url`,
       [photo_url, user_id]
@@ -243,11 +254,10 @@ app.post('/api/update-photo', upload.single('image'), async (req, res) => {
   }
 });
 
-// Konfigurasi Socket.io untuk chat real-time, penyimpanan database, dan signaling telepon (WebRTC)
+// Konfigurasi Socket.io untuk chat real-time dan signaling telepon (WebRTC)
 io.on('connection', async (socket) => {
   console.log('Seorang anggota keluarga terhubung:', socket.id);
 
-  // 1. Kirim riwayat pesan terdahulu ke klien yang baru terhubung
   try {
     const historyResult = await pool.query(
       `SELECT messages.message, messages.created_at, users.name 
@@ -267,9 +277,7 @@ io.on('connection', async (socket) => {
     console.error('Gagal memuat riwayat chat:', err);
   }
 
-  // 2. Menerima pesan dari klien, simpan ke database, dan siarkan ke semua anggota
   socket.on('send_message', async (data) => {
-    // data berisi { userId, name, message, time }
     try {
       await pool.query(
         `INSERT INTO messages (user_id, message) VALUES ($1, $2)`,
@@ -287,15 +295,11 @@ io.on('connection', async (socket) => {
   });
 
   // --- SIGNALING TELEPON (WebRTC) ---
-  
-  // Pengguna mendaftarkan ID unik mereka ke socket
   socket.on('register_call_user', (userId) => {
     socket.userId = userId;
   });
 
-  // Mengirim penawaran panggilan (offer) ke target tertentu
   socket.on('call_user', (data) => {
-    // data berisi { toUserId, offer, callerName }
     io.emit('incoming_call', {
       fromSocketId: socket.id,
       callerName: data.callerName,
@@ -304,23 +308,18 @@ io.on('connection', async (socket) => {
     });
   });
 
-  // Menjawab panggilan (answer) dari penerima
   socket.on('make_answer', (data) => {
-    // data berisi { answer, toSocketId }
     io.to(data.toSocketId).emit('call_answered', {
       answer: data.answer
     });
   });
 
-  // Pertukaran jalur jaringan (ICE Candidate)
   socket.on('ice_candidate', (data) => {
-    // data berisi { targetSocketId, candidate }
     io.to(data.targetSocketId).emit('ice_candidate', {
       candidate: data.candidate
     });
   });
 
-  // Penolakan atau pengakhiran panggilan
   socket.on('end_call', (data) => {
     io.emit('call_ended', data);
   });
@@ -330,7 +329,7 @@ io.on('connection', async (socket) => {
   });
 });
 
-// Jalankan Server (Harus diletakkan di bagian paling bawah)
+// Jalankan Server
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server Kitachat aktif di port ${PORT}`);
