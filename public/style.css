@@ -1,0 +1,243 @@
+:root {
+    --primary-color: #4A7C59;
+    --primary-light: #A8E6CF;
+    --bg-light: #F9F9FB;
+    --text-light: #2B2B2B;
+    --card-bg: #FFFFFF;
+    --border-color: #E1E1E1;
+}
+
+body.dark-mode {
+    --primary-color: #2D4A37;
+    --primary-light: #3B634A;
+    --bg-light: #121212;
+    --text-light: #E1E1E1;
+    --card-bg: #1A1D20;
+    --border-color: #2A2D32;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: var(--bg-light);
+    color: var(--text-light);
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#app-container {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+}
+
+.screen {
+    display: none;
+    width: 100%;
+    height: 100%;
+}
+
+.screen.active {
+    display: flex;
+}
+
+/* Halaman Auth */
+#auth-screen {
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+}
+
+.auth-card {
+    background: var(--card-bg);
+    padding: 30px;
+    border-radius: 12px;
+    width: 380px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    text-align: center;
+}
+
+.auth-card h2 {
+    color: var(--primary-color);
+    margin-bottom: 5px;
+}
+
+.tab-buttons {
+    display: flex;
+    margin: 20px 0;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.tab-buttons button {
+    flex: 1;
+    padding: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+    color: var(--text-light);
+}
+
+.tab-buttons button.active {
+    border-bottom: 3px solid var(--primary-color);
+    color: var(--primary-color);
+}
+
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+form input {
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--card-bg);
+    color: var(--text-light);
+}
+
+.btn-primary {
+    padding: 12px;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.2s;
+}
+
+.btn-primary:hover {
+    opacity: 0.9;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Halaman Utama / WhatsApp Style */
+#main-screen {
+    display: none;
+    flex-direction: row;
+}
+
+.sidebar {
+    width: 300px;
+    background: var(--card-bg);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-header {
+    padding: 15px;
+    background: var(--primary-color);
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.user-profile img {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+}
+
+.sidebar-icons button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    margin-left: 10px;
+}
+
+.sidebar-menu {
+    display: flex;
+    flex-direction: column;
+}
+
+.menu-item {
+    padding: 15px 20px;
+    background: none;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    color: var(--text-light);
+    font-size: 15px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.menu-item.active, .menu-item:hover {
+    background-color: var(--primary-light);
+    color: #121212;
+}
+
+.chat-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-light);
+}
+
+.chat-header {
+    padding: 15px;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.status-online {
+    font-size: 12px;
+    color: #28a745;
+}
+
+.chat-messages {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.chat-input-area {
+    padding: 15px;
+    background: var(--card-bg);
+    display: flex;
+    gap: 10px;
+    border-top: 1px solid var(--border-color);
+}
+
+.chat-input-area input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    background: var(--bg-light);
+    color: var(--text-light);
+}
+
+.chat-input-area button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+}
