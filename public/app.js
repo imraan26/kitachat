@@ -331,7 +331,7 @@ if (msgInput) {
     });
 }
 
-// Fungsi untuk memuat daftar anggota keluarga (Menggunakan Tautan Stabil tel:)
+// Fungsi untuk memuat daftar anggota keluarga (Menggunakan Panggilan Internet WebRTC)
 async function loadFamilyMembers() {
     try {
         const response = await fetch('/api/users');
@@ -361,9 +361,9 @@ async function loadFamilyMembers() {
                     </div>
                     <p style="margin: 5px 0 0 0; font-size: 12px;"><i class="fa-solid fa-cake-candles"></i> Lahir: ${bdate}</p>
                     ${currentUser && currentUser.id !== user.id ? `
-                        <a href="tel:${user.phone}" class="btn-primary" style="width: 100%; margin-top: 10px; padding: 6px; font-size: 12px; text-decoration: none; display: inline-block; text-align: center; box-sizing: border-box;">
-                            <i class="fa-solid fa-phone"></i> Telepon
-                        </a>
+                        <button onclick="startCall('${user.id}', '${user.name}')" class="btn-primary" style="width: 100%; margin-top: 10px; padding: 6px; font-size: 12px; cursor: pointer;">
+                            <i class="fa-solid fa-phone"></i> Telepon Internet
+                        </button>
                     ` : ''}
                 `;
                 container.appendChild(card);
