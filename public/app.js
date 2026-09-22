@@ -256,13 +256,19 @@ function appendChatMessage(data) {
 
 const msgInput = document.getElementById('message-input');
 if (msgInput) {
+    // 1. Fitur Auto-resize tinggi textarea saat mengetik
+    msgInput.addEventListener('input', function() {
+        this.style.height = 'auto'; // Reset tinggi
+        this.style.height = (this.scrollHeight) + 'px'; // Set tinggi sesuai konten
+    });
+
+    // 2. Kirim pesan dengan Enter (Shift + Enter untuk baris baru)
     msgInput.addEventListener('keydown', function(event) {
-        // Jika menekan Enter TANPA tombol Shift, maka kirim pesan
         if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();
             sendMessage();
+            this.style.height = 'auto'; // Reset tinggi kembali setelah pesan terkirim
         }
-        // Jika Shift + Enter, biarkan membuat baris baru (paragraf)
     });
 }
 

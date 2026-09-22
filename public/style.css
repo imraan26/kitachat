@@ -317,11 +317,11 @@ form input {
 }
 
 .chat-input-area {
-    padding: 10px 12px;
+    padding: 10px 15px;
     background: var(--card-bg);
     display: flex;
-    gap: 8px;
-    align-items: center;
+    gap: 10px;
+    align-items: flex-end;
     border-top: 1px solid var(--border-color);
 }
 
