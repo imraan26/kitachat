@@ -84,12 +84,12 @@
                 <!-- Tab Obrolan Keluarga -->
                 <div id="content-chat" class="tab-content active" style="display: flex; flex-direction: column; height: 100%;">
                     <div class="chat-header">
-                        <h3><i class="fa-solid fa-users-rectangle"></i> Grup Keluarga Besar Kitachat</h3>
+                        <h3><i class="fa-solid fa-users-rectangle"></i> Grup Keluarga</h3>
                         <span class="status-online">Semua Anggota Terhubung</span>
                     </div>
                     <div class="chat-messages" id="chat-messages-container"></div>
                     <div class="chat-input-area">
-                        <input type="text" id="message-input" placeholder="Ketik pesan keluarga...">
+                        <textarea id="message-input" rows="1" placeholder="Ketik pesan keluarga..." style="resize: none;"></textarea>
                         <button onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i></button>
                     </div>
                 </div>
@@ -97,7 +97,7 @@
                 <!-- Tab Album Foto -->
                 <div id="content-album" class="tab-content hidden" style="display: flex; flex-direction: column; height: 100%;">
                     <div class="chat-header">
-                        <h3><i class="fa-solid fa-images"></i> Album Kenangan Keluarga</h3>
+                        <h3><i class="fa-solid fa-images"></i> Album Kenangan</h3>
                         <span class="status-online">Momen Indah Bersama</span>
                     </div>
                     <div style="padding: 20px; overflow-y: auto; flex: 1;">
@@ -125,7 +125,7 @@
                 <!-- Tab Agenda -->
                 <div id="content-agenda" class="tab-content hidden" style="display: flex; flex-direction: column; height: 100%;">
                     <div class="chat-header">
-                        <h3><i class="fa-solid fa-calendar-days"></i> Agenda & Ulang Tahun Keluarga</h3>
+                        <h3><i class="fa-solid fa-calendar-days"></i> Agenda</h3>
                         <span class="status-online">Jadwal & Momen Penting</span>
                     </div>
                     <div style="padding: 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 20px;">

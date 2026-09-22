@@ -147,11 +147,37 @@ function switchTabNav(tabName, element) {
     }
 }
 
-// Ganti Tema Dark / Light Mode
+// Ganti Tema Dark / Light Mode & Simpan ke localStorage
 function toggleTheme() {
-    document.body.classList.toggle('dark-mode');
-    document.body.classList.toggle('light-mode');
+    if (document.body.classList.contains('dark-mode')) {
+        document.body.classList.remove('dark-mode');
+        document.body.classList.add('light-mode');
+        localStorage.setItem('kitachat_theme', 'light');
+    } else {
+        document.body.classList.remove('light-mode');
+        document.body.classList.add('dark-mode');
+        localStorage.setItem('kitachat_theme', 'dark');
+    }
 }
+
+// Muat tema tersimpan saat halaman pertama kali dibuka/refresh
+window.addEventListener('DOMContentLoaded', () => {
+    const savedTheme = localStorage.getItem('kitachat_theme');
+    if (savedTheme === 'dark') {
+        document.body.classList.add('dark-mode');
+        document.body.classList.remove('light-mode');
+    } else {
+        document.body.classList.add('light-mode');
+        document.body.classList.remove('dark-mode');
+    }
+
+    const savedUser = sessionStorage.getItem('kitachat_user');
+    if (savedUser) {
+        currentUser = JSON.parse(savedUser);
+        updateUserInterface();
+        socket.emit('register_call_user', currentUser.id);
+    }
+});
 
 // Logout
 function logout() {
@@ -230,11 +256,13 @@ function appendChatMessage(data) {
 
 const msgInput = document.getElementById('message-input');
 if (msgInput) {
-    msgInput.addEventListener('keypress', function(event) {
-        if (event.key === 'Enter') {
+    msgInput.addEventListener('keydown', function(event) {
+        // Jika menekan Enter TANPA tombol Shift, maka kirim pesan
+        if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();
             sendMessage();
         }
+        // Jika Shift + Enter, biarkan membuat baris baru (paragraf)
     });
 }
 
