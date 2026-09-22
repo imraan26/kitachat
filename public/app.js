@@ -331,7 +331,7 @@ if (msgInput) {
     });
 }
 
-// Fungsi untuk memuat daftar anggota keluarga (Menggunakan Panggilan Internet WebRTC)
+// Fungsi untuk memuat daftar anggota keluarga (Sepenuhnya menggunakan Panggilan Internet WebRTC)
 async function loadFamilyMembers() {
     try {
         const response = await fetch('/api/users');
@@ -356,13 +356,13 @@ async function loadFamilyMembers() {
                         <i class="fa-solid fa-user-circle" style="font-size: 35px; color: var(--primary-color);"></i>
                         <div>
                             <h4 style="margin: 0; color: var(--text-light);">${user.name}</h4>
-                            <p style="margin: 0; font-size: 13px; color: gray;"><i class="fa-solid fa-phone"></i> ${user.phone}</p>
+                            <p style="margin: 0; font-size: 13px; color: gray;"><i class="fa-solid fa-wifi"></i> Online via Internet</p>
                         </div>
                     </div>
                     <p style="margin: 5px 0 0 0; font-size: 12px;"><i class="fa-solid fa-cake-candles"></i> Lahir: ${bdate}</p>
                     ${currentUser && currentUser.id !== user.id ? `
                         <button onclick="startCall('${user.id}', '${user.name}')" class="btn-primary" style="width: 100%; margin-top: 10px; padding: 6px; font-size: 12px; cursor: pointer;">
-                            <i class="fa-solid fa-phone"></i> Telepon Internet
+                            <i class="fa-solid fa-phone"></i> Panggil Internet
                         </button>
                     ` : ''}
                 `;

@@ -305,18 +305,29 @@ io.on('connection', async (socket) => {
     }
   });
 
-  // --- SIGNALING TELEPON (WebRTC) ---
+  // --- SIGNALING TELEPON (WebRTC DIOPTIMALKAN UNTUK INTERNET / DATA) ---
   socket.on('register_call_user', (userId) => {
     socket.userId = userId;
   });
 
   socket.on('call_user', (data) => {
-    io.emit('incoming_call', {
-      fromSocketId: socket.id,
-      callerName: data.callerName,
-      offer: data.offer,
-      toUserId: data.toUserId
-    });
+    // Cari socket ID target berdasarkan toUserId agar panggilan terkirim secara privat via data internet
+    let targetSocketId = null;
+    for (let [id, s] of io.of("/").sockets) {
+      if (s.userId == data.toUserId) {
+        targetSocketId = id;
+        break;
+      }
+    }
+
+    if (targetSocketId) {
+      io.to(targetSocketId).emit('incoming_call', {
+        fromSocketId: socket.id,
+        callerName: data.callerName,
+        offer: data.offer,
+        toUserId: data.toUserId
+      });
+    }
   });
 
   socket.on('make_answer', (data) => {
