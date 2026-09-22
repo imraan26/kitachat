@@ -320,13 +320,14 @@ form input {
 /* --- Area Input Chat & Textarea WhatsApp Style --- */
 .chat-input-area {
     display: flex;
-    align-items: flex-end; /* Membuat tombol tetap di bawah saat textarea memanjang */
+    flex-direction: column;
+    align-items: stretch;
     padding: 10px 15px;
-    background-color: var(--card-bg); /* Mengikuti tema card */
-    gap: 10px;
+    background-color: var(--card-bg);
     width: 100%;
     box-sizing: border-box;
     border-top: 1px solid var(--border-color);
+    flex-shrink: 0; /* Mencegah area input ikut tertekan atau tersembunyi */
 }
 
 #message-input {
@@ -336,25 +337,25 @@ form input {
     padding: 10px 14px;
     font-size: 15px;
     line-height: 20px;
-    max-height: 120px; /* Batas tinggi maksimal sebelum scroll */
+    max-height: 120px;
     min-height: 40px;
     background-color: var(--bg-light);
     color: var(--text-light);
     outline: none;
-    resize: none; /* Menghilangkan handle resize manual */
+    resize: none;
     box-sizing: border-box;
     font-family: inherit;
 }
 
 .chat-input-area button.send-button,
 .chat-input-area button {
-    background-color: #00a884; /* Hijau WhatsApp */
+    background-color: #00a884;
     color: white;
     border: none;
     border-radius: 50%;
     width: 40px;
     height: 40px;
-    min-width: 40px; /* Mencegah tombol gepeng */
+    min-width: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -373,6 +374,7 @@ form input {
     #main-screen {
         flex-direction: row; /* Sidebar kiri, area chat/konten kanan */
         padding-top: 0;
+        height: 100%;
     }
     
     .mobile-header-top {
@@ -387,6 +389,7 @@ form input {
         border-right: 1px solid var(--border-color);
         flex-direction: column;
         order: 1;
+        flex-shrink: 0;
     }
 
     /* Perataan kiri & penataan foto profil di sidebar desktop */
@@ -457,8 +460,19 @@ form input {
     .chat-area {
         flex: 1;
         height: 100%;
-        padding-bottom: 0; /* Hapus padding bawah */
+        max-height: 100%;
+        padding-bottom: 0 !important; /* Pastikan tidak ada padding bawah berlebih */
         order: 2;
+        overflow: hidden; /* Mencegah area chat meluber keluar batas bingkai */
+    }
+
+    /* Pastikan tab content di dalam chat-area mengisi penuh dan bersifat fleksibel vertikal */
+    .chat-area .tab-content {
+        height: 100%;
+        max-height: 100%;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
     }
 }
 
