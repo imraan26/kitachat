@@ -71,6 +71,9 @@ async function handleLogin(event) {
             const mainScreen = document.getElementById('main-screen');
             mainScreen.classList.add('active');
             mainScreen.style.display = 'flex';
+
+            // Daftarkan ID user untuk WebRTC Call
+            socket.emit('register_call_user', currentUser.id);
         } else {
             alert(data.error);
         }
@@ -79,8 +82,8 @@ async function handleLogin(event) {
     }
 }
 
-// Navigasi Menu Samping (Terpusat & Optimal)
-function switchTabNav(tabName) {
+// Navigasi Menu Samping & Bawah (Responsif Mobile)
+function switchTabNav(tabName, element) {
     const contents = document.querySelectorAll('.tab-content');
     contents.forEach(el => el.classList.add('hidden'));
 
@@ -101,9 +104,11 @@ function switchTabNav(tabName) {
     } else if (tabName === 'settings') {
         document.getElementById('content-settings').classList.remove('hidden');
     }
+
+    if (element) {
+        element.classList.add('active');
+    }
 }
-
-
 
 // Ganti Tema Dark / Light Mode
 function toggleTheme() {
@@ -115,7 +120,6 @@ function toggleTheme() {
 function logout() {
     currentUser = null;
     
-    // Sembunyikan halaman utama dan tampilkan halaman auth
     const mainScreen = document.getElementById('main-screen');
     if (mainScreen) {
         mainScreen.classList.remove('active');
@@ -128,7 +132,6 @@ function logout() {
         authScreen.style.display = 'flex';
     }
 
-    // Bersihkan input login jika perlu
     const loginPhone = document.getElementById('login-phone');
     const loginPassword = document.getElementById('login-password');
     if (loginPhone) loginPhone.value = '';
@@ -157,49 +160,45 @@ function sendMessage() {
     input.value = '';
 }
 
-// Menampilkan riwayat chat saat pertama kali terhubung
 socket.on('chat_history', (history) => {
     const container = document.getElementById('chat-messages-container');
-    container.innerHTML = ''; // Bersihkan kontainer sebelum muat ulang
+    container.innerHTML = ''; 
 
     history.forEach(data => {
         appendChatMessage(data);
     });
 });
 
-// Menerima pesan secara instan dari server
 socket.on('receive_message', (data) => {
     appendChatMessage(data);
 });
 
-// Fungsi pembantu untuk merender gelembung pesan chat
 function appendChatMessage(data) {
     const container = document.getElementById('chat-messages-container');
     const msgDiv = document.createElement('div');
     const isSelf = currentUser && data.name === currentUser.name;
 
-    msgDiv.style.margin = '10px 0';
-    msgDiv.style.textAlign = isSelf ? 'right' : 'left';
+    msgDiv.className = isSelf ? 'chat-bubble chat-outgoing' : 'chat-bubble chat-incoming';
 
     msgDiv.innerHTML = `
-        <div style="display: inline-block; max-width: 70%; text-align: left; background: ${isSelf ? 'var(--primary-light)' : 'var(--card-bg)'}; border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-            <div style="font-size: 11px; font-weight: bold; color: var(--primary-color); margin-bottom: 2px;">${data.name}</div>
-            <div style="color: var(--text-light); word-break: break-word;">${data.message}</div>
-            <div style="font-size: 9px; color: gray; text-align: right; margin-top: 4px;">${data.time}</div>
-        </div>
+        ${!isSelf ? `<div class="chat-sender-name">${data.name}</div>` : ''}
+        <div>${data.message}</div>
+        <div class="chat-time">${data.time}</div>
     `;
 
     container.appendChild(msgDiv);
     container.scrollTop = container.scrollHeight;
 }
 
-// Event listener tombol Enter untuk pesan
-document.getElementById('message-input').addEventListener('keypress', function(event) {
-    if (event.key === 'Enter') {
-        event.preventDefault();
-        sendMessage();
-    }
-});
+const msgInput = document.getElementById('message-input');
+if (msgInput) {
+    msgInput.addEventListener('keypress', function(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            sendMessage();
+        }
+    });
+}
 
 // Fungsi untuk memuat daftar anggota keluarga
 async function loadFamilyMembers() {
@@ -222,16 +221,16 @@ async function loadFamilyMembers() {
                 const bdate = user.birthdate ? new Date(user.birthdate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Tidak diisi';
 
                 card.innerHTML = `
-    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
-        <i class="fa-solid fa-user-circle" style="font-size: 35px; color: var(--primary-color);"></i>
-        <div>
-            <h4 style="margin: 0; color: var(--text-light);">${user.name}</h4>
-            <p style="margin: 0; font-size: 13px; color: gray;"><i class="fa-solid fa-phone"></i> ${user.phone}</p>
-        </div>
-    </div>
-    <p style="margin: 5px 0 0 0; font-size: 12px;"><i class="fa-solid fa-cake-candles"></i> Lahir: ${bdate}</p>
-    ${currentUser && currentUser.id !== user.id ? `<button onclick="startCall('${user.id}', '${user.name}')" class="btn-primary" style="width: 100%; margin-top: 10px; padding: 6px; font-size: 12px;"><i class="fa-solid fa-phone"></i> Telepon</button>` : ''}
-`;
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+                        <i class="fa-solid fa-user-circle" style="font-size: 35px; color: var(--primary-color);"></i>
+                        <div>
+                            <h4 style="margin: 0; color: var(--text-light);">${user.name}</h4>
+                            <p style="margin: 0; font-size: 13px; color: gray;"><i class="fa-solid fa-phone"></i> ${user.phone}</p>
+                        </div>
+                    </div>
+                    <p style="margin: 5px 0 0 0; font-size: 12px;"><i class="fa-solid fa-cake-candles"></i> Lahir: ${bdate}</p>
+                    ${currentUser && currentUser.id !== user.id ? `<button onclick="startCall('${user.id}', '${user.name}')" class="btn-primary" style="width: 100%; margin-top: 10px; padding: 6px; font-size: 12px;"><i class="fa-solid fa-phone"></i> Telepon</button>` : ''}
+                `;
                 container.appendChild(card);
             });
         }
@@ -278,7 +277,6 @@ async function loadAlbumPhotos() {
     }
 }
 
-// Fungsi untuk mengunggah file foto baru ke album
 async function handleUploadPhoto(event) {
     event.preventDefault();
     const fileInput = document.getElementById('photo-file-input');
@@ -319,7 +317,6 @@ async function handleUploadPhoto(event) {
     }
 }
 
-// Fungsi untuk memuat data ulang tahun dan agenda
 async function loadAgendaAndBirthdays() {
     try {
         const resUsers = await fetch('/api/users');
@@ -382,7 +379,6 @@ async function loadAgendaAndBirthdays() {
     }
 }
 
-// Fungsi untuk menambah agenda baru
 async function handleCreateAgenda(event) {
     event.preventDefault();
     const title = document.getElementById('agenda-title').value;
@@ -411,7 +407,6 @@ async function handleCreateAgenda(event) {
     }
 }
 
-// Fungsi Mengunggah Foto Profil Baru dari Halaman Pengaturan
 async function handleUpdateProfilePhoto(event) {
     event.preventDefault();
     const fileInput = document.getElementById('profile-file-input');
@@ -463,27 +458,6 @@ const rtcConfig = {
     ]
 };
 
-// 1. Saat pengguna login berhasil, daftarkan ID mereka ke socket
-// (Tambahkan baris ini di dalam fungsi handleLogin sukses jika diperlukan, atau jalankan otomatis):
-// socket.emit('register_call_user', currentUser.id);
-
-// Perbarui fungsi loadFamilyMembers agar menampilkan tombol Telepon di kartu anggota
-// Cari bagian card.innerHTML di loadFamilyMembers dan tambahkan tombol telepon:
-/*
-    card.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
-            <i class="fa-solid fa-user-circle" style="font-size: 35px; color: var(--primary-color);"></i>
-            <div>
-                <h4 style="margin: 0; color: var(--text-light);">${user.name}</h4>
-                <p style="margin: 0; font-size: 13px; color: gray;"><i class="fa-solid fa-phone"></i> ${user.phone}</p>
-            </div>
-        </div>
-        <p style="margin: 5px 0 0 0; font-size: 12px;"><i class="fa-solid fa-cake-candles"></i> Lahir: ${bdate}</p>
-        ${currentUser && currentUser.id !== user.id ? `<button onclick="startCall('${user.id}', '${user.name}')" class="btn-primary" style="width: 100%; margin-top: 10px; padding: 6px; font-size: 12px;"><i class="fa-solid fa-phone"></i> Telepon</button>` : ''}
-    `;
-*/
-
-// 2. Memulai Panggilan Keluar
 async function startCall(peerUserId, peerName) {
     const modal = document.getElementById('call-modal');
     modal.classList.remove('hidden');
@@ -511,7 +485,6 @@ async function startCall(peerUserId, peerName) {
         const offer = await peerConnection.createOffer();
         await peerConnection.setLocalDescription(offer);
 
-        // Kirim offer ke server
         socket.emit('call_user', {
             toUserId: peerUserId,
             callerName: currentUser.name,
@@ -525,9 +498,7 @@ async function startCall(peerUserId, peerName) {
     }
 }
 
-// 3. Menerima Panggilan Masuk (Listener dari Server)
 socket.on('incoming_call', async (data) => {
-    // Cek apakah panggilan ini ditujukan untuk user yang sedang aktif
     if (currentUser && data.toUserId == currentUser.id) {
         targetSocketId = data.fromSocketId;
         
@@ -537,12 +508,10 @@ socket.on('incoming_call', async (data) => {
         document.getElementById('call-peer-name').innerText = data.callerName;
         document.getElementById('btn-accept-call').style.display = 'inline-block';
 
-        // Simpan offer sementara untuk diproses saat tombol terima diklik
         window.incomingOffer = data.offer;
     }
 });
 
-// 4. Pengguna Menerima Panggilan
 async function acceptCall() {
     document.getElementById('btn-accept-call').style.display = 'none';
     document.getElementById('call-status-title').innerText = 'Terhubung';
@@ -576,7 +545,6 @@ async function acceptCall() {
     }
 }
 
-// 5. Menjawab Panggilan (Sisi Penelepon menerima Answer)
 socket.on('call_answered', async (data) => {
     document.getElementById('call-status-title').innerText = 'Terhubung';
     try {
@@ -586,7 +554,6 @@ socket.on('call_answered', async (data) => {
     }
 });
 
-// 6. Pertukaran ICE Candidate
 socket.on('ice_candidate', async (data) => {
     try {
         if (peerConnection) {
@@ -597,7 +564,6 @@ socket.on('ice_candidate', async (data) => {
     }
 });
 
-// 7. Mengakhiri / Menolak Panggilan
 function hangUpCall() {
     if (localStream) {
         localStream.getTracks().forEach(track => track.stop());

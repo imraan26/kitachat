@@ -48,8 +48,7 @@
             <!-- Sidebar Kiri -->
             <div class="sidebar">
                 <div class="sidebar-header">
-                    <!-- Bagian Profil di Sidebar (Klik untuk ke Pengaturan) -->
-                    <div class="user-profile" style="cursor: pointer;" onclick="switchTabNav('settings')" title="Klik untuk buka Pengaturan">
+                    <div class="user-profile" style="cursor: pointer;" onclick="switchTabNav('settings', null)" title="Klik untuk buka Pengaturan">
                         <img id="user-avatar" src="https://via.placeholder.com/40" alt="Profil" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
                         <span id="user-display-name">Nama Pengguna</span>
                     </div>
@@ -59,11 +58,11 @@
                     </div>
                 </div>
                 <div class="sidebar-menu">
-                    <button class="menu-item active" onclick="switchTabNav('chat')"><i class="fa-solid fa-message"></i> Obrolan</button>
-                    <button class="menu-item" onclick="switchTabNav('album')"><i class="fa-solid fa-images"></i> Album</button>
-                    <button class="menu-item" onclick="switchTabNav('agenda')"><i class="fa-solid fa-calendar-days"></i> Agenda</button>
-                    <button class="menu-item" onclick="switchTabNav('family')"><i class="fa-solid fa-users"></i> Keluarga</button>
-                    <button class="menu-item" onclick="switchTabNav('settings')"><i class="fa-solid fa-gear"></i> Pengaturan</button>
+                    <button class="menu-item active" onclick="switchTabNav('chat', this)"><i class="fa-solid fa-message"></i> <span>Obrolan</span></button>
+                    <button class="menu-item" onclick="switchTabNav('album', this)"><i class="fa-solid fa-images"></i> <span>Album</span></button>
+                    <button class="menu-item" onclick="switchTabNav('agenda', this)"><i class="fa-solid fa-calendar-days"></i> <span>Agenda</span></button>
+                    <button class="menu-item" onclick="switchTabNav('family', this)"><i class="fa-solid fa-users"></i> <span>Keluarga</span></button>
+                    <button class="menu-item" onclick="switchTabNav('settings', this)"><i class="fa-solid fa-gear"></i> <span>Pengaturan</span></button>
                 </div>
             </div>
 
@@ -75,9 +74,7 @@
                         <h3><i class="fa-solid fa-users-rectangle"></i> Grup Keluarga Besar Kitachat</h3>
                         <span class="status-online">Semua Anggota Terhubung</span>
                     </div>
-                    <div class="chat-messages" id="chat-messages-container">
-                        <!-- Pesan akan muncul disini secara dinamis -->
-                    </div>
+                    <div class="chat-messages" id="chat-messages-container"></div>
                     <div class="chat-input-area">
                         <input type="text" id="message-input" placeholder="Ketik pesan keluarga...">
                         <button onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i></button>
@@ -91,24 +88,18 @@
                         <span class="status-online">Momen Indah Bersama</span>
                     </div>
                     <div style="padding: 20px; overflow-y: auto; flex: 1;">
-                        <!-- Form Upload Foto dengan File Picker -->
                         <div style="background: var(--card-bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 20px;">
                             <h4 style="margin-bottom: 10px; color: var(--primary-color);">Unggah Momen Keluarga</h4>
                             <form onsubmit="handleUploadPhoto(event)" style="display: flex; gap: 10px; flex-direction: column;">
                                 <div>
                                     <label style="font-size: 13px; display: block; margin-bottom: 5px; color: var(--text-light);">Pilih Gambar / Ambil Foto:</label>
                                     <input type="file" id="photo-file-input" accept="image/*" required style="padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-light); color: var(--text-light); width: 100%;">
-                                    <small style="color: gray; font-size: 11px;">Mendukung ambil foto langsung, galeri komputer/handphone, dan Google Drive.</small>
                                 </div>
                                 <input type="text" id="photo-caption-input" placeholder="Keterangan / Caption Foto" style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-light); color: var(--text-light);">
                                 <button type="submit" class="btn-primary" style="width: 150px;">Unggah Foto</button>
                             </form>
                         </div>
-
-                        <!-- Galeri Grid Foto -->
-                        <div id="album-grid-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px;">
-                            <!-- Foto dari database akan dimuat secara dinamis disini -->
-                        </div>
+                        <div id="album-grid-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px;"></div>
                     </div>
                 </div>
 
@@ -119,34 +110,23 @@
                         <span class="status-online">Jadwal & Momen Penting</span>
                     </div>
                     <div style="padding: 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 20px;">
-                        
-                        <!-- Bagian Pengingat Ulang Tahun -->
                         <div style="background: var(--card-bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
                             <h4 style="margin-bottom: 10px; color: var(--primary-color);"><i class="fa-solid fa-cake-candles"></i> Daftar Ulang Tahun Anggota</h4>
-                            <div id="birthday-list-container" style="display: flex; flex-direction: column; gap: 8px;">
-                                <!-- Daftar ulang tahun dimuat dinamis -->
-                            </div>
+                            <div id="birthday-list-container" style="display: flex; flex-direction: column; gap: 8px;"></div>
                         </div>
-
-                        <!-- Form Tambah Agenda Baru -->
                         <div style="background: var(--card-bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
                             <h4 style="margin-bottom: 10px; color: var(--primary-color);"><i class="fa-solid fa-plus-circle"></i> Tambah Agenda Keluarga</h4>
                             <form onsubmit="handleCreateAgenda(event)" style="display: flex; gap: 10px; flex-direction: column;">
-                                <input type="text" id="agenda-title" placeholder="Nama Acara / Kegiatan (Cth: Arisan Keluarga)" required style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-light); color: var(--text-light);">
+                                <input type="text" id="agenda-title" placeholder="Nama Acara / Kegiatan (Cth: Arisan)" required style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-light); color: var(--text-light);">
                                 <input type="date" id="agenda-date" required style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-light); color: var(--text-light);">
                                 <input type="text" id="agenda-desc" placeholder="Keterangan / Lokasi (Opsional)" style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-light); color: var(--text-light);">
                                 <button type="submit" class="btn-primary" style="width: 170px;">Simpan Agenda</button>
                             </form>
                         </div>
-
-                        <!-- Daftar Agenda -->
                         <div style="background: var(--card-bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
                             <h4 style="margin-bottom: 10px; color: var(--primary-color);"><i class="fa-solid fa-list-check"></i> Daftar Kegiatan Mendatang</h4>
-                            <div id="agenda-list-container" style="display: flex; flex-direction: column; gap: 10px;">
-                                <!-- Daftar agenda dimuat dinamis -->
-                            </div>
+                            <div id="agenda-list-container" style="display: flex; flex-direction: column; gap: 10px;"></div>
                         </div>
-
                     </div>
                 </div>
 
@@ -156,28 +136,21 @@
                         <h3><i class="fa-solid fa-users"></i> Daftar Anggota Keluarga Kitachat</h3>
                         <span class="status-online">Direktori Keluarga Besar</span>
                     </div>
-                    <div class="family-directory" id="family-list-container" style="padding: 20px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px;">
-                        <!-- Daftar kartu anggota akan dimuat secara otomatis disini -->
-                    </div>
+                    <div class="family-directory" id="family-list-container" style="padding: 20px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px;"></div>
 
                     <!-- Modal Panggilan Telepon (WebRTC) -->
-<div id="call-modal" class="tab-content hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 2000;">
-    <div style="background: var(--card-bg); padding: 25px; border-radius: 12px; width: 350px; text-align: center; border: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
-        <i class="fa-solid fa-phone-volume" style="font-size: 50px; color: var(--primary-color); margin-bottom: 15px; animation: bounce 1s infinite;"></i>
-        <h3 id="call-status-title" style="margin-bottom: 10px; color: var(--text-light);">Memanggil...</h3>
-        <p id="call-peer-name" style="color: gray; margin-bottom: 20px; font-size: 14px;">Nama Anggota Keluarga</p>
-        
-        <!-- Tombol Aksi Panggilan -->
-        <div id="call-action-buttons" style="display: flex; justify-content: center; gap: 15px;">
-            <button id="btn-accept-call" onclick="acceptCall()" class="btn-primary" style="background: #27ae60; display: none; padding: 10px 20px;"><i class="fa-solid fa-check"></i> Terima</button>
-            <button onclick="hangUpCall()" style="background: #e74c3c; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold;"><i class="fa-solid fa-phone-slash"></i> Akhiri / Tolak</button>
-        </div>
-        
-        <!-- Audio Tersembunyi untuk Suara WebRTC -->
-        <audio id="remote-audio" autoplay></audio>
-    </div>
-</div>
-
+                    <div id="call-modal" class="tab-content hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 2000;">
+                        <div style="background: var(--card-bg); padding: 25px; border-radius: 12px; width: 350px; text-align: center; border: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+                            <i class="fa-solid fa-phone-volume" style="font-size: 50px; color: var(--primary-color); margin-bottom: 15px;"></i>
+                            <h3 id="call-status-title" style="margin-bottom: 10px; color: var(--text-light);">Memanggil...</h3>
+                            <p id="call-peer-name" style="color: gray; margin-bottom: 20px; font-size: 14px;">Nama Anggota Keluarga</p>
+                            <div id="call-action-buttons" style="display: flex; justify-content: center; gap: 15px;">
+                                <button id="btn-accept-call" onclick="acceptCall()" class="btn-primary" style="background: #27ae60; display: none; padding: 10px 20px;"><i class="fa-solid fa-check"></i> Terima</button>
+                                <button onclick="hangUpCall()" style="background: #e74c3c; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold;"><i class="fa-solid fa-phone-slash"></i> Akhiri / Tolak</button>
+                            </div>
+                            <audio id="remote-audio" autoplay></audio>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Tab Pengaturan -->
@@ -187,8 +160,6 @@
                         <span class="status-online">Personalisasi Kitachat</span>
                     </div>
                     <div style="padding: 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 20px; max-width: 500px;">
-                        
-                        <!-- Ganti Foto Profil -->
                         <div style="background: var(--card-bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
                             <h4 style="margin-bottom: 10px; color: var(--primary-color);">Ganti Foto Profil</h4>
                             <form onsubmit="handleUpdateProfilePhoto(event)" style="display: flex; flex-direction: column; gap: 10px;">
@@ -196,8 +167,6 @@
                                 <button type="submit" class="btn-primary" style="width: 150px;">Simpan Foto</button>
                             </form>
                         </div>
-
-                        <!-- Pengaturan Tema -->
                         <div style="background: var(--card-bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
                             <div>
                                 <h4 style="margin: 0; color: var(--primary-color);">Tema Tampilan</h4>
@@ -205,8 +174,6 @@
                             </div>
                             <button type="button" onclick="toggleTheme()" class="btn-primary" style="padding: 8px 15px;"><i class="fa-solid fa-circle-half-stroke"></i> Ubah Tema</button>
                         </div>
-
-                        <!-- Logout -->
                         <div style="background: var(--card-bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
                             <div>
                                 <h4 style="margin: 0; color: #e74c3c;">Keluar Aplikasi</h4>
@@ -214,7 +181,6 @@
                             </div>
                             <button type="button" onclick="logout()" style="padding: 8px 15px; background: #e74c3c; color: white; border: none; border-radius: 6px; cursor: pointer;"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
                         </div>
-
                     </div>
                 </div>
 

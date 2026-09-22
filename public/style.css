@@ -1,19 +1,19 @@
 :root {
-    --primary-color: #4A7C59;
-    --primary-light: #A8E6CF;
-    --bg-light: #F9F9FB;
-    --text-light: #2B2B2B;
+    --primary-color: #00a884;
+    --primary-light: #d9fdd3;
+    --bg-light: #efeae2;
+    --text-light: #111b21;
     --card-bg: #FFFFFF;
-    --border-color: #E1E1E1;
+    --border-color: #d1d7db;
 }
 
 body.dark-mode {
-    --primary-color: #2D4A37;
-    --primary-light: #3B634A;
-    --bg-light: #121212;
-    --text-light: #E1E1E1;
-    --card-bg: #1A1D20;
-    --border-color: #2A2D32;
+    --primary-color: #00a884;
+    --primary-light: #005c4b;
+    --bg-light: #0b141a;
+    --text-light: #e9edef;
+    --card-bg: #111b21;
+    --border-color: #222d34;
 }
 
 * {
@@ -30,12 +30,21 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
+    overflow: hidden;
 }
 
 #app-container {
     width: 100vw;
     height: 100vh;
     display: flex;
+    max-width: 480px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+
+@media (min-width: 768px) {
+    #app-container {
+        max-width: 100vw;
+    }
 }
 
 .screen {
@@ -53,13 +62,15 @@ body {
     justify-content: center;
     align-items: center;
     background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    padding: 20px;
 }
 
 .auth-card {
     background: var(--card-bg);
-    padding: 30px;
+    padding: 25px;
     border-radius: 12px;
-    width: 380px;
+    width: 100%;
+    max-width: 380px;
     box-shadow: 0 8px 24px rgba(0,0,0,0.15);
     text-align: center;
 }
@@ -102,6 +113,7 @@ form input {
     border-radius: 6px;
     background: var(--card-bg);
     color: var(--text-light);
+    font-size: 14px;
 }
 
 .btn-primary {
@@ -123,22 +135,37 @@ form input {
     display: none !important;
 }
 
-/* Halaman Utama / WhatsApp Style */
+/* Halaman Utama / WhatsApp Style Mobile-First */
 #main-screen {
     display: none;
-    flex-direction: row;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+}
+
+@media (min-width: 768px) {
+    #main-screen {
+        flex-direction: row;
+    }
 }
 
 .sidebar {
-    width: 300px;
+    width: 100%;
+    height: 100%;
     background: var(--card-bg);
     border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
 }
 
+@media (min-width: 768px) {
+    .sidebar {
+        width: 320px;
+    }
+}
+
 .sidebar-header {
-    padding: 15px;
+    padding: 12px 15px;
     background: var(--primary-color);
     color: white;
     display: flex;
@@ -164,31 +191,62 @@ form input {
     color: white;
     font-size: 18px;
     cursor: pointer;
-    margin-left: 10px;
+    margin-left: 12px;
 }
 
 .sidebar-menu {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    background: var(--card-bg);
+    border-top: 1px solid var(--border-color);
+    order: 2;
+}
+
+@media (min-width: 768px) {
+    .sidebar-menu {
+        flex-direction: column;
+        border-top: none;
+        order: unset;
+        flex: 1;
+    }
 }
 
 .menu-item {
-    padding: 15px 20px;
+    flex: 1;
+    padding: 10px 5px;
     background: none;
     border: none;
-    text-align: left;
+    text-align: center;
     cursor: pointer;
     color: var(--text-light);
-    font-size: 15px;
+    font-size: 11px;
     display: flex;
-    gap: 12px;
+    flex-direction: column;
+    gap: 4px;
     align-items: center;
-    border-bottom: 1px solid var(--border-color);
+    justify-content: center;
+    border-right: 1px solid var(--border-color);
+}
+
+@media (min-width: 768px) {
+    .menu-item {
+        flex-direction: row;
+        text-align: left;
+        font-size: 15px;
+        padding: 15px 20px;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+        gap: 12px;
+    }
+}
+
+.menu-item i {
+    font-size: 18px;
 }
 
 .menu-item.active, .menu-item:hover {
     background-color: var(--primary-light);
-    color: #121212;
+    color: var(--primary-color);
 }
 
 .chat-area {
@@ -196,40 +254,93 @@ form input {
     display: flex;
     flex-direction: column;
     background: var(--bg-light);
+    height: 100%;
+    overflow: hidden;
 }
 
 .chat-header {
-    padding: 15px;
+    padding: 12px 15px;
     background: var(--card-bg);
     border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .status-online {
     font-size: 12px;
-    color: #28a745;
+    color: #00a884;
 }
 
 .chat-messages {
     flex: 1;
-    padding: 20px;
+    padding: 15px;
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Gelembung Pesan Ala WhatsApp */
+.chat-bubble {
+    max-width: 80%;
+    padding: 8px 12px;
+    border-radius: 8px;
+    position: relative;
+    font-size: 14px;
+    line-height: 1.4;
+    box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.13);
+    word-break: break-word;
+}
+
+.chat-incoming {
+    align-self: flex-start;
+    background: var(--card-bg);
+    color: var(--text-light);
+    border-top-left-radius: 0;
+}
+
+.chat-outgoing {
+    align-self: flex-end;
+    background: var(--primary-light);
+    color: var(--text-light);
+    border-top-right-radius: 0;
+}
+
+.chat-sender-name {
+    font-size: 11px;
+    font-weight: bold;
+    color: var(--primary-color);
+    margin-bottom: 2px;
+}
+
+.chat-time {
+    font-size: 10px;
+    color: #667781;
+    text-align: right;
+    margin-top: 4px;
+    float: right;
+    margin-left: 8px;
 }
 
 .chat-input-area {
-    padding: 15px;
+    padding: 10px 12px;
     background: var(--card-bg);
     display: flex;
-    gap: 10px;
+    gap: 8px;
+    align-items: center;
     border-top: 1px solid var(--border-color);
 }
 
 .chat-input-area input {
     flex: 1;
-    padding: 10px;
+    padding: 10px 14px;
     border: 1px solid var(--border-color);
     border-radius: 20px;
     background: var(--bg-light);
     color: var(--text-light);
+    font-size: 14px;
+    outline: none;
 }
 
 .chat-input-area button {
@@ -240,4 +351,9 @@ form input {
     height: 40px;
     border-radius: 50%;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
 }
