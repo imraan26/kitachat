@@ -316,39 +316,54 @@ form input {
     margin-left: 8px;
 }
 
+/* --- KODE BARU: Area Input Chat & Textarea WhatsApp Style --- */
 .chat-input-area {
-    padding: 10px 15px;
-    background: var(--card-bg);
     display: flex;
+    align-items: flex-end; /* Membuat tombol tetap di bawah saat textarea memanjang */
+    padding: 10px 15px;
+    background-color: var(--card-bg); /* Mengikuti tema card */
     gap: 10px;
-    align-items: flex-end;
+    width: 100%;
+    box-sizing: border-box;
     border-top: 1px solid var(--border-color);
 }
 
-.chat-input-area input {
+#message-input {
     flex: 1;
-    padding: 10px 14px;
     border: 1px solid var(--border-color);
     border-radius: 20px;
-    background: var(--bg-light);
+    padding: 10px 14px;
+    font-size: 15px;
+    line-height: 20px;
+    max-height: 120px; /* Batas tinggi maksimal sebelum scroll */
+    min-height: 40px;
+    background-color: var(--bg-light);
     color: var(--text-light);
-    font-size: 14px;
     outline: none;
+    resize: none; /* Menghilangkan handle resize manual */
+    box-sizing: border-box;
+    font-family: inherit;
 }
 
 .chat-input-area button {
-    background-color: var(--primary-color);
+    background-color: #00a884; /* Hijau WhatsApp */
     color: white;
     border: none;
+    border-radius: 50%;
     width: 40px;
     height: 40px;
-    border-radius: 50%;
-    cursor: pointer;
+    min-width: 40px; /* Mencegah tombol gepeng */
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
+    cursor: pointer;
     flex-shrink: 0;
+    box-shadow: 0 1px 2px rgba(11,20,26,.08);
+    transition: background-color 0.2s;
+}
+
+.chat-input-area button:hover {
+    background-color: #008f72;
 }
 
 /* --- TAMPILAN DESKTOP (Layar >= 768px) --- */
@@ -526,4 +541,15 @@ form input {
 .photo-dropdown button:hover {
     background: var(--primary-light);
     color: var(--primary-color);
+}
+
+/* Styling tambahan untuk mobile & pencegah auto-zoom iOS */
+@media (max-width: 600px) {
+    .chat-input-area {
+        padding: 5px 10px;
+    }
+    
+    #message-input {
+        font-size: 16px; /* Mencegah auto-zoom di iOS */
+    }
 }

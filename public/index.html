@@ -89,9 +89,11 @@
                     </div>
                     <div class="chat-messages" id="chat-messages-container"></div>
                     <div class="chat-input-area">
-                        <textarea id="message-input" rows="1" placeholder="Ketik pesan keluarga..." style="resize: none;"></textarea>
-                        <button onclick="sendMessage()" id="send-btn">
-                            <i class="fa-solid fa-paper-plane"></i>
+                        <textarea id="message-input" placeholder="Ketik pesan..." rows="1" style="resize: none;"></textarea>
+                        <button class="send-button" onclick="sendMessage()">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="white">
+                                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
+                            </svg>
                         </button>
                     </div>
                 </div>
