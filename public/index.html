@@ -80,37 +80,45 @@
             </div>
 
             <!-- Ruang Konten Utama -->
-            <div class="chat-area">
-                <!-- Tab Obrolan Keluarga -->
-                <div id="content-chat" class="tab-content active" style="display: flex; flex-direction: column; height: 100%;">
-                    <div class="chat-header">
-                        <h3><i class="fa-solid fa-users-rectangle"></i> Grup Keluarga</h3>
-                        <span class="status-online">Semua Anggota Terhubung</span>
-                    </div>
-                    <div class="chat-messages" id="chat-messages-container"></div>
-                    
-                    <!-- Area Input Pesan dengan Dukungan Textarea & Reply Preview -->
-                    <div class="chat-input-area" style="flex-direction: column; align-items: stretch;">
-                        <!-- Container Preview Balasan Pesan (Reply) -->
-                        <div id="reply-preview-container" class="hidden" style="padding: 6px 10px; background: rgba(0,168,132,0.1); border-left: 3px solid var(--primary-color); border-radius: 4px; margin-bottom: 6px; font-size: 12px; display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <strong id="reply-preview-sender" style="color: var(--primary-color);">Membalas...</strong>
-                                <p id="reply-preview-text" style="color: var(--text-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; margin: 0;"></p>
-                            </div>
-                            <button onclick="cancelReply()" style="background: none; border: none; cursor: pointer; font-size: 14px; color: var(--text-light);"><i class="fa-solid fa-xmark"></i></button>
-                        </div>
-
-                        <!-- Baris Input Utama -->
-                        <div style="display: flex; gap: 10px; align-items: flex-end; width: 100%;">
-                            <textarea id="message-input" placeholder="Ketik pesan..." rows="1" style="resize: none;"></textarea>
-                            <button class="send-button" onclick="sendMessage()" title="Kirim Pesan">
-                                <svg viewBox="0 0 24 24" width="20" height="20" fill="white">
-                                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
+<div class="chat-area">
+    <!-- Tab Obrolan Keluarga -->
+    <div id="content-chat" class="tab-content active" style="display: flex; flex-direction: column; height: 100%;">
+        <div class="chat-header">
+            <h3><i class="fa-solid fa-users-rectangle"></i> Grup Keluarga</h3>
+            <span class="status-online">Semua Anggota Terhubung</span>
+        </div>
+        <div class="chat-messages" id="chat-messages-container"></div>
+        
+        <!-- Area Input Pesan dengan Dukungan Textarea & Reply Preview -->
+        <div class="chat-input-area" style="flex-direction: column; align-items: stretch;">
+            <!-- Container Preview Balasan Pesan (Reply) -->
+            <div id="reply-preview-container" class="hidden" style="padding: 6px 10px; background: rgba(0,168,132,0.1); border-left: 3px solid var(--primary-color); border-radius: 4px; margin-bottom: 6px; font-size: 12px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong id="reply-preview-sender" style="color: var(--primary-color);">Membalas...</strong>
+                    <p id="reply-preview-text" style="color: var(--text-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; margin: 0;"></p>
                 </div>
+                <button onclick="cancelReply()" style="background: none; border: none; cursor: pointer; font-size: 14px; color: var(--text-light);"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <!-- Baris Input Utama -->
+            <div style="display: flex; gap: 10px; align-items: flex-end; width: 100%;">
+                <!-- Tambahan Tombol Ikon Klip untuk Unggah Gambar di Chat -->
+                <label for="chat-file-input" style="cursor: pointer; color: #667781; font-size: 20px; padding-bottom: 8px; flex-shrink: 0;" title="Kirim Gambar">
+                    <i class="fa-solid fa-paperclip"></i>
+                </label>
+                <input type="file" id="chat-file-input" accept="image/*" style="display: none;">
+
+                <textarea id="message-input" placeholder="Ketik pesan..." rows="1" style="resize: none;"></textarea>
+                
+                <button class="send-button" onclick="sendMessage()" title="Kirim Pesan">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="white">
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
                 <!-- Tab Album Foto -->
                 <div id="content-album" class="tab-content hidden" style="display: flex; flex-direction: column; height: 100%;">

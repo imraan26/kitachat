@@ -754,6 +754,56 @@ async function deleteAlbumPhoto(photoId) {
     }
 }
 
+// --- FITUR KIRIM GAMBAR DI OBROLAN ---
+const chatFileInput = document.getElementById('chat-file-input');
+
+if (chatFileInput) {
+    chatFileInput.addEventListener('change', async function() {
+        if (this.files && this.files[0]) {
+            const file = this.files[0];
+
+            if (!currentUser) {
+                alert('Silakan login terlebih dahulu!');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('user_id', currentUser.id);
+
+            try {
+                // Menggunakan endpoint /api/albums untuk menyimpan file gambar ke server & folder uploads
+                const response = await fetch('/api/albums', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (response.ok) {
+                    // Kirim pesan berisi gambar melalui Socket.io agar terlihat oleh anggota keluarga lain
+                    const imageMessageHtml = `<img src="${result.photo.image_url}" style="max-width: 220px; border-radius: 8px; display: block; cursor: pointer;" onclick="openZoomModal('${result.photo.image_url}')">`;
+                    
+                    const messageData = {
+                        userId: currentUser.id,
+                        name: currentUser.name,
+                        message: imageMessageHtml,
+                        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    };
+
+                    socket.emit('send_message', messageData);
+                } else {
+                    alert(result.error || 'Gagal mengunggah gambar.');
+                }
+            } catch (err) {
+                console.error('Error saat mengirim gambar di chat:', err);
+                alert('Terjadi kesalahan jaringan.');
+            }
+
+            this.value = ''; // Reset input file
+        }
+    });
+}
+
 socket.on('call_ended', () => {
     hangUpCall();
 });

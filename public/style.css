@@ -151,8 +151,9 @@ form input {
     display: none;
     flex-direction: column;
     width: 100%;
-    height: 100%;
+    height: 100vh;
     position: relative;
+    padding-top: env(safe-area-inset-top, 30px);
 }
 
 /* Header Atas Khusus Mobile */
