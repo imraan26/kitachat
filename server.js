@@ -16,6 +16,21 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
+const express = require('express');
+const fs = require('fs'); // Tambahkan modul File System
+const path = require('path');
+// ... (kode lainnya tetap sama)
+
+const app = express();
+
+// Pastikan folder public/uploads otomatis dibuat jika belum ada di server
+const uploadDir = path.join(__dirname, 'public/uploads');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+    console.log('Folder public/uploads berhasil dibuat secara otomatis.');
+}
+
+
 // Konfigurasi Penyimpanan File Upload menggunakan Multer
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -175,7 +190,6 @@ app.post('/api/albums', upload.single('image'), async (req, res) => {
 app.delete('/api/albums/:id', async (req, res) => {
     const { id } = req.params;
     try {
-        // Diselaraskan menggunakan tabel 'albums' sesuai struktur database utama
         await pool.query('DELETE FROM albums WHERE id = $1', [id]);
         res.json({ message: 'Foto berhasil dihapus dari album.' });
     } catch (err) {
@@ -220,7 +234,7 @@ app.post('/api/agendas', async (req, res) => {
   }
 });
 
-// 9. API POST /api/update-photo (Memperbarui foto profil pengguna)
+// 9. API POST /api/update-photo (Memperbarui foto profil pengguna secara sinkron ke database)
 app.post('/api/update-photo', upload.single('image'), async (req, res) => {
   try {
     const { user_id } = req.body;

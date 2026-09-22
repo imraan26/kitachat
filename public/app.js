@@ -327,33 +327,33 @@ async function loadAlbumPhotos() {
             }
 
             photos.forEach((item, index) => {
-    const card = document.createElement('div');
-    card.style.background = 'var(--card-bg)';
-    card.style.border = '1px solid var(--border-color)';
-    card.style.borderRadius = '8px';
-    card.style.overflow = 'hidden';
-    card.style.boxShadow = '0 2px 5px rgba(0,0,0,0.05)';
-    card.style.position = 'relative';
+                const card = document.createElement('div');
+                card.style.background = 'var(--card-bg)';
+                card.style.border = '1px solid var(--border-color)';
+                card.style.borderRadius = '8px';
+                card.style.overflow = 'hidden';
+                card.style.boxShadow = '0 2px 5px rgba(0,0,0,0.05)';
+                card.style.position = 'relative';
 
-    const menuId = `album-menu-${item.id || index}`;
-    const isOwner = currentUser && String(currentUser.id) === String(item.user_id);
+                const menuId = `album-menu-${item.id || index}`;
+                const isOwner = currentUser && String(currentUser.id) === String(item.user_id);
 
-    card.innerHTML = `
-        <div class="media-wrapper" style="width: 100%;">
-            <img src="${item.image_url}" alt="Foto Album" onclick="openZoomModal('${item.image_url}')" onerror="this.src='https://via.placeholder.com/220?text=Gagal+Muat+Gambar'">
-            <button class="photo-menu-btn" onclick="togglePhotoMenu(event, '${menuId}')"><i class="fa-solid fa-ellipsis-vertical"></i></button>
-            <div id="${menuId}" class="photo-dropdown">
-                <button onclick="downloadPhoto('${item.image_url}')"><i class="fa-solid fa-download"></i> Simpan</button>
-                ${isOwner ? `<button onclick="deleteAlbumPhoto('${item.id}')" style="color: #e74c3c;"><i class="fa-solid fa-trash"></i> Hapus</button>` : ''}
-            </div>
-        </div>
-        <div style="padding: 10px;">
-            <p style="margin: 0; font-size: 14px; font-weight: bold; color: var(--text-light);">${item.caption || 'Tanpa keterangan'}</p>
-            <p style="margin: 5px 0 0 0; font-size: 11px; color: gray;">Oleh: ${item.uploader_name}</p>
-        </div>
-    `;
-    container.appendChild(card);
-});
+                card.innerHTML = `
+                    <div class="media-wrapper" style="width: 100%;">
+                        <img src="${item.image_url}" alt="Foto Album" onclick="openZoomModal('${item.image_url}')" onerror="this.src='https://via.placeholder.com/220?text=Gagal+Muat+Gambar'">
+                        <button class="photo-menu-btn" onclick="togglePhotoMenu(event, '${menuId}')"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+                        <div id="${menuId}" class="photo-dropdown">
+                            <button onclick="downloadPhoto('${item.image_url}')"><i class="fa-solid fa-download"></i> Simpan</button>
+                            ${isOwner ? `<button onclick="deleteAlbumPhoto('${item.id}')" style="color: #e74c3c;"><i class="fa-solid fa-trash"></i> Hapus</button>` : ''}
+                        </div>
+                    </div>
+                    <div style="padding: 10px;">
+                        <p style="margin: 0; font-size: 14px; font-weight: bold; color: var(--text-light);">${item.caption || 'Tanpa keterangan'}</p>
+                        <p style="margin: 5px 0 0 0; font-size: 11px; color: gray;">Oleh: ${item.uploader_name}</p>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
         }
     } catch (err) {
         console.error('Gagal memuat album:', err);
