@@ -1,6 +1,61 @@
 const socket = io();
 let currentUser = null;
 
+// --- FITUR NADA DERING & NOTIFIKASI SUARA (Web Audio API) ---
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playNotificationSound() {
+    try {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); 
+        osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15); 
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.15);
+    } catch (e) {
+        console.log('Audio error:', e);
+    }
+}
+
+let ringtoneInterval = null;
+function startRingtone() {
+    stopRingtone();
+    ringtoneInterval = setInterval(() => {
+        try {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const now = audioCtx.currentTime;
+            [0, 0.15].forEach(delay => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(440, now + delay);
+                osc.frequency.setValueAtTime(493.88, now + delay + 0.08);
+                gain.gain.setValueAtTime(0.15, now + delay);
+                gain.gain.linearRampToValueAtTime(0.01, now + delay + 0.12);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now + delay);
+                osc.stop(now + delay + 0.12);
+            });
+        } catch (e) {
+            console.log('Ringtone error:', e);
+        }
+    }, 2000);
+}
+
+function stopRingtone() {
+    if (ringtoneInterval) {
+        clearInterval(ringtoneInterval);
+        ringtoneInterval = null;
+    }
+}
+
 // Ganti Tab Login / Register
 function switchTab(tab) {
     if (tab === 'login') {
@@ -235,6 +290,10 @@ socket.on('chat_history', (history) => {
 
 socket.on('receive_message', (data) => {
     appendChatMessage(data);
+    // Bunyikan suara notifikasi jika pesan berasal dari pengguna lain
+    if (currentUser && data.name !== currentUser.name) {
+        playNotificationSound();
+    }
 });
 
 function appendChatMessage(data) {
@@ -272,7 +331,7 @@ if (msgInput) {
     });
 }
 
-// Fungsi untuk memuat daftar anggota keluarga
+// Fungsi untuk memuat daftar anggota keluarga (Menggunakan Tautan Stabil tel:)
 async function loadFamilyMembers() {
     try {
         const response = await fetch('/api/users');
@@ -301,7 +360,11 @@ async function loadFamilyMembers() {
                         </div>
                     </div>
                     <p style="margin: 5px 0 0 0; font-size: 12px;"><i class="fa-solid fa-cake-candles"></i> Lahir: ${bdate}</p>
-                    ${currentUser && currentUser.id !== user.id ? `<button onclick="startCall('${user.id}', '${user.name}')" class="btn-primary" style="width: 100%; margin-top: 10px; padding: 6px; font-size: 12px;"><i class="fa-solid fa-phone"></i> Telepon</button>` : ''}
+                    ${currentUser && currentUser.id !== user.id ? `
+                        <a href="tel:${user.phone}" class="btn-primary" style="width: 100%; margin-top: 10px; padding: 6px; font-size: 12px; text-decoration: none; display: inline-block; text-align: center; box-sizing: border-box;">
+                            <i class="fa-solid fa-phone"></i> Telepon
+                        </a>
+                    ` : ''}
                 `;
                 container.appendChild(card);
             });
@@ -602,10 +665,12 @@ socket.on('incoming_call', async (data) => {
         document.getElementById('btn-accept-call').style.display = 'inline-block';
 
         window.incomingOffer = data.offer;
+        startRingtone(); // Aktifkan nada dering saat panggilan masuk
     }
 });
 
 async function acceptCall() {
+    stopRingtone(); // Matikan nada dering saat panggilan diterima
     document.getElementById('btn-accept-call').style.display = 'none';
     document.getElementById('call-status-title').innerText = 'Terhubung';
 
@@ -639,6 +704,7 @@ async function acceptCall() {
 }
 
 socket.on('call_answered', async (data) => {
+    stopRingtone(); // Matikan nada dering ketika panggilan tersambung
     document.getElementById('call-status-title').innerText = 'Terhubung';
     try {
         await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
@@ -658,6 +724,7 @@ socket.on('ice_candidate', async (data) => {
 });
 
 function hangUpCall() {
+    stopRingtone(); // Pastikan nada dering berhenti saat panggilan ditutup
     if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
     }
