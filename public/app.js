@@ -43,7 +43,6 @@ async function handleRegister(event) {
     }
 }
 
-// Proses Login
 async function handleLogin(event) {
     event.preventDefault();
     const phone = document.getElementById('login-phone').value;
@@ -59,20 +58,11 @@ async function handleLogin(event) {
 
         if (response.ok) {
             currentUser = data.user;
-            document.getElementById('user-display-name').innerText = currentUser.name;
-            if (currentUser.photo_url) {
-                document.getElementById('user-avatar').src = currentUser.photo_url;
-            }
             
-            // Sembunyikan halaman auth dan tampilkan halaman utama
-            document.getElementById('auth-screen').classList.remove('active');
-            document.getElementById('auth-screen').style.display = 'none';
-            
-            const mainScreen = document.getElementById('main-screen');
-            mainScreen.classList.add('active');
-            mainScreen.style.display = 'flex';
+            // SIMPAN KE SESSION STORAGE AGAR TIDAK HILANG SAAT REFRESH
+            sessionStorage.setItem('kitachat_user', JSON.stringify(currentUser));
 
-            // Daftarkan ID user untuk WebRTC Call
+            updateUserInterface();
             socket.emit('register_call_user', currentUser.id);
         } else {
             alert(data.error);
