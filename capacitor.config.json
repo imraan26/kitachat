@@ -1,0 +1,9 @@
+{
+  "appId": "com.family.kitachat",
+  "appName": "kitachat",
+  "webDir": "public",
+  "server": {
+    "url": "https://kitachat-production.up.railway.app",
+    "cleartext": true
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "Kitachat - Hub Keluarga",
+  "short_name": "Kitachat",
+  "description": "Aplikasi hub keluarga tercinta bergaya WhatsApp.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#8fbc8f",
+  "icons": [
+    {
+      "src": "https://via.placeholder.com/192/8fbc8f/ffffff?text=K",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://via.placeholder.com/512/8fbc8f/ffffff?text=K",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
