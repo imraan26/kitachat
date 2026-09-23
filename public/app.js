@@ -207,7 +207,7 @@ function logout() {
     if (loginPassword) loginPassword.value = '';
 }
 
-function sendMessage() {
+async function sendMessage() {
     const input = document.getElementById('message-input');
     const messageText = input.value.trim();
     if (!messageText) return;
@@ -217,14 +217,26 @@ function sendMessage() {
         return;
     }
 
-    const messageData = {
-        userId: currentUser.id,
-        name: currentUser.name,
-        message: messageText
-    };
+    const formData = new FormData();
+    formData.append('user_id', currentUser.id);
+    formData.append('message', messageText);
 
-    socket.emit('send_message', messageData);
-    input.value = '';
+    try {
+        const response = await fetch('/api/send-message', {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+
+        if (response.ok) {
+            input.value = '';
+            input.style.height = 'auto';
+        } else {
+            alert(result.error || 'Gagal mengirim pesan.');
+        }
+    } catch (err) {
+        console.error('Error saat mengirim pesan:', err);
+    }
 }
 
 // [OPTIMALISASI B] Event listener chat_history aktif untuk memuat riwayat obrolan otomatis
@@ -799,7 +811,7 @@ async function deleteAlbumPhoto(photoId) {
     }
 }
 
-// --- FITUR KIRIM GAMBAR DI OBROLAN (DIREVISI MENGGUNAKAN /api/send-message) ---
+// --- FITUR KIRIM GAMBAR DI OBROLAN (MENGGUNAKAN /api/send-message) ---
 const chatFileInput = document.getElementById('chat-file-input');
 
 if (chatFileInput) {
@@ -815,7 +827,7 @@ if (chatFileInput) {
             const formData = new FormData();
             formData.append('image', file);
             formData.append('user_id', currentUser.id);
-            formData.append('message', ''); // Kosongkan teks jika hanya kirim gambar
+            formData.append('message', '');
 
             try {
                 const response = await fetch('/api/send-message', {
