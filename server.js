@@ -303,7 +303,7 @@ app.post('/api/update-photo', upload.single('image'), async (req, res) => {
   }
 });
 
-// Map untuk pemetaan pengguna aktif WebRTC
+// Map untuk pemetaan pengguna aktif WebRTC (userId -> socket.id)
 const activeUsers = new Map();
 
 // Konfigurasi Socket.io
@@ -350,10 +350,14 @@ io.on('connection', async (socket) => {
     }
   });
 
-  // --- SIGNALING TELEPON (WebRTC) ---
+  // --- SIGNALING TELEPON (WebRTC) DENGAN PEMETAAN BERSIH ---
   socket.on('register_call_user', (userId) => {
-    socket.userId = String(userId);
-    activeUsers.set(socket.userId, socket.id);
+    if (userId) {
+      socket.userId = String(userId);
+      // Memperbarui socket.id terbaru secara bersih meskipun user melakukan reconnect/refresh
+      activeUsers.set(socket.userId, socket.id);
+      console.log(`User ID ${socket.userId} terdaftar untuk panggilan dengan Socket ID: ${socket.id}`);
+    }
   });
 
   socket.on('call_user', (data) => {
@@ -391,9 +395,11 @@ io.on('connection', async (socket) => {
     socket.emit('call_ended');
   });
 
+  // Membersihkan pemetaan secara total saat terjadi disconnect
   socket.on('disconnect', () => {
-    if (socket.userId) {
+    if (socket.userId && activeUsers.get(socket.userId) === socket.id) {
       activeUsers.delete(socket.userId);
+      console.log(`User ID ${socket.userId} dihapus dari activeUsers karena disconnect.`);
     }
     console.log('Anggota keluarga terputus:', socket.id);
   });
