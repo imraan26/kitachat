@@ -1,6 +1,11 @@
 const socket = io();
 let currentUser = null;
 
+// Objek Audio untuk Nada Dering (Pastikan file audio tersedia di folder public/audio/)
+const chatBeepAudio = new Audio('/audio/chat-beep.mp3');
+const callRingtone = new Audio('/audio/ringtone.mp3');
+callRingtone.loop = true;
+
 // Ganti Tab Login / Register
 function switchTab(tab) {
     if (tab === 'login') {
@@ -62,6 +67,16 @@ async function handleLogin(event) {
             
             // SIMPAN KE SESSION STORAGE AGAR TIDAK HILANG SAAT REFRESH
             sessionStorage.setItem('kitachat_user', JSON.stringify(currentUser));
+
+            // [OPTIMALISASI] Memicu interaksi audio pertama kali agar policy browser mengizinkan pemutaran suara
+            chatBeepAudio.play().catch(() => {});
+            chatBeepAudio.pause();
+            chatBeepAudio.currentTime = 0;
+
+            // [OPTIMALISASI] Meminta izin Notification API secara eksplisit saat login pertama
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
 
             updateUserInterface();
             socket.emit('register_call_user', currentUser.id);
@@ -235,6 +250,18 @@ socket.on('chat_history', (history) => {
 
 socket.on('receive_message', (data) => {
     appendChatMessage(data);
+
+    // [OPTIMALISASI] Putar suara notifikasi chat & tampilkan sistem notifikasi visual jika bukan pengirim sendiri
+    if (currentUser && data.name !== currentUser.name) {
+        chatBeepAudio.play().catch(() => {});
+        
+        if (Notification.permission === 'granted') {
+            new Notification(`Pesan Baru dari ${data.name}`, {
+                body: data.message,
+                icon: '/logo-kitachat.png'
+            });
+        }
+    }
 });
 
 function appendChatMessage(data) {
@@ -256,18 +283,16 @@ function appendChatMessage(data) {
 
 const msgInput = document.getElementById('message-input');
 if (msgInput) {
-    // 1. Fitur Auto-resize tinggi textarea saat mengetik
     msgInput.addEventListener('input', function() {
-        this.style.height = 'auto'; // Reset tinggi
-        this.style.height = (this.scrollHeight) + 'px'; // Set tinggi sesuai konten
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight) + 'px';
     });
 
-    // 2. Kirim pesan dengan Enter (Shift + Enter untuk baris baru)
     msgInput.addEventListener('keydown', function(event) {
         if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();
             sendMessage();
-            this.style.height = 'auto'; // Reset tinggi kembali setelah pesan terkirim
+            this.style.height = 'auto';
         }
     });
 }
@@ -518,11 +543,8 @@ async function handleUpdateProfilePhoto(event) {
         if (response.ok) {
             alert(data.message);
             currentUser = data.user;
-            
-            // Perbarui sesi di sessionStorage
             sessionStorage.setItem('kitachat_user', JSON.stringify(currentUser));
 
-            // Perbarui foto profil secara instan di mobile dan desktop
             const mobileAvatar = document.getElementById('user-avatar');
             if (mobileAvatar) mobileAvatar.src = currentUser.photo_url;
 
@@ -544,10 +566,12 @@ let localStream = null;
 let peerConnection = null;
 let targetSocketId = null;
 
+// [OPTIMALISASI] Konfigurasi STUN Server publik Google untuk WebRTC production
 const rtcConfig = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' }
     ]
 };
 
@@ -601,11 +625,23 @@ socket.on('incoming_call', async (data) => {
         document.getElementById('call-peer-name').innerText = data.callerName;
         document.getElementById('btn-accept-call').style.display = 'inline-block';
 
+        // [OPTIMALISASI] Putar dering panggilan masuk & tampilkan Notification API
+        callRingtone.play().catch(() => {});
+        if (Notification.permission === 'granted') {
+            new Notification('Panggilan Masuk', {
+                body: `${data.callerName} sedang memanggil...`,
+                icon: '/logo-kitachat.png'
+            });
+        }
+
         window.incomingOffer = data.offer;
     }
 });
 
 async function acceptCall() {
+    callRingtone.pause();
+    callRingtone.currentTime = 0;
+
     document.getElementById('btn-accept-call').style.display = 'none';
     document.getElementById('call-status-title').innerText = 'Terhubung';
 
@@ -658,6 +694,9 @@ socket.on('ice_candidate', async (data) => {
 });
 
 function hangUpCall() {
+    callRingtone.pause();
+    callRingtone.currentTime = 0;
+
     if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
     }
@@ -675,7 +714,6 @@ function hangUpCall() {
 
 // --- FITUR ZOOM, SIMPAN, DAN HAPUS FOTO ---
 
-// Membuka modal foto diperbesar
 function openZoomModal(imageUrl) {
     const modal = document.getElementById('photo-zoom-modal');
     const zoomedImg = document.getElementById('zoomed-img-element');
@@ -684,17 +722,14 @@ function openZoomModal(imageUrl) {
     modal.style.display = 'flex';
 }
 
-// Menutup modal foto diperbesar
 function closeZoomModal() {
     const modal = document.getElementById('photo-zoom-modal');
     modal.classList.add('hidden');
     modal.style.display = 'none';
 }
 
-// Menampilkan / Menyembunyikan menu dropdown titik tiga
 function togglePhotoMenu(event, menuId) {
     event.stopPropagation();
-    // Tutup semua dropdown lain yang mungkin sedang terbuka
     document.querySelectorAll('.photo-dropdown').forEach(el => {
         if (el.id !== menuId) el.classList.remove('active');
     });
@@ -705,14 +740,12 @@ function togglePhotoMenu(event, menuId) {
     }
 }
 
-// Klik di luar untuk menutup dropdown
 window.addEventListener('click', () => {
     document.querySelectorAll('.photo-dropdown').forEach(el => {
         el.classList.remove('active');
     });
 });
 
-// Fitur Simpan / Download Foto
 async function downloadPhoto(imageUrl) {
     try {
         const response = await fetch(imageUrl);
@@ -731,7 +764,6 @@ async function downloadPhoto(imageUrl) {
     }
 }
 
-// Fitur Hapus Foto Album
 async function deleteAlbumPhoto(photoId) {
     if (!confirm('Apakah Anda yakin ingin menghapus foto ini dari album?')) return;
 
@@ -745,7 +777,7 @@ async function deleteAlbumPhoto(photoId) {
 
         if (response.ok) {
             alert(data.message);
-            loadAlbumPhotos(); // Muat ulang galeri album
+            loadAlbumPhotos();
         } else {
             alert(data.error || 'Gagal menghapus foto.');
         }
@@ -772,7 +804,6 @@ if (chatFileInput) {
             formData.append('user_id', currentUser.id);
 
             try {
-                // Menggunakan endpoint /api/albums untuk menyimpan file gambar ke server & folder uploads
                 const response = await fetch('/api/albums', {
                     method: 'POST',
                     body: formData
@@ -780,7 +811,6 @@ if (chatFileInput) {
                 const result = await response.json();
 
                 if (response.ok) {
-                    // Kirim pesan berisi gambar melalui Socket.io agar terlihat oleh anggota keluarga lain
                     const imageMessageHtml = `<img src="${result.photo.image_url}" style="max-width: 220px; border-radius: 8px; display: block; cursor: pointer;" onclick="openZoomModal('${result.photo.image_url}')">`;
                     
                     const messageData = {
@@ -799,7 +829,7 @@ if (chatFileInput) {
                 alert('Terjadi kesalahan jaringan.');
             }
 
-            this.value = ''; // Reset input file
+            this.value = '';
         }
     });
 }
