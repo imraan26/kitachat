@@ -64,9 +64,7 @@ async function handleLogin(event) {
 
         if (response.ok) {
             currentUser = data.user;
-            
-            // [OPTIMALISASI A] Menggunakan localStorage agar sesi tidak hilang saat browser ditutup
-            localStorage.setItem('kitachat_user', JSON.stringify(currentUser));
+            sessionStorage.setItem('kitachat_user', JSON.stringify(currentUser));
 
             chatBeepAudio.play().catch(() => {});
             chatBeepAudio.pause();
@@ -118,9 +116,8 @@ function updateUserInterface() {
     }
 }
 
-// [OPTIMALISASI A] Memuat sesi dari localStorage saat halaman dimuat
 window.addEventListener('DOMContentLoaded', () => {
-    const savedUser = localStorage.getItem('kitachat_user');
+    const savedUser = sessionStorage.getItem('kitachat_user');
     if (savedUser) {
         currentUser = JSON.parse(savedUser);
         updateUserInterface();
@@ -177,7 +174,7 @@ window.addEventListener('DOMContentLoaded', () => {
         document.body.classList.remove('dark-mode');
     }
 
-    const savedUser = localStorage.getItem('kitachat_user');
+    const savedUser = sessionStorage.getItem('kitachat_user');
     if (savedUser) {
         currentUser = JSON.parse(savedUser);
         updateUserInterface();
@@ -187,7 +184,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 function logout() {
     currentUser = null;
-    localStorage.removeItem('kitachat_user'); // [OPTIMALISASI A] Hapus dari localStorage
+    sessionStorage.removeItem('kitachat_user');
     
     const mainScreen = document.getElementById('main-screen');
     if (mainScreen) {
@@ -227,15 +224,13 @@ function sendMessage() {
     input.value = '';
 }
 
-// [OPTIMALISASI B] Event listener chat_history aktif untuk memuat riwayat obrolan otomatis
 socket.on('chat_history', (history) => {
     const container = document.getElementById('chat-messages-container');
-    if (container) {
-        container.innerHTML = ''; 
-        history.forEach(data => {
-            appendChatMessage(data);
-        });
-    }
+    container.innerHTML = ''; 
+
+    history.forEach(data => {
+        appendChatMessage(data);
+    });
 });
 
 socket.on('receive_message', (data) => {
@@ -255,8 +250,6 @@ socket.on('receive_message', (data) => {
 
 function appendChatMessage(data) {
     const container = document.getElementById('chat-messages-container');
-    if (!container) return;
-    
     const msgDiv = document.createElement('div');
     const isSelf = currentUser && data.name === currentUser.name;
 
@@ -532,9 +525,7 @@ async function handleUpdateProfilePhoto(event) {
         if (response.ok) {
             alert(data.message);
             currentUser = data.user;
-            
-            // [OPTIMALISASI A] Perbarui localStorage saat foto profil diganti
-            localStorage.setItem('kitachat_user', JSON.stringify(currentUser));
+            sessionStorage.setItem('kitachat_user', JSON.stringify(currentUser));
 
             const mobileAvatar = document.getElementById('user-avatar');
             if (mobileAvatar) mobileAvatar.src = currentUser.photo_url;
@@ -664,7 +655,7 @@ async function acceptCall() {
         console.error('Error saat menerima panggilan:', err);
         hangUpCall();
     }
-});
+}
 
 socket.on('call_answered', async (data) => {
     document.getElementById('call-status-title').innerText = 'Terhubung';
@@ -685,6 +676,7 @@ socket.on('ice_candidate', async (data) => {
     }
 });
 
+// [OPTIMALISASI TOTAL] Pembersihan menyeluruh agar panggilan tidak menggantung
 function hangUpCall() {
     callRingtone.pause();
     callRingtone.currentTime = 0;
