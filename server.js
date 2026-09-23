@@ -346,6 +346,23 @@ app.post('/api/send-message', upload.single('image'), async (req, res) => {
 // Map untuk pemetaan pengguna aktif WebRTC (userId -> socket.id)
 const activeUsers = new Map();
 
+// 11. API DELETE /api/messages (Bersihkan Obrolan Keluarga)
+app.delete('/api/messages', async (req, res) => {
+  try {
+    // Hapus seluruh baris data dari tabel messages
+    await pool.query('DELETE FROM messages');
+
+    // Beritahu semua client yang terhubung via Socket.io bahwa chat telah dikosongkan
+    io.emit('chat_cleared');
+
+    res.status(200).json({ message: 'Semua riwayat obrolan berhasil dibersihkan!' });
+  } catch (err) {
+    console.error('Gagal membersihkan obrolan:', err);
+    res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
+  }
+});
+
+
 // Konfigurasi Socket.io
 io.on('connection', async (socket) => {
   console.log('Seorang anggota keluarga terhubung:', socket.id);
