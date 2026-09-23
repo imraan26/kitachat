@@ -2,11 +2,8 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kitachat - Hub Keluarga</title>
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#00a884">
-    <link rel="apple-touch-icon" href="logo-kitachat.png">
     <link rel="stylesheet" href="style.css">
     <!-- Font Awesome untuk Ikon -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -84,49 +81,24 @@
 
             <!-- Ruang Konten Utama -->
             <div class="chat-area">
-                
                 <!-- Tab Obrolan Keluarga -->
                 <div id="content-chat" class="tab-content active" style="display: flex; flex-direction: column; height: 100%;">
                     <div class="chat-header">
-                        <h3><i class="fa-solid fa-users-rectangle"></i> Grup Keluarga</h3>
+                        <h3><i class="fa-solid fa-users-rectangle"></i> Grup Keluarga Besar Kitachat</h3>
+                        <span class="status-online">Semua Anggota Terhubung</span>
                     </div>
                     <div class="chat-messages" id="chat-messages-container"></div>
-                    
-                    <!-- Area Input Pesan dengan Dukungan Textarea & Reply Preview -->
-                    <div class="chat-input-area" style="flex-direction: column; align-items: stretch;">
-                        
-                        <!-- Container Preview Balasan Pesan (Reply) -->
-                        <div id="reply-preview-container" class="hidden" style="padding: 6px 10px; background: rgba(0,168,132,0.1); border-left: 3px solid var(--primary-color); border-radius: 4px; margin-bottom: 6px; font-size: 12px; display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <strong id="reply-preview-sender" style="color: var(--primary-color);">Membalas...</strong>
-                                <p id="reply-preview-text" style="color: var(--text-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; margin: 0;"></p>
-                            </div>
-                            <button onclick="cancelReply()" style="background: none; border: none; cursor: pointer; font-size: 14px; color: var(--text-light);"><i class="fa-solid fa-xmark"></i></button>
-                        </div>
-
-                        <!-- Baris Input Utama -->
-                        <div style="display: flex; gap: 10px; align-items: flex-end; width: 100%;">
-                            <!-- Tombol Ikon Klip untuk Unggah Gambar di Chat -->
-                            <label for="chat-file-input" style="cursor: pointer; color: #667781; font-size: 20px; padding-bottom: 8px; flex-shrink: 0;" title="Kirim Gambar">
-                                <i class="fa-solid fa-paperclip"></i>
-                            </label>
-                            <input type="file" id="chat-file-input" accept="image/*" style="display: none;">
-
-                            <textarea id="message-input" placeholder="Ketik pesan..." rows="1" style="resize: none;"></textarea>
-                            
-                            <button class="send-button" onclick="sendMessage()" title="Kirim Pesan">
-                                <svg viewBox="0 0 24 24" width="20" height="20" fill="white">
-                                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
-                                </svg>
-                            </button>
-                        </div>
+                    <div class="chat-input-area">
+                        <input type="text" id="message-input" placeholder="Ketik pesan keluarga...">
+                        <button onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i></button>
                     </div>
                 </div>
 
                 <!-- Tab Album Foto -->
                 <div id="content-album" class="tab-content hidden" style="display: flex; flex-direction: column; height: 100%;">
                     <div class="chat-header">
-                        <h3><i class="fa-solid fa-images"></i> Album Kenangan</h3>
+                        <h3><i class="fa-solid fa-images"></i> Album Kenangan Keluarga</h3>
+                        <span class="status-online">Momen Indah Bersama</span>
                     </div>
                     <div style="padding: 20px; overflow-y: auto; flex: 1;">
                         <div style="background: var(--card-bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 20px;">
@@ -145,15 +117,16 @@
                 </div>
 
                 <!-- Modal Zoom / Perbesar Foto -->
-                <div id="photo-zoom-modal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 3000;">
-                    <button onclick="closeZoomModal()" style="position: absolute; top: 20px; right: 25px; background: none; border: none; color: white; font-size: 32px; cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
-                    <img id="zoomed-img-element" src="" style="max-width: 90%; max-height: 90%; border-radius: 8px; object-fit: contain; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
-                </div>
+<div id="photo-zoom-modal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 3000;">
+    <button onclick="closeZoomModal()" style="position: absolute; top: 20px; right: 25px; background: none; border: none; color: white; font-size: 32px; cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
+    <img id="zoomed-img-element" src="" style="max-width: 90%; max-height: 90%; border-radius: 8px; object-fit: contain; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+</div>
 
                 <!-- Tab Agenda -->
                 <div id="content-agenda" class="tab-content hidden" style="display: flex; flex-direction: column; height: 100%;">
                     <div class="chat-header">
-                        <h3><i class="fa-solid fa-calendar-days"></i> Agenda</h3>
+                        <h3><i class="fa-solid fa-calendar-days"></i> Agenda & Ulang Tahun Keluarga</h3>
+                        <span class="status-online">Jadwal & Momen Penting</span>
                     </div>
                     <div style="padding: 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 20px;">
                         <div style="background: var(--card-bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
@@ -180,6 +153,7 @@
                 <div id="content-family" class="tab-content hidden" style="display: flex; flex-direction: column; height: 100%;">
                     <div class="chat-header">
                         <h3><i class="fa-solid fa-users"></i> Daftar Anggota Keluarga Kitachat</h3>
+                        <span class="status-online">Direktori Keluarga Besar</span>
                     </div>
                     <div class="family-directory" id="family-list-container" style="padding: 20px; overflow-y: auto; flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px;"></div>
 
@@ -202,6 +176,7 @@
                 <div id="content-settings" class="tab-content hidden" style="display: flex; flex-direction: column; height: 100%;">
                     <div class="chat-header">
                         <h3><i class="fa-solid fa-gear"></i> Pengaturan Akun & Aplikasi</h3>
+                        <span class="status-online">Personalisasi Kitachat</span>
                     </div>
                     <div style="padding: 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 20px; max-width: 500px;">
                         <div style="background: var(--card-bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
@@ -246,15 +221,5 @@
     <!-- Socket.io & Skrip Utama -->
     <script src="/socket.io/socket.io.js"></script>
     <script src="app.js"></script>
-    <!-- Registrasi Service Worker PWA -->
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('ServiceWorker terdaftar dengan scope:', reg.scope))
-            .catch(err => console.log('Pendaftaran ServiceWorker gagal:', err));
-        });
-      }
-    </script>
 </body>
 </html>
