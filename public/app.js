@@ -226,10 +226,9 @@ function sendMessage() {
 
 socket.on('chat_history', (history) => {
     const container = document.getElementById('chat-messages-container');
-    container.innerHTML = ''; 
-
-    history.forEach(data => {
-        appendChatMessage(data);
+    container.innerHTML = ''; // Bersihkan container
+    history.forEach(msg => {
+        appendMessage(msg.name, msg.message, msg.time);
     });
 });
 
