@@ -31,8 +31,10 @@ self.addEventListener('activate', event => {
       );
     })
   );
-  self.clientsClaim();
+  // Sudah Benar: Mengambil kendali client PWA secara instan
+  self.clients.claim(); 
 });
+
 
 // Tangani Permintaan Fetch (Sudah Diperbaiki)
 self.addEventListener('fetch', event => {
