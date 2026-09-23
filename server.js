@@ -49,10 +49,48 @@ const pool = new Pool({
   family: 4
 });
 
-// Tes Koneksi Database
-pool.connect()
-  .then(() => console.log('Berhasil terhubung ke database PostgreSQL Railway!'))
-  .catch(err => console.error('Koneksi database gagal:', err));
+// Fungsi Inisialisasi Otomatis Tabel Database (Optimalisasi agar tidak Error 500)
+async function initDB() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        phone VARCHAR(20) UNIQUE NOT NULL,
+        name VARCHAR(100) NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        birthdate DATE,
+        photo_url TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS albums (
+        id SERIAL PRIMARY KEY,
+        user_id INT REFERENCES users(id) ON DELETE CASCADE,
+        image_url TEXT NOT NULL,
+        caption TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS agendas (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(150) NOT NULL,
+        event_date DATE NOT NULL,
+        description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS messages (
+        id SERIAL PRIMARY KEY,
+        user_id INT REFERENCES users(id) ON DELETE CASCADE,
+        message TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('Berhasil terhubung ke database PostgreSQL dan memverifikasi tabel!');
+  } catch (err) {
+    console.error('Gagal menginisialisasi skema database:', err);
+  }
+}
 
 // Route Uji Coba Server
 app.get('/api/status', (req, res) => {
@@ -340,8 +378,10 @@ io.on('connection', async (socket) => {
   });
 });
 
-// Jalankan Server
+// Jalankan Inisialisasi DB lalu Nyalakan Server
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`Server Kitachat aktif di port ${PORT}`);
+initDB().then(() => {
+  server.listen(PORT, () => {
+    console.log(`Server Kitachat aktif di port ${PORT}`);
+  });
 });
