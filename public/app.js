@@ -224,16 +224,16 @@ function sendMessage() {
     input.value = '';
 }
 
+// 1. Mendengarkan riwayat saat pertama kali masuk/refresh
 socket.on('chat_history', (history) => {
     const container = document.getElementById('chat-messages-container');
-    container.innerHTML = ''; // Bersihkan loading/pesan lama
-    
+    container.innerHTML = ''; // Penting: Hapus pesan lama agar tidak double
     history.forEach(msg => {
-        // Gunakan appendChatMessage agar formatnya konsisten dengan pesan baru
-        appendChatMessage(msg);
+        appendChatMessage(msg); // Gunakan fungsi yang sama dengan pesan real-time
     });
 });
 
+// 2. Mendengarkan pesan real-time
 socket.on('receive_message', (data) => {
     appendChatMessage(data);
 
@@ -249,21 +249,23 @@ socket.on('receive_message', (data) => {
     }
 });
 
+// 3. Fungsi utama menampilkan bubble chat
 function appendChatMessage(data) {
     const container = document.getElementById('chat-messages-container');
-    const msgDiv = document.createElement('div');
+    if (!container) return;
+    
     const isSelf = currentUser && data.name === currentUser.name;
-
+    const msgDiv = document.createElement('div');
     msgDiv.className = isSelf ? 'chat-bubble chat-outgoing' : 'chat-bubble chat-incoming';
-
+    
     msgDiv.innerHTML = `
         ${!isSelf ? `<div class="chat-sender-name">${data.name}</div>` : ''}
         <div>${data.message}</div>
         <div class="chat-time">${data.time}</div>
     `;
-
+    
     container.appendChild(msgDiv);
-    container.scrollTop = container.scrollHeight;
+    container.scrollTop = container.scrollHeight; // Auto-scroll ke bawah
 }
 
 const msgInput = document.getElementById('message-input');
