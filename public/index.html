@@ -10,37 +10,18 @@
 </head>
 <body class="light-mode">
 
-        <script>
-        // Cek login secara instan sebelum browser menggambar elemen
-        (function() {
-            const user = sessionStorage.getItem('kitachat_user');
-            const theme = localStorage.getItem('kitachat_theme') || 'light-mode';
-            document.body.className = theme;
-
-            // Gunakan CSS darurat untuk menampilkan layar yang benar
-            const style = document.createElement('style');
-            if (user) {
-                style.innerHTML = '#main-screen { display: flex !important; } #auth-screen { display: none !important; }';
-            } else {
-                style.innerHTML = '#auth-screen { display: flex !important; } #main-screen { display: none !important; }';
-            }
-            document.head.appendChild(style);
-        })();
-    </script>
-
     <!-- CONTAINER UTAMA -->
     <div id="app-container">
 
         <!-- HALAMAN AUTENTIKASI (LOGIN & REGISTER) -->
-        <!-- Ubah menjadi seperti ini -->
         <div id="auth-screen" class="screen active">
-        <div class="auth-card">
-            <h2><i class="fa-solid fa-comments"></i> Kitachat</h2>
+            <div class="auth-card">
+                <h2><i class="fa-solid fa-comments"></i> Kitachat</h2>
                 <p>Hub Keluarga Tercinta</p>
                 
                 <div class="tab-buttons">
-                    <button id="tab-login" class="active" onclick="switchTab('login')">Masuk</button>
-                    <button id="tab-register" onclick="switchTab('register')">Daftar</button>
+                    <button type="button" id="tab-login" class="active" onclick="switchTab('login')">Masuk</button>
+                    <button type="button" id="tab-register" onclick="switchTab('register')">Daftar</button>
                 </div>
 
                 <!-- Form Login -->
