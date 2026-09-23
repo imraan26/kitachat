@@ -327,7 +327,7 @@ form input {
     width: 100%;
     box-sizing: border-box;
     border-top: 1px solid var(--border-color);
-    flex-shrink: 0; /* Mencegah area input ikut tertekan atau tersembunyi */
+    flex-shrink: 0;
 }
 
 #message-input {
@@ -372,24 +372,24 @@ form input {
 /* --- TAMPILAN DESKTOP (Layar >= 768px) --- */
 @media (min-width: 768px) {
     #main-screen {
-        flex-direction: row; /* Sidebar kiri, area chat/konten kanan */
+        flex-direction: row !important; /* Sidebar kiri, area konten kanan */
         padding-top: 0;
         height: 100%;
     }
     
     .mobile-header-top {
-        display: none !important; /* Sembunyikan header mobile */
+        display: none !important;
     }
     
     .desktop-sidebar {
         display: flex !important;
-        width: 340px;
+        width: 340px !important;
         height: 100%;
         background: var(--card-bg);
         border-right: 1px solid var(--border-color);
         flex-direction: column;
-        order: 1;
-        flex-shrink: 0;
+        flex-shrink: 0 !important;
+        order: 0 !important;
     }
 
     /* Perataan kiri & penataan foto profil di sidebar desktop */
@@ -458,15 +458,14 @@ form input {
     }
 
     .chat-area {
-        flex: 1;
+        flex-grow: 1 !important;
         height: 100%;
         max-height: 100%;
-        padding-bottom: 0 !important; /* Pastikan tidak ada padding bawah berlebih */
-        order: 2;
-        overflow: hidden; /* Mencegah area chat meluber keluar batas bingkai */
+        padding-bottom: 0 !important;
+        order: 1 !important;
+        overflow: hidden;
     }
 
-    /* Pastikan tab content di dalam chat-area mengisi penuh dan bersifat fleksibel vertikal */
     .chat-area .tab-content {
         height: 100%;
         max-height: 100%;
