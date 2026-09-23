@@ -3,7 +3,7 @@ let currentUser = null;
 
 // Objek Audio untuk Nada Dering (Pastikan file audio tersedia di folder public/audio/)
 const chatBeepAudio = new Audio('/audio/chat-beep.mp3');
-const callRingtone = new Audio('/audio/ringtone.mp3');
+const callRingtone = new Audio('/audio/nadadering-phone.mp3');
 callRingtone.loop = true;
 
 // Ganti Tab Login / Register
