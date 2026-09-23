@@ -116,6 +116,16 @@ function updateUserInterface() {
         mainScreen.classList.add('active');
         mainScreen.style.display = 'flex';
     }
+
+    // Sinkronisasi informasi ke halaman pengaturan ala WhatsApp
+    const settingsAvatar = document.getElementById('settings-user-avatar');
+    if (settingsAvatar && currentUser.photo_url) settingsAvatar.src = currentUser.photo_url;
+
+    const settingsName = document.getElementById('settings-user-name');
+    if (settingsName) settingsName.innerText = currentUser.name;
+
+    const settingsPhone = document.getElementById('settings-user-phone');
+    if (settingsPhone) settingsPhone.innerHTML = `<i class="fa-solid fa-phone"></i> ${currentUser.phone}`;
 }
 
 // [OPTIMALISASI A] Memuat sesi dari localStorage saat halaman dimuat
