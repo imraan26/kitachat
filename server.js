@@ -49,7 +49,7 @@ const pool = new Pool({
   family: 4
 });
 
-// Fungsi Inisialisasi Otomatis Tabel Database
+// Fungsi Inisialisasi Otomatis Tabel Database (Diperbarui dengan image_url)
 async function initDB() {
   try {
     await pool.query(`
@@ -82,7 +82,8 @@ async function initDB() {
       CREATE TABLE IF NOT EXISTS messages (
         id SERIAL PRIMARY KEY,
         user_id INT REFERENCES users(id) ON DELETE CASCADE,
-        message TEXT NOT NULL,
+        message TEXT,
+        image_url TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
@@ -303,63 +304,101 @@ app.post('/api/update-photo', upload.single('image'), async (req, res) => {
   }
 });
 
-// ... (kode Express, Multer, dan Pool tetap sama seperti sebelumnya) ...
+// 10. API POST /api/send-message (Baru: Mendukung Teks dan Gambar di Chat)
+app.post('/api/send-message', upload.single('image'), async (req, res) => {
+  try {
+    const { user_id, message } = req.body;
+    let image_url = null;
 
-// Map untuk pemetaan pengguna aktif WebRTC
+    if (req.file) {
+      image_url = `/uploads/${req.file.filename}`;
+    }
+
+    if (!user_id || (!message && !image_url)) {
+      return res.status(400).json({ error: 'Pesan atau gambar tidak boleh kosong!' });
+    }
+
+    const insertResult = await pool.query(
+      `INSERT INTO messages (user_id, message, image_url) VALUES ($1, $2, $3) RETURNING *`,
+      [user_id, message || '', image_url]
+    );
+
+    const userResult = await pool.query('SELECT name FROM users WHERE id = $1', [user_id]);
+    const userName = userResult.rows[0] ? userResult.rows[0].name : 'Keluarga';
+
+    const savedMsg = insertResult.rows[0];
+    const formattedTime = new Date(savedMsg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    io.emit('receive_message', {
+      name: userName,
+      message: savedMsg.message,
+      image_url: savedMsg.image_url,
+      time: formattedTime
+    });
+
+    res.status(201).json({ message: 'Pesan berhasil dikirim!', data: savedMsg });
+  } catch (err) {
+    console.error('Gagal mengirim pesan bergambar:', err);
+    res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
+  }
+});
+
+// Map untuk pemetaan pengguna aktif WebRTC (userId -> socket.id)
 const activeUsers = new Map();
 
+// Konfigurasi Socket.io
 io.on('connection', async (socket) => {
-  console.log('Anggota keluarga terhubung:', socket.id);
+  console.log('Seorang anggota keluarga terhubung:', socket.id);
 
-  // 1. Ambil Riwayat Chat (Ditingkatkan ke 200 pesan terbaru)
+  // Ambil Riwayat Chat dari Database (Diperbarui mengambil image_url)
   try {
     const historyResult = await pool.query(
-      `SELECT m.message, m.created_at, u.name 
-       FROM (SELECT * FROM messages ORDER BY created_at DESC LIMIT 200) m
-       JOIN users u ON m.user_id = u.id 
-       ORDER BY m.created_at ASC`
+      `SELECT messages.message, messages.image_url, messages.created_at, users.name 
+       FROM messages 
+       JOIN users ON messages.user_id = users.id 
+       ORDER BY messages.created_at ASC LIMIT 50`
     );
     
     const formattedHistory = historyResult.rows.map(row => ({
       name: row.name,
       message: row.message,
-      time: new Date(row.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+      image_url: row.image_url,
+      time: new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }));
 
-    // Kirim riwayat ke user yang baru konek
     socket.emit('chat_history', formattedHistory);
   } catch (err) {
     console.error('Gagal memuat riwayat chat:', err);
   }
 
-  // 2. Simpan dan Kirim Pesan Real-Time
+  // Kirim dan Simpan Pesan Teks via Socket (Opsional jika masih pakai socket murni)
   socket.on('send_message', async (data) => {
     try {
-      // Validasi: Jangan simpan jika userId atau pesan kosong
-      if (!data.userId || !data.message) return;
-
       const insertResult = await pool.query(
         `INSERT INTO messages (user_id, message) VALUES ($1, $2) RETURNING created_at`,
         [data.userId, data.message]
       );
 
-      const formattedTime = new Date(insertResult.rows[0].created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+      const formattedTime = new Date(insertResult.rows[0].created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-      // Kirim ke semua orang (termasuk pengirim)
       io.emit('receive_message', {
         name: data.name,
         message: data.message,
+        image_url: null,
         time: formattedTime
       });
     } catch (err) {
-      console.error('Gagal menyimpan ke Postgres:', err.message);
+      console.error('Gagal menyimpan pesan ke database:', err);
     }
   });
 
-  // --- SIGNALING WEBRTC (Tetap Sama) ---
+  // --- SIGNALING TELEPON (WebRTC) DENGAN PEMETAAN BERSIH ---
   socket.on('register_call_user', (userId) => {
-    socket.userId = String(userId);
-    activeUsers.set(socket.userId, socket.id);
+    if (userId) {
+      socket.userId = String(userId);
+      activeUsers.set(socket.userId, socket.id);
+      console.log(`User ID ${socket.userId} terdaftar untuk panggilan dengan Socket ID: ${socket.id}`);
+    }
   });
 
   socket.on('call_user', (data) => {
@@ -369,35 +408,48 @@ io.on('connection', async (socket) => {
         fromSocketId: socket.id,
         fromUserId: socket.userId,
         callerName: data.callerName,
-        offer: data.offer
+        offer: data.offer,
+        toUserId: data.toUserId
       });
     }
   });
 
   socket.on('make_answer', (data) => {
-    io.to(data.toSocketId).emit('call_answered', { answer: data.answer });
+    io.to(data.toSocketId).emit('call_answered', {
+      answer: data.answer
+    });
   });
 
   socket.on('ice_candidate', (data) => {
-    io.to(data.targetSocketId).emit('ice_candidate', { candidate: data.candidate });
+    io.to(data.targetSocketId).emit('ice_candidate', {
+      candidate: data.candidate
+    });
   });
 
   socket.on('end_call', (data) => {
-    if (data?.toUserId) {
+    if (data && data.toUserId) {
       const targetSocketId = activeUsers.get(String(data.toUserId));
-      if (targetSocketId) io.to(targetSocketId).emit('call_ended');
+      if (targetSocketId) {
+        io.to(targetSocketId).emit('call_ended');
+      }
     }
     socket.emit('call_ended');
   });
 
+  // Membersihkan pemetaan secara total saat terjadi disconnect
   socket.on('disconnect', () => {
-    if (socket.userId) activeUsers.delete(socket.userId);
+    if (socket.userId && activeUsers.get(socket.userId) === socket.id) {
+      activeUsers.delete(socket.userId);
+      console.log(`User ID ${socket.userId} dihapus dari activeUsers karena disconnect.`);
+    }
     console.log('Anggota keluarga terputus:', socket.id);
   });
 });
 
-// Start Server
+// Jalankan Inisialisasi DB lalu Nyalakan Server
 const PORT = process.env.PORT || 3000;
 initDB().then(() => {
-  server.listen(PORT, () => console.log(`Server Kitachat running on port ${PORT}`));
+  server.listen(PORT, () => {
+    console.log(`Server Kitachat aktif di port ${PORT}`);
+  });
 });
