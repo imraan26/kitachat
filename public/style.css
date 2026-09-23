@@ -151,8 +151,9 @@ form input {
     display: none;
     flex-direction: column;
     width: 100%;
-    height: 100%;
+    height: 100vh;
     position: relative;
+    padding-top: env(safe-area-inset-top, 0px);
 }
 
 /* Header Atas Khusus Mobile */
@@ -316,45 +317,64 @@ form input {
     margin-left: 8px;
 }
 
+/* --- Area Input Chat & Textarea WhatsApp Style --- */
 .chat-input-area {
-    padding: 10px 12px;
-    background: var(--card-bg);
     display: flex;
-    gap: 8px;
-    align-items: center;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 10px 15px;
+    background-color: var(--card-bg);
+    width: 100%;
+    box-sizing: border-box;
     border-top: 1px solid var(--border-color);
+    flex-shrink: 0; /* Mencegah area input ikut tertekan atau tersembunyi */
 }
 
-.chat-input-area input {
+#message-input {
     flex: 1;
-    padding: 10px 14px;
     border: 1px solid var(--border-color);
     border-radius: 20px;
-    background: var(--bg-light);
+    padding: 10px 14px;
+    font-size: 15px;
+    line-height: 20px;
+    max-height: 120px;
+    min-height: 40px;
+    background-color: var(--bg-light);
     color: var(--text-light);
-    font-size: 14px;
     outline: none;
+    resize: none;
+    box-sizing: border-box;
+    font-family: inherit;
 }
 
+.chat-input-area button.send-button,
 .chat-input-area button {
-    background-color: var(--primary-color);
+    background-color: #00a884;
     color: white;
     border: none;
+    border-radius: 50%;
     width: 40px;
     height: 40px;
-    border-radius: 50%;
-    cursor: pointer;
+    min-width: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
+    cursor: pointer;
     flex-shrink: 0;
+    box-shadow: 0 1px 2px rgba(11,20,26,.08);
+    transition: background-color 0.2s;
+}
+
+.chat-input-area button:hover {
+    background-color: #008f72;
 }
 
 /* --- TAMPILAN DESKTOP (Layar >= 768px) --- */
 @media (min-width: 768px) {
     #main-screen {
-        flex-direction: row; /* Sidebar kiri, area chat kanan */
+        flex-direction: row; /* Sidebar kiri, area chat/konten kanan */
+        padding-top: 0;
+        height: 100%;
     }
     
     .mobile-header-top {
@@ -369,6 +389,7 @@ form input {
         border-right: 1px solid var(--border-color);
         flex-direction: column;
         order: 1;
+        flex-shrink: 0;
     }
 
     /* Perataan kiri & penataan foto profil di sidebar desktop */
@@ -439,8 +460,19 @@ form input {
     .chat-area {
         flex: 1;
         height: 100%;
-        padding-bottom: 0; /* Hapus padding bawah */
+        max-height: 100%;
+        padding-bottom: 0 !important; /* Pastikan tidak ada padding bawah berlebih */
         order: 2;
+        overflow: hidden; /* Mencegah area chat meluber keluar batas bingkai */
+    }
+
+    /* Pastikan tab content di dalam chat-area mengisi penuh dan bersifat fleksibel vertikal */
+    .chat-area .tab-content {
+        height: 100%;
+        max-height: 100%;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
     }
 }
 
@@ -526,4 +558,15 @@ form input {
 .photo-dropdown button:hover {
     background: var(--primary-light);
     color: var(--primary-color);
+}
+
+/* Styling tambahan untuk mobile & pencegah auto-zoom iOS */
+@media (max-width: 600px) {
+    .chat-input-area {
+        padding: 5px 10px;
+    }
+    
+    #message-input {
+        font-size: 16px; /* Mencegah auto-zoom di iOS */
+    }
 }

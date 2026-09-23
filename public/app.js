@@ -147,11 +147,37 @@ function switchTabNav(tabName, element) {
     }
 }
 
-// Ganti Tema Dark / Light Mode
+// Ganti Tema Dark / Light Mode & Simpan ke localStorage
 function toggleTheme() {
-    document.body.classList.toggle('dark-mode');
-    document.body.classList.toggle('light-mode');
+    if (document.body.classList.contains('dark-mode')) {
+        document.body.classList.remove('dark-mode');
+        document.body.classList.add('light-mode');
+        localStorage.setItem('kitachat_theme', 'light');
+    } else {
+        document.body.classList.remove('light-mode');
+        document.body.classList.add('dark-mode');
+        localStorage.setItem('kitachat_theme', 'dark');
+    }
 }
+
+// Muat tema tersimpan saat halaman pertama kali dibuka/refresh
+window.addEventListener('DOMContentLoaded', () => {
+    const savedTheme = localStorage.getItem('kitachat_theme');
+    if (savedTheme === 'dark') {
+        document.body.classList.add('dark-mode');
+        document.body.classList.remove('light-mode');
+    } else {
+        document.body.classList.add('light-mode');
+        document.body.classList.remove('dark-mode');
+    }
+
+    const savedUser = sessionStorage.getItem('kitachat_user');
+    if (savedUser) {
+        currentUser = JSON.parse(savedUser);
+        updateUserInterface();
+        socket.emit('register_call_user', currentUser.id);
+    }
+});
 
 // Logout
 function logout() {
@@ -230,10 +256,18 @@ function appendChatMessage(data) {
 
 const msgInput = document.getElementById('message-input');
 if (msgInput) {
-    msgInput.addEventListener('keypress', function(event) {
-        if (event.key === 'Enter') {
+    // 1. Fitur Auto-resize tinggi textarea saat mengetik
+    msgInput.addEventListener('input', function() {
+        this.style.height = 'auto'; // Reset tinggi
+        this.style.height = (this.scrollHeight) + 'px'; // Set tinggi sesuai konten
+    });
+
+    // 2. Kirim pesan dengan Enter (Shift + Enter untuk baris baru)
+    msgInput.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();
             sendMessage();
+            this.style.height = 'auto'; // Reset tinggi kembali setelah pesan terkirim
         }
     });
 }
@@ -293,33 +327,33 @@ async function loadAlbumPhotos() {
             }
 
             photos.forEach((item, index) => {
-    const card = document.createElement('div');
-    card.style.background = 'var(--card-bg)';
-    card.style.border = '1px solid var(--border-color)';
-    card.style.borderRadius = '8px';
-    card.style.overflow = 'hidden';
-    card.style.boxShadow = '0 2px 5px rgba(0,0,0,0.05)';
-    card.style.position = 'relative';
+                const card = document.createElement('div');
+                card.style.background = 'var(--card-bg)';
+                card.style.border = '1px solid var(--border-color)';
+                card.style.borderRadius = '8px';
+                card.style.overflow = 'hidden';
+                card.style.boxShadow = '0 2px 5px rgba(0,0,0,0.05)';
+                card.style.position = 'relative';
 
-    const menuId = `album-menu-${item.id || index}`;
-    const isOwner = currentUser && String(currentUser.id) === String(item.user_id);
+                const menuId = `album-menu-${item.id || index}`;
+                const isOwner = currentUser && String(currentUser.id) === String(item.user_id);
 
-    card.innerHTML = `
-        <div class="media-wrapper" style="width: 100%;">
-            <img src="${item.image_url}" alt="Foto Album" onclick="openZoomModal('${item.image_url}')" onerror="this.src='https://via.placeholder.com/220?text=Gagal+Muat+Gambar'">
-            <button class="photo-menu-btn" onclick="togglePhotoMenu(event, '${menuId}')"><i class="fa-solid fa-ellipsis-vertical"></i></button>
-            <div id="${menuId}" class="photo-dropdown">
-                <button onclick="downloadPhoto('${item.image_url}')"><i class="fa-solid fa-download"></i> Simpan</button>
-                ${isOwner ? `<button onclick="deleteAlbumPhoto('${item.id}')" style="color: #e74c3c;"><i class="fa-solid fa-trash"></i> Hapus</button>` : ''}
-            </div>
-        </div>
-        <div style="padding: 10px;">
-            <p style="margin: 0; font-size: 14px; font-weight: bold; color: var(--text-light);">${item.caption || 'Tanpa keterangan'}</p>
-            <p style="margin: 5px 0 0 0; font-size: 11px; color: gray;">Oleh: ${item.uploader_name}</p>
-        </div>
-    `;
-    container.appendChild(card);
-});
+                card.innerHTML = `
+                    <div class="media-wrapper" style="width: 100%;">
+                        <img src="${item.image_url}" alt="Foto Album" onclick="openZoomModal('${item.image_url}')" onerror="this.src='https://via.placeholder.com/220?text=Gagal+Muat+Gambar'">
+                        <button class="photo-menu-btn" onclick="togglePhotoMenu(event, '${menuId}')"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+                        <div id="${menuId}" class="photo-dropdown">
+                            <button onclick="downloadPhoto('${item.image_url}')"><i class="fa-solid fa-download"></i> Simpan</button>
+                            ${isOwner ? `<button onclick="deleteAlbumPhoto('${item.id}')" style="color: #e74c3c;"><i class="fa-solid fa-trash"></i> Hapus</button>` : ''}
+                        </div>
+                    </div>
+                    <div style="padding: 10px;">
+                        <p style="margin: 0; font-size: 14px; font-weight: bold; color: var(--text-light);">${item.caption || 'Tanpa keterangan'}</p>
+                        <p style="margin: 5px 0 0 0; font-size: 11px; color: gray;">Oleh: ${item.uploader_name}</p>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
         }
     } catch (err) {
         console.error('Gagal memuat album:', err);
@@ -718,6 +752,56 @@ async function deleteAlbumPhoto(photoId) {
     } catch (err) {
         console.error('Error hapus foto:', err);
     }
+}
+
+// --- FITUR KIRIM GAMBAR DI OBROLAN ---
+const chatFileInput = document.getElementById('chat-file-input');
+
+if (chatFileInput) {
+    chatFileInput.addEventListener('change', async function() {
+        if (this.files && this.files[0]) {
+            const file = this.files[0];
+
+            if (!currentUser) {
+                alert('Silakan login terlebih dahulu!');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('user_id', currentUser.id);
+
+            try {
+                // Menggunakan endpoint /api/albums untuk menyimpan file gambar ke server & folder uploads
+                const response = await fetch('/api/albums', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (response.ok) {
+                    // Kirim pesan berisi gambar melalui Socket.io agar terlihat oleh anggota keluarga lain
+                    const imageMessageHtml = `<img src="${result.photo.image_url}" style="max-width: 220px; border-radius: 8px; display: block; cursor: pointer;" onclick="openZoomModal('${result.photo.image_url}')">`;
+                    
+                    const messageData = {
+                        userId: currentUser.id,
+                        name: currentUser.name,
+                        message: imageMessageHtml,
+                        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    };
+
+                    socket.emit('send_message', messageData);
+                } else {
+                    alert(result.error || 'Gagal mengunggah gambar.');
+                }
+            } catch (err) {
+                console.error('Error saat mengirim gambar di chat:', err);
+                alert('Terjadi kesalahan jaringan.');
+            }
+
+            this.value = ''; // Reset input file
+        }
+    });
 }
 
 socket.on('call_ended', () => {

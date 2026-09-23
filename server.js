@@ -5,6 +5,7 @@ const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
@@ -16,10 +17,21 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
+// Pastikan folder public/uploads otomatis dibuat secara aman jika belum ada di server
+try {
+  const uploadDir = path.join(__dirname, 'public', 'uploads');
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+    console.log('Folder public/uploads berhasil dibuat secara otomatis.');
+  }
+} catch (err) {
+  console.error('Gagal membuat folder uploads:', err);
+}
+
 // Konfigurasi Penyimpanan File Upload menggunakan Multer
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'public/uploads/'); // Pastikan folder public/uploads sudah ada
+    cb(null, 'public/uploads/');
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -175,7 +187,6 @@ app.post('/api/albums', upload.single('image'), async (req, res) => {
 app.delete('/api/albums/:id', async (req, res) => {
     const { id } = req.params;
     try {
-        // Diselaraskan menggunakan tabel 'albums' sesuai struktur database utama
         await pool.query('DELETE FROM albums WHERE id = $1', [id]);
         res.json({ message: 'Foto berhasil dihapus dari album.' });
     } catch (err) {
@@ -220,7 +231,7 @@ app.post('/api/agendas', async (req, res) => {
   }
 });
 
-// 9. API POST /api/update-photo (Memperbarui foto profil pengguna)
+// 9. API POST /api/update-photo (Memperbarui foto profil pengguna secara sinkron ke database)
 app.post('/api/update-photo', upload.single('image'), async (req, res) => {
   try {
     const { user_id } = req.body;
