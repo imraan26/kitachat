@@ -226,9 +226,11 @@ function sendMessage() {
 
 socket.on('chat_history', (history) => {
     const container = document.getElementById('chat-messages-container');
-    container.innerHTML = ''; // Bersihkan container
+    container.innerHTML = ''; // Bersihkan loading/pesan lama
+    
     history.forEach(msg => {
-        appendMessage(msg.name, msg.message, msg.time);
+        // Gunakan appendChatMessage agar formatnya konsisten dengan pesan baru
+        appendChatMessage(msg);
     });
 });
 
