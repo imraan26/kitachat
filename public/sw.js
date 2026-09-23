@@ -34,29 +34,43 @@ self.addEventListener('activate', event => {
   self.clientsClaim();
 });
 
-// Tangani Permintaan Fetch
+// Tangani Permintaan Fetch (Sudah Diperbaiki)
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // Periksa apakah permintaan BUKAN untuk API, Socket.io, atau uploads
-  const isApiOrUpload = url.pathname.startsWith('/api/') || 
+  // 1. Cek apakah permintaan ditujukan untuk API, Socket, atau Uploads
+  const isBypassRoute = url.pathname.startsWith('/api/') || 
                         url.pathname.startsWith('/socket.io/') || 
                         url.pathname.startsWith('/uploads/');
 
-  if (!isApiOrUpload) {
+  // 2. JIKA BUKAN rute bypass, tangani lewat Service Worker / Cache
+  if (!isBypassRoute) {
     event.respondWith(
       caches.match(event.request)
         .then(response => {
-          // Kembalikan dari cache jika ada, jika tidak lakukan fetch ke jaringan
+          // Gunakan cache jika ada, jika tidak ambil dari jaringan
           return response || fetch(event.request);
-        }).catch(() => {
-          // Fallback opsional jika offline dan aset tidak ada di cache
+        })
+        .catch(() => {
+          // Fallback jika jaringan gagal (Offline) agar tidak memicu uncaught error
           if (event.request.mode === 'navigate') {
             return caches.match('/index.html');
           }
+          
+          // Jika gambar luar gagal dimuat saat offline
+          if (event.request.destination === 'image') {
+            return new Response(
+              '<svg xmlns="http://w3.org" width="40" height="40" viewBox="0 0 40 40"><rect width="100%" height="100%" fill="#e0e0e0"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#666666">Offline</text></svg>',
+              { headers: { 'Content-Type': 'image/svg+xml' } }
+            );
+          }
+
+          // Kirim respons error HTTP yang valid alih-alih membiarkannya crash
+          return new Response('Service Unavailable', { status: 503 });
         })
     );
   }
-  // Jika isApiOrUpload bernilai true, event.respondWith() tidak dipanggil.
-  // Browser secara otomatis akan langsung mengambil data dari jaringan (Bypass SW).
+  
+  // Catatan: Jika isBypassRoute bernilai TRUE, event.respondWith() sengaja tidak dipanggil.
+  // Ini adalah cara yang benar di PWA agar browser langsung mengambil data ke jaringan.
 });
