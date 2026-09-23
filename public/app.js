@@ -64,7 +64,9 @@ async function handleLogin(event) {
 
         if (response.ok) {
             currentUser = data.user;
-            sessionStorage.setItem('kitachat_user', JSON.stringify(currentUser));
+            
+            // [OPTIMALISASI A] Menggunakan localStorage agar sesi tidak hilang saat browser ditutup
+            localStorage.setItem('kitachat_user', JSON.stringify(currentUser));
 
             chatBeepAudio.play().catch(() => {});
             chatBeepAudio.pause();
@@ -116,8 +118,9 @@ function updateUserInterface() {
     }
 }
 
+// [OPTIMALISASI A] Memuat sesi dari localStorage saat halaman dimuat
 window.addEventListener('DOMContentLoaded', () => {
-    const savedUser = sessionStorage.getItem('kitachat_user');
+    const savedUser = localStorage.getItem('kitachat_user');
     if (savedUser) {
         currentUser = JSON.parse(savedUser);
         updateUserInterface();
@@ -174,7 +177,7 @@ window.addEventListener('DOMContentLoaded', () => {
         document.body.classList.remove('dark-mode');
     }
 
-    const savedUser = sessionStorage.getItem('kitachat_user');
+    const savedUser = localStorage.getItem('kitachat_user');
     if (savedUser) {
         currentUser = JSON.parse(savedUser);
         updateUserInterface();
@@ -184,7 +187,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 function logout() {
     currentUser = null;
-    sessionStorage.removeItem('kitachat_user');
+    localStorage.removeItem('kitachat_user'); // [OPTIMALISASI A] Hapus dari localStorage
     
     const mainScreen = document.getElementById('main-screen');
     if (mainScreen) {
@@ -224,16 +227,17 @@ function sendMessage() {
     input.value = '';
 }
 
-// 1. Mendengarkan riwayat saat pertama kali masuk/refresh
+// [OPTIMALISASI B] Event listener chat_history aktif untuk memuat riwayat obrolan otomatis
 socket.on('chat_history', (history) => {
     const container = document.getElementById('chat-messages-container');
-    container.innerHTML = ''; // Penting: Hapus pesan lama agar tidak double
-    history.forEach(msg => {
-        appendChatMessage(msg); // Gunakan fungsi yang sama dengan pesan real-time
-    });
+    if (container) {
+        container.innerHTML = ''; 
+        history.forEach(data => {
+            appendChatMessage(data);
+        });
+    }
 });
 
-// 2. Mendengarkan pesan real-time
 socket.on('receive_message', (data) => {
     appendChatMessage(data);
 
@@ -242,30 +246,38 @@ socket.on('receive_message', (data) => {
         
         if (Notification.permission === 'granted') {
             new Notification(`Pesan Baru dari ${data.name}`, {
-                body: data.message,
+                body: data.message || 'Mengirim sebuah gambar',
                 icon: '/logo-kitachat.png'
             });
         }
     }
 });
 
-// 3. Fungsi utama menampilkan bubble chat
 function appendChatMessage(data) {
     const container = document.getElementById('chat-messages-container');
     if (!container) return;
     
-    const isSelf = currentUser && data.name === currentUser.name;
     const msgDiv = document.createElement('div');
+    const isSelf = currentUser && data.name === currentUser.name;
+
     msgDiv.className = isSelf ? 'chat-bubble chat-outgoing' : 'chat-bubble chat-incoming';
-    
+
+    let contentHtml = '';
+    if (data.message) {
+        contentHtml += `<div>${data.message}</div>`;
+    }
+    if (data.image_url) {
+        contentHtml += `<img src="${data.image_url}" style="max-width: 220px; border-radius: 8px; display: block; margin-top: 5px; cursor: pointer;" onclick="openZoomModal('${data.image_url}')">`;
+    }
+
     msgDiv.innerHTML = `
         ${!isSelf ? `<div class="chat-sender-name">${data.name}</div>` : ''}
-        <div>${data.message}</div>
+        ${contentHtml}
         <div class="chat-time">${data.time}</div>
     `;
-    
+
     container.appendChild(msgDiv);
-    container.scrollTop = container.scrollHeight; // Auto-scroll ke bawah
+    container.scrollTop = container.scrollHeight;
 }
 
 const msgInput = document.getElementById('message-input');
@@ -528,7 +540,9 @@ async function handleUpdateProfilePhoto(event) {
         if (response.ok) {
             alert(data.message);
             currentUser = data.user;
-            sessionStorage.setItem('kitachat_user', JSON.stringify(currentUser));
+            
+            // [OPTIMALISASI A] Perbarui localStorage saat foto profil diganti
+            localStorage.setItem('kitachat_user', JSON.stringify(currentUser));
 
             const mobileAvatar = document.getElementById('user-avatar');
             if (mobileAvatar) mobileAvatar.src = currentUser.photo_url;
@@ -658,10 +672,9 @@ async function acceptCall() {
         console.error('Error saat menerima panggilan:', err);
         hangUpCall();
     }
-} // <-- DIPERBAIKI: sebelumnya tertulis }); yang menyebabkan error sintaks
+}
 
 socket.on('call_answered', async (data) => {
-    // PENTING: Jika di startCall targetSocketId belum ada, pastikan server mengembalikan socketId penerima lewat data ini
     if (data.targetSocketId) {
         targetSocketId = data.targetSocketId;
     }
@@ -786,7 +799,7 @@ async function deleteAlbumPhoto(photoId) {
     }
 }
 
-// --- FITUR KIRIM GAMBAR DI OBROLAN ---
+// --- FITUR KIRIM GAMBAR DI OBROLAN (DIREVISI MENGGUNAKAN /api/send-message) ---
 const chatFileInput = document.getElementById('chat-file-input');
 
 if (chatFileInput) {
@@ -802,26 +815,17 @@ if (chatFileInput) {
             const formData = new FormData();
             formData.append('image', file);
             formData.append('user_id', currentUser.id);
+            formData.append('message', ''); // Kosongkan teks jika hanya kirim gambar
 
             try {
-                const response = await fetch('/api/albums', {
+                const response = await fetch('/api/send-message', {
                     method: 'POST',
                     body: formData
                 });
                 const result = await response.json();
 
-                if (response.ok) {
-                    const imageMessageHtml = `<img src="${result.photo.image_url}" style="max-width: 220px; border-radius: 8px; display: block; cursor: pointer;" onclick="openZoomModal('${result.photo.image_url}')">`;
-                    
-                    const messageData = {
-                        userId: currentUser.id,
-                        name: currentUser.name,
-                        message: imageMessageHtml
-                    };
-
-                    socket.emit('send_message', messageData);
-                } else {
-                    alert(result.error || 'Gagal mengunggah gambar.');
+                if (!response.ok) {
+                    alert(result.error || 'Gagal mengunggah gambar di obrolan.');
                 }
             } catch (err) {
                 console.error('Error saat mengirim gambar di chat:', err);
@@ -832,6 +836,30 @@ if (chatFileInput) {
         }
     });
 }
+
+// --- FITUR BERSIHKAN OBROLAN ---
+function clearChat() {
+    if (confirm('Apakah Anda yakin ingin menghapus semua riwayat obrolan untuk semua anggota keluarga?')) {
+        fetch('/api/messages', {
+            method: 'DELETE',
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log(data.message);
+        })
+        .catch(err => {
+            console.error('Gagal menghapus obrolan:', err);
+            alert('Terjadi kesalahan saat membersihkan obrolan.');
+        });
+    }
+}
+
+socket.on('chat_cleared', () => {
+    const chatContainer = document.getElementById('chat-messages-container');
+    if (chatContainer) {
+        chatContainer.innerHTML = '';
+    }
+});
 
 socket.on('call_ended', () => {
     hangUpCall();
