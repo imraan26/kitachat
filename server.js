@@ -49,7 +49,7 @@ const pool = new Pool({
   family: 4
 });
 
-// Fungsi Inisialisasi Otomatis Tabel Database (Optimalisasi agar tidak Error 500)
+// Fungsi Inisialisasi Otomatis Tabel Database (Optimalisasi agar tidak Error 500)[cite: 1, 10]
 async function initDB() {
   try {
     await pool.query(`
@@ -303,6 +303,9 @@ app.post('/api/update-photo', upload.single('image'), async (req, res) => {
   }
 });
 
+// Map untuk menyimpan pemetaan user ID aktif ke socket ID mereka (Optimalisasi WebRTC Direct Routing)[cite: 12]
+const activeUsers = new Map();
+
 // Konfigurasi Socket.io untuk chat real-time dan signaling telepon (WebRTC)
 io.on('connection', async (socket) => {
   console.log('Seorang anggota keluarga terhubung:', socket.id);
@@ -343,18 +346,22 @@ io.on('connection', async (socket) => {
     }
   });
 
-  // --- SIGNALING TELEPON (WebRTC) ---
+  // --- SIGNALING TELEPON (WebRTC) DENGAN ACTIVE USERS MAP ---
   socket.on('register_call_user', (userId) => {
-    socket.userId = userId;
+    socket.userId = String(userId);
+    activeUsers.set(socket.userId, socket.id);
   });
 
   socket.on('call_user', (data) => {
-    io.emit('incoming_call', {
-      fromSocketId: socket.id,
-      callerName: data.callerName,
-      offer: data.offer,
-      toUserId: data.toUserId
-    });
+    const targetSocketId = activeUsers.get(String(data.toUserId));
+    if (targetSocketId) {
+      io.to(targetSocketId).emit('incoming_call', {
+        fromSocketId: socket.id,
+        callerName: data.callerName,
+        offer: data.offer,
+        toUserId: data.toUserId
+      });
+    }
   });
 
   socket.on('make_answer', (data) => {
@@ -370,10 +377,20 @@ io.on('connection', async (socket) => {
   });
 
   socket.on('end_call', (data) => {
-    io.emit('call_ended', data);
+    if (data && data.toUserId) {
+      const targetSocketId = activeUsers.get(String(data.toUserId));
+      if (targetSocketId) {
+        io.to(targetSocketId).emit('call_ended', data);
+      }
+    } else {
+      io.emit('call_ended', data);
+    }
   });
 
   socket.on('disconnect', () => {
+    if (socket.userId) {
+      activeUsers.delete(socket.userId);
+    }
     console.log('Anggota keluarga terputus:', socket.id);
   });
 });

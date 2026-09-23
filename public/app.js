@@ -565,6 +565,7 @@ async function handleUpdateProfilePhoto(event) {
 let localStream = null;
 let peerConnection = null;
 let targetSocketId = null;
+let targetUserId = null; // Menyimpan ID pengguna lawan bicara (target direct routing)
 
 // [OPTIMALISASI] Konfigurasi STUN Server publik Google untuk WebRTC production
 const rtcConfig = {
@@ -576,6 +577,7 @@ const rtcConfig = {
 };
 
 async function startCall(peerUserId, peerName) {
+    targetUserId = peerUserId; // Set target user ID yang ditelepon
     const modal = document.getElementById('call-modal');
     modal.classList.remove('hidden');
     document.getElementById('call-status-title').innerText = 'Memanggil...';
@@ -618,6 +620,8 @@ async function startCall(peerUserId, peerName) {
 socket.on('incoming_call', async (data) => {
     if (currentUser && data.toUserId == currentUser.id) {
         targetSocketId = data.fromSocketId;
+        // Lacak ID pemanggil agar jika panggilan ditolak/ditutup, informasi arah tujuannya jelas
+        targetUserId = data.fromUserId || null; 
         
         const modal = document.getElementById('call-modal');
         modal.classList.remove('hidden');
@@ -704,12 +708,15 @@ function hangUpCall() {
         peerConnection.close();
         peerConnection = null;
     }
-    targetSocketId = null;
-
+    
     const modal = document.getElementById('call-modal');
     modal.classList.add('hidden');
     
-    socket.emit('end_call', {});
+    // [OPTIMALISASI] Kirim event end_call dengan menyertakan targetUserId spesifik
+    socket.emit('end_call', { toUserId: targetUserId });
+    
+    targetSocketId = null;
+    targetUserId = null;
 }
 
 // --- FITUR ZOOM, SIMPAN, DAN HAPUS FOTO ---
