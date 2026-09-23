@@ -49,7 +49,7 @@ const pool = new Pool({
   family: 4
 });
 
-// Fungsi Inisialisasi Otomatis Tabel Database (Optimalisasi agar tidak Error 500)[cite: 1, 10]
+// Fungsi Inisialisasi Otomatis Tabel Database
 async function initDB() {
   try {
     await pool.query(`
@@ -97,7 +97,7 @@ app.get('/api/status', (req, res) => {
   res.json({ status: 'Server Kitachat berjalan dengan lancar!' });
 });
 
-// 1. API REGISTER (Pendaftaran Anggota Keluarga Baru)
+// 1. API REGISTER
 app.post('/api/register', async (req, res) => {
   const { phone, name, password, birthdate, photo_url } = req.body;
 
@@ -126,7 +126,7 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// 2. API LOGIN (Masuk ke Aplikasi)
+// 2. API LOGIN
 app.post('/api/login', async (req, res) => {
   const { phone, password } = req.body;
 
@@ -159,7 +159,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// 3. API GET /api/users (Mengambil daftar anggota keluarga)
+// 3. API GET /api/users
 app.get('/api/users', async (req, res) => {
   try {
     const usersResult = await pool.query(
@@ -172,7 +172,7 @@ app.get('/api/users', async (req, res) => {
   }
 });
 
-// 4. API GET /api/albums (Mengambil daftar foto album keluarga)
+// 4. API GET /api/albums
 app.get('/api/albums', async (req, res) => {
   try {
     const albumsResult = await pool.query(
@@ -188,7 +188,7 @@ app.get('/api/albums', async (req, res) => {
   }
 });
 
-// 5. API POST /api/albums (Mengunggah foto baru ke album dengan Multer)
+// 5. API POST /api/albums
 app.post('/api/albums', upload.single('image'), async (req, res) => {
   try {
     const body = req.body || {};
@@ -221,7 +221,7 @@ app.post('/api/albums', upload.single('image'), async (req, res) => {
   }
 });
 
-// 6. API DELETE /api/albums/:id (Menghapus foto album keluarga)
+// 6. API DELETE /api/albums/:id
 app.delete('/api/albums/:id', async (req, res) => {
     const { id } = req.params;
     try {
@@ -233,7 +233,7 @@ app.delete('/api/albums/:id', async (req, res) => {
     }
 });
 
-// 7. API GET /api/agendas (Mengambil daftar agenda keluarga)
+// 7. API GET /api/agendas
 app.get('/api/agendas', async (req, res) => {
   try {
     const agendasResult = await pool.query('SELECT * FROM agendas ORDER BY event_date ASC');
@@ -244,7 +244,7 @@ app.get('/api/agendas', async (req, res) => {
   }
 });
 
-// 8. API POST /api/agendas (Menambah agenda baru)
+// 8. API POST /api/agendas
 app.post('/api/agendas', async (req, res) => {
   const { title, event_date, description } = req.body;
 
@@ -269,7 +269,7 @@ app.post('/api/agendas', async (req, res) => {
   }
 });
 
-// 9. API POST /api/update-photo (Memperbarui foto profil pengguna secara sinkron ke database)
+// 9. API POST /api/update-photo
 app.post('/api/update-photo', upload.single('image'), async (req, res) => {
   try {
     const { user_id } = req.body;
@@ -303,13 +303,14 @@ app.post('/api/update-photo', upload.single('image'), async (req, res) => {
   }
 });
 
-// Map untuk menyimpan pemetaan user ID aktif ke socket ID mereka (Optimalisasi WebRTC Direct Routing)[cite: 12]
+// Map untuk pemetaan pengguna aktif WebRTC
 const activeUsers = new Map();
 
-// Konfigurasi Socket.io untuk chat real-time dan signaling telepon (WebRTC)
+// Konfigurasi Socket.io
 io.on('connection', async (socket) => {
   console.log('Seorang anggota keluarga terhubung:', socket.id);
 
+  // Ambil Riwayat Chat dari Database
   try {
     const historyResult = await pool.query(
       `SELECT messages.message, messages.created_at, users.name 
@@ -329,24 +330,27 @@ io.on('connection', async (socket) => {
     console.error('Gagal memuat riwayat chat:', err);
   }
 
+  // Kirim dan Simpan Pesan Chat secara Real-Time ke DB
   socket.on('send_message', async (data) => {
     try {
-      await pool.query(
-        `INSERT INTO messages (user_id, message) VALUES ($1, $2)`,
+      const insertResult = await pool.query(
+        `INSERT INTO messages (user_id, message) VALUES ($1, $2) RETURNING created_at`,
         [data.userId, data.message]
       );
+
+      const formattedTime = new Date(insertResult.rows[0].created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
       io.emit('receive_message', {
         name: data.name,
         message: data.message,
-        time: data.time
+        time: formattedTime
       });
     } catch (err) {
       console.error('Gagal menyimpan pesan ke database:', err);
     }
   });
 
-  // --- SIGNALING TELEPON (WebRTC) DENGAN ACTIVE USERS MAP ---
+  // --- SIGNALING TELEPON (WebRTC) ---
   socket.on('register_call_user', (userId) => {
     socket.userId = String(userId);
     activeUsers.set(socket.userId, socket.id);
@@ -357,6 +361,7 @@ io.on('connection', async (socket) => {
     if (targetSocketId) {
       io.to(targetSocketId).emit('incoming_call', {
         fromSocketId: socket.id,
+        fromUserId: socket.userId,
         callerName: data.callerName,
         offer: data.offer,
         toUserId: data.toUserId
@@ -380,11 +385,10 @@ io.on('connection', async (socket) => {
     if (data && data.toUserId) {
       const targetSocketId = activeUsers.get(String(data.toUserId));
       if (targetSocketId) {
-        io.to(targetSocketId).emit('call_ended', data);
+        io.to(targetSocketId).emit('call_ended');
       }
-    } else {
-      io.emit('call_ended', data);
     }
+    socket.emit('call_ended');
   });
 
   socket.on('disconnect', () => {

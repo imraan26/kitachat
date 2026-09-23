@@ -1,7 +1,7 @@
 const socket = io();
 let currentUser = null;
 
-// Objek Audio untuk Nada Dering (Pastikan file audio tersedia di folder public/audio/)
+// Objek Audio untuk Nada Dering
 const chatBeepAudio = new Audio('/audio/chat-beep.mp3');
 const callRingtone = new Audio('/audio/nadadering-phone.mp3');
 callRingtone.loop = true;
@@ -64,16 +64,12 @@ async function handleLogin(event) {
 
         if (response.ok) {
             currentUser = data.user;
-            
-            // SIMPAN KE SESSION STORAGE AGAR TIDAK HILANG SAAT REFRESH
             sessionStorage.setItem('kitachat_user', JSON.stringify(currentUser));
 
-            // [OPTIMALISASI] Memicu interaksi audio pertama kali agar policy browser mengizinkan pemutaran suara
             chatBeepAudio.play().catch(() => {});
             chatBeepAudio.pause();
             chatBeepAudio.currentTime = 0;
 
-            // [OPTIMALISASI] Meminta izin Notification API secara eksplisit saat login pertama
             if ('Notification' in window && Notification.permission === 'default') {
                 Notification.requestPermission();
             }
@@ -88,11 +84,9 @@ async function handleLogin(event) {
     }
 }
 
-// Fungsi untuk memperbarui tampilan setelah login atau refresh (Sinkron Mobile & Desktop)
 function updateUserInterface() {
     if (!currentUser) return;
 
-    // 1. Perbarui elemen teks dan foto profil di Mobile
     const mobileName = document.getElementById('user-display-name');
     if (mobileName) mobileName.innerText = currentUser.name;
     
@@ -101,7 +95,6 @@ function updateUserInterface() {
         mobileAvatar.src = currentUser.photo_url;
     }
 
-    // 2. Perbarui elemen teks dan foto profil di Desktop
     const desktopName = document.getElementById('user-display-name-desktop');
     if (desktopName) desktopName.innerText = currentUser.name;
     
@@ -110,7 +103,6 @@ function updateUserInterface() {
         desktopAvatar.src = currentUser.photo_url;
     }
     
-    // 3. Sembunyikan halaman auth dan tampilkan halaman utama dengan benar
     const authScreen = document.getElementById('auth-screen');
     if (authScreen) {
         authScreen.classList.remove('active');
@@ -124,7 +116,6 @@ function updateUserInterface() {
     }
 }
 
-// Cek sesi otomatis saat halaman dimuat ulang (Refresh) agar tidak tertutup
 window.addEventListener('DOMContentLoaded', () => {
     const savedUser = sessionStorage.getItem('kitachat_user');
     if (savedUser) {
@@ -134,7 +125,6 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Navigasi Menu Samping & Bawah (Responsif Mobile)
 function switchTabNav(tabName, element) {
     const contents = document.querySelectorAll('.tab-content');
     contents.forEach(el => el.classList.add('hidden'));
@@ -162,7 +152,6 @@ function switchTabNav(tabName, element) {
     }
 }
 
-// Ganti Tema Dark / Light Mode & Simpan ke localStorage
 function toggleTheme() {
     if (document.body.classList.contains('dark-mode')) {
         document.body.classList.remove('dark-mode');
@@ -175,7 +164,6 @@ function toggleTheme() {
     }
 }
 
-// Muat tema tersimpan saat halaman pertama kali dibuka/refresh
 window.addEventListener('DOMContentLoaded', () => {
     const savedTheme = localStorage.getItem('kitachat_theme');
     if (savedTheme === 'dark') {
@@ -194,10 +182,9 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Logout
 function logout() {
     currentUser = null;
-    sessionStorage.removeItem('kitachat_user'); // Hapus sesi
+    sessionStorage.removeItem('kitachat_user');
     
     const mainScreen = document.getElementById('main-screen');
     if (mainScreen) {
@@ -217,7 +204,6 @@ function logout() {
     if (loginPassword) loginPassword.value = '';
 }
 
-// Kirim Pesan Chat secara Real-Time via Socket.io
 function sendMessage() {
     const input = document.getElementById('message-input');
     const messageText = input.value.trim();
@@ -231,8 +217,7 @@ function sendMessage() {
     const messageData = {
         userId: currentUser.id,
         name: currentUser.name,
-        message: messageText,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        message: messageText
     };
 
     socket.emit('send_message', messageData);
@@ -251,7 +236,6 @@ socket.on('chat_history', (history) => {
 socket.on('receive_message', (data) => {
     appendChatMessage(data);
 
-    // [OPTIMALISASI] Putar suara notifikasi chat & tampilkan sistem notifikasi visual jika bukan pengirim sendiri
     if (currentUser && data.name !== currentUser.name) {
         chatBeepAudio.play().catch(() => {});
         
@@ -297,7 +281,6 @@ if (msgInput) {
     });
 }
 
-// Fungsi untuk memuat daftar anggota keluarga
 async function loadFamilyMembers() {
     try {
         const response = await fetch('/api/users');
@@ -336,7 +319,6 @@ async function loadFamilyMembers() {
     }
 }
 
-// Fungsi untuk memuat galeri album foto
 async function loadAlbumPhotos() {
     try {
         const response = await fetch('/api/albums');
@@ -565,9 +547,8 @@ async function handleUpdateProfilePhoto(event) {
 let localStream = null;
 let peerConnection = null;
 let targetSocketId = null;
-let targetUserId = null; // Menyimpan ID pengguna lawan bicara (target direct routing)
+let targetUserId = null;
 
-// [OPTIMALISASI] Konfigurasi STUN Server publik Google untuk WebRTC production
 const rtcConfig = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
@@ -577,7 +558,7 @@ const rtcConfig = {
 };
 
 async function startCall(peerUserId, peerName) {
-    targetUserId = peerUserId; // Set target user ID yang ditelepon
+    targetUserId = peerUserId;
     const modal = document.getElementById('call-modal');
     modal.classList.remove('hidden');
     document.getElementById('call-status-title').innerText = 'Memanggil...';
@@ -620,8 +601,7 @@ async function startCall(peerUserId, peerName) {
 socket.on('incoming_call', async (data) => {
     if (currentUser && data.toUserId == currentUser.id) {
         targetSocketId = data.fromSocketId;
-        // Lacak ID pemanggil agar jika panggilan ditolak/ditutup, informasi arah tujuannya jelas
-        targetUserId = data.fromUserId || null; 
+        targetUserId = data.fromUserId;
         
         const modal = document.getElementById('call-modal');
         modal.classList.remove('hidden');
@@ -629,7 +609,6 @@ socket.on('incoming_call', async (data) => {
         document.getElementById('call-peer-name').innerText = data.callerName;
         document.getElementById('btn-accept-call').style.display = 'inline-block';
 
-        // [OPTIMALISASI] Putar dering panggilan masuk & tampilkan Notification API
         callRingtone.play().catch(() => {});
         if (Notification.permission === 'granted') {
             new Notification('Panggilan Masuk', {
@@ -697,26 +676,31 @@ socket.on('ice_candidate', async (data) => {
     }
 });
 
+// [OPTIMALISASI TOTAL] Pembersihan menyeluruh agar panggilan tidak menggantung
 function hangUpCall() {
     callRingtone.pause();
     callRingtone.currentTime = 0;
 
     if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
     }
+    
     if (peerConnection) {
+        peerConnection.onicecandidate = null;
+        peerConnection.ontrack = null;
         peerConnection.close();
         peerConnection = null;
     }
-    
+
     const modal = document.getElementById('call-modal');
-    modal.classList.add('hidden');
+    if (modal) modal.classList.add('hidden');
     
-    // [OPTIMALISASI] Kirim event end_call dengan menyertakan targetUserId spesifik
     socket.emit('end_call', { toUserId: targetUserId });
     
     targetSocketId = null;
     targetUserId = null;
+    window.incomingOffer = null;
 }
 
 // --- FITUR ZOOM, SIMPAN, DAN HAPUS FOTO ---
@@ -823,8 +807,7 @@ if (chatFileInput) {
                     const messageData = {
                         userId: currentUser.id,
                         name: currentUser.name,
-                        message: imageMessageHtml,
-                        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        message: imageMessageHtml
                     };
 
                     socket.emit('send_message', messageData);
