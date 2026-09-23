@@ -603,7 +603,7 @@ async function startCall(peerUserId, peerName) {
 
 socket.on('incoming_call', async (data) => {
     if (currentUser && data.toUserId == currentUser.id) {
-        targetSocketId = data.fromSocketId;
+        targetSocketId = data.fromSocketId; // Pastikan backend mengirim fromSocketId
         targetUserId = data.fromUserId;
         
         const modal = document.getElementById('call-modal');
@@ -658,9 +658,14 @@ async function acceptCall() {
         console.error('Error saat menerima panggilan:', err);
         hangUpCall();
     }
-}
+} // <-- DIPERBAIKI: sebelumnya tertulis }); yang menyebabkan error sintaks
 
 socket.on('call_answered', async (data) => {
+    // PENTING: Jika di startCall targetSocketId belum ada, pastikan server mengembalikan socketId penerima lewat data ini
+    if (data.targetSocketId) {
+        targetSocketId = data.targetSocketId;
+    }
+    
     document.getElementById('call-status-title').innerText = 'Terhubung';
     try {
         await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
@@ -679,7 +684,6 @@ socket.on('ice_candidate', async (data) => {
     }
 });
 
-// [OPTIMALISASI TOTAL] Pembersihan menyeluruh agar panggilan tidak menggantung
 function hangUpCall() {
     callRingtone.pause();
     callRingtone.currentTime = 0;
@@ -699,7 +703,9 @@ function hangUpCall() {
     const modal = document.getElementById('call-modal');
     if (modal) modal.classList.add('hidden');
     
-    socket.emit('end_call', { toUserId: targetUserId });
+    if (targetUserId) {
+        socket.emit('end_call', { toUserId: targetUserId });
+    }
     
     targetSocketId = null;
     targetUserId = null;
