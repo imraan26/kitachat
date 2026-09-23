@@ -249,6 +249,52 @@ async function sendMessage() {
     }
 }
 
+async function triggerUploadProfile(inputElement) {
+    if (inputElement.files && inputElement.files[0]) {
+        const file = inputElement.files[0];
+
+        if (!currentUser) {
+            alert('Silakan login terlebih dahulu!');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('user_id', currentUser.id);
+        formData.append('image', file);
+
+        try {
+            const response = await fetch('/api/update-photo', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+                alert(data.message);
+                currentUser = data.user;
+                localStorage.setItem('kitachat_user', JSON.stringify(currentUser));
+
+                // Perbarui tampilan avatar di seluruh aplikasi
+                const mobileAvatar = document.getElementById('user-avatar');
+                if (mobileAvatar) mobileAvatar.src = currentUser.photo_url;
+
+                const desktopAvatar = document.getElementById('user-avatar-desktop');
+                if (desktopAvatar) desktopAvatar.src = currentUser.photo_url;
+
+                const settingsAvatar = document.getElementById('settings-user-avatar');
+                if (settingsAvatar) settingsAvatar.src = currentUser.photo_url;
+            } else {
+                alert(data.error);
+            }
+        } catch (err) {
+            console.error('Error update foto profil:', err);
+            alert('Terjadi kesalahan jaringan.');
+        }
+
+        inputElement.value = '';
+    }
+}
+
 // [OPTIMALISASI B] Event listener chat_history aktif untuk memuat riwayat obrolan otomatis
 socket.on('chat_history', (history) => {
     const container = document.getElementById('chat-messages-container');
