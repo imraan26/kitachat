@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kitachat-pwa-v1';
+const CACHE_NAME = 'kitachat-pwa-v2';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -7,28 +7,48 @@ const urlsToCache = [
   '/manifest.json'
 ];
 
-// Menginstal Service Worker dan menyimpan file ke cache lokal
+// Install Service Worker dan Cache Aset Statis
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('Membuka cache PWA');
         return cache.addAll(urlsToCache);
       })
   );
+  self.skipWaiting();
 });
 
-// Mengambil file dari cache jika tersedia, atau mengunduhnya jika belum ada
+// Aktivasi dan Bersihkan Cache Lama
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cacheName => {
+          if (cacheName !== CACHE_NAME) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+  self.clientsClaim();
+});
+
+// Tangani Permintaan Fetch (Abaikan rute API /uploads /socket.io agar tidak error 500/fetch failed)
 self.addEventListener('fetch', event => {
+  const url = new URL(event.request.url);
+
+  // Jangan cache rute API, Socket.io, atau folder uploads
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/socket.io/') || url.pathname.startsWith('/uploads/')) {
+    return; // Biarkan berjalan langsung ke jaringan tanpa Service Worker
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then(response => {
-        // Jika file ada di cache, gunakan itu
-        if (response) {
-          return response;
-        }
-        // Jika tidak, ambil dari jaringan/internet
-        return fetch(event.request);
+        return response || fetch(event.request);
+      }).catch(() => {
+        // Fallback opsional jika offline
       })
   );
 });
