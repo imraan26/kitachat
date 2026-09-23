@@ -194,67 +194,76 @@
                 </div>
 
                 <!-- Tab Pengaturan -->
-                <div id="content-settings" class="tab-content hidden" style="display: flex; flex-direction: column; height: 100%;">
-                    <div class="chat-header">
-                        <h3><i class="fa-solid fa-gear"></i> Pengaturan Akun & Aplikasi</h3>
-                    </div>
-                    
-                    <!-- Container Utama Pengaturan ala WhatsApp Style -->
-                    <div style="padding: 15px; overflow-y: auto; flex: 1; display: flex; flexDirection: column; gap: 12px; max-width: 600px; margin: 0 auto; width: 100%;">
-                        
-                        <!-- Menu 1: Ganti Foto Profil -->
-                        <div style="background: var(--card-bg); padding: 15px 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 12px;">
-                                <i class="fa-solid fa-user-pen" style="font-size: 20px; color: var(--primary-color);"></i>
-                                <div>
-                                    <h4 style="margin: 0; color: var(--text-light); font-size: 15px;">Ganti Foto Profil</h4>
-                                    <p style="margin: 2px 0 0 0; font-size: 12px; color: gray;">Perbarui foto identitas akun Anda</p>
-                                </div>
-                            </div>
-                            <form onsubmit="handleUpdateProfilePhoto(event)" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                                <input type="file" id="profile-file-input" accept="image/*" required style="padding: 6px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-light); color: var(--text-light); font-size: 13px; flex: 1;">
-                                <button type="submit" class="btn-primary" style="padding: 8px 16px; font-size: 13px;"><i class="fa-solid fa-upload"></i> Simpan</button>
-                            </form>
-                        </div>
-                
-                        <!-- Menu 2: Tema Tampilan -->
-                        <div style="background: var(--card-bg); padding: 15px 20px; border-radius: 12px; border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                            <div style="display: flex; align-items: center; gap: 15px;">
-                                <i class="fa-solid fa-circle-half-stroke" style="font-size: 20px; color: var(--primary-color);"></i>
-                                <div>
-                                    <h4 style="margin: 0; color: var(--text-light); font-size: 15px;">Tema Tampilan</h4>
-                                    <p style="margin: 2px 0 0 0; font-size: 12px; color: gray;">Beralih mode Gelap dan Terang</p>
-                                </div>
-                            </div>
-                            <button type="button" onclick="toggleTheme()" class="btn-primary" style="padding: 8px 14px; font-size: 13px; white-space: nowrap;"><i class="fa-solid fa-palette"></i> Ubah</button>
-                        </div>
-                
-                        <!-- Menu 3: Bersihkan Obrolan -->
-                        <div style="background: var(--card-bg); padding: 15px 20px; border-radius: 12px; border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                            <div style="display: flex; align-items: center; gap: 15px;">
-                                <i class="fa-solid fa-trash-can" style="font-size: 20px; color: #e74c3c;"></i>
-                                <div>
-                                    <h4 style="margin: 0; color: var(--text-light); font-size: 15px;">Bersihkan Obrolan</h4>
-                                    <p style="margin: 2px 0 0 0; font-size: 12px; color: gray;">Hapus seluruh riwayat chat grup</p>
-                                </div>
-                            </div>
-                            <button type="button" onclick="clearChat()" style="padding: 8px 14px; background: #e74c3c; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; white-space: nowrap;"><i class="fa-solid fa-broom"></i> Bersihkan</button>
-                        </div>
-                
-                        <!-- Menu 4: Keluar Aplikasi -->
-                        <div style="background: var(--card-bg); padding: 15px 20px; border-radius: 12px; border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                            <div style="display: flex; align-items: center; gap: 15px;">
-                                <i class="fa-solid fa-right-from-bracket" style="font-size: 20px; color: #e74c3c;"></i>
-                                <div>
-                                    <h4 style="margin: 0; color: var(--text-light); font-size: 15px;">Keluar Aplikasi</h4>
-                                    <p style="margin: 2px 0 0 0; font-size: 12px; color: gray;">Akhiri sesi dan keluar akun</p>
-                                </div>
-                            </div>
-                            <button type="button" onclick="logout()" style="padding: 8px 14px; background: #e74c3c; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; white-space: nowrap;"><i class="fa-solid fa-power-off"></i> Logout</button>
-                        </div>
-                
+<div id="content-settings" class="tab-content hidden" style="display: flex; flex-direction: column; height: 100%;">
+    <div class="chat-header">
+        <h3><i class="fa-solid fa-gear"></i> Pengaturan Akun & Aplikasi</h3>
+    </div>
+    
+    <!-- Wrapper Utama Pengaturan (Responsif Desktop & Mobile) -->
+    <div style="padding: 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 16px; max-width: 650px; margin: 0 auto; width: 100%;">
+        
+        <!-- Kartu Profil Pengguna (Ala WhatsApp Settings Header) -->
+        <div style="background: var(--card-bg); padding: 20px; border-radius: 16px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+            <img id="settings-user-avatar" src="https://via.placeholder.com/70" alt="Profil" style="width: 65px; height: 65px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary-color);">
+            <div style="flex: 1; overflow: hidden;">
+                <h3 id="settings-user-name" style="margin: 0; color: var(--text-light); font-size: 18px; font-weight: bold;">Nama Pengguna</h3>
+                <p id="settings-user-phone" style="margin: 4px 0 0 0; font-size: 13px; color: gray;"><i class="fa-solid fa-phone"></i> Nomor Telepon</p>
+            </div>
+        </div>
+
+        <!-- Grup Menu 1: Akun & Profil -->
+        <div style="background: var(--card-bg); border-radius: 16px; border: 1px solid var(--border-color); overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+            <!-- Ganti Foto Profil -->
+            <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color);">
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
+                    <i class="fa-solid fa-user-pen" style="font-size: 18px; color: var(--primary-color);"></i>
+                    <span style="font-size: 15px; font-weight: 500; color: var(--text-light);">Ganti Foto Profil</span>
+                </div>
+                <form onsubmit="handleUpdateProfilePhoto(event)" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding-left: 33px;">
+                    <input type="file" id="profile-file-input" accept="image/*" required style="padding: 6px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-light); color: var(--text-light); font-size: 12px; flex: 1;">
+                    <button type="submit" class="btn-primary" style="padding: 6px 14px; font-size: 12px;"><i class="fa-solid fa-upload"></i> Simpan</button>
+                </form>
+            </div>
+
+            <!-- Tema Tampilan -->
+            <div style="padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <i class="fa-solid fa-circle-half-stroke" style="font-size: 18px; color: var(--primary-color);"></i>
+                    <span style="font-size: 15px; font-weight: 500; color: var(--text-light);">Tema Tampilan (Gelap / Terang)</span>
+                </div>
+                <button type="button" onclick="toggleTheme()" class="btn-primary" style="padding: 6px 14px; font-size: 12px; white-space: nowrap;"><i class="fa-solid fa-palette"></i> Ubah</button>
+            </div>
+        </div>
+
+        <!-- Grup Menu 2: Sistem & Data -->
+        <div style="background: var(--card-bg); border-radius: 16px; border: 1px solid var(--border-color); overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+            <!-- Bersihkan Obrolan -->
+            <div style="padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color);">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <i class="fa-solid fa-trash-can" style="font-size: 18px; color: #e74c3c;"></i>
+                    <div>
+                        <span style="font-size: 15px; font-weight: 500; color: var(--text-light); display: block;">Bersihkan Obrolan</span>
+                        <span style="font-size: 12px; color: gray;">Hapus seluruh riwayat chat grup keluarga</span>
                     </div>
                 </div>
+                <button type="button" onclick="clearChat()" style="padding: 6px 14px; background: #e74c3c; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px; white-space: nowrap;"><i class="fa-solid fa-broom"></i> Bersihkan</button>
+            </div>
+
+            <!-- Keluar Aplikasi -->
+            <div style="padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <i class="fa-solid fa-right-from-bracket" style="font-size: 18px; color: #e74c3c;"></i>
+                    <div>
+                        <span style="font-size: 15px; font-weight: 500; color: var(--text-light); display: block;">Keluar Aplikasi</span>
+                        <span style="font-size: 12px; color: gray;">Akhiri sesi dan keluar akun</span>
+                    </div>
+                </div>
+                <button type="button" onclick="logout()" style="padding: 6px 14px; background: #e74c3c; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px; white-space: nowrap;"><i class="fa-solid fa-power-off"></i> Logout</button>
+            </div>
+        </div>
+
+    </div>
+</div>
 
             <!-- Menu Navigasi Bawah Khusus Mobile (WhatsApp Style Bottom Bar) -->
             <div class="sidebar-menu mobile-bottom-nav">
