@@ -34,21 +34,29 @@ self.addEventListener('activate', event => {
   self.clientsClaim();
 });
 
-// Tangani Permintaan Fetch (Abaikan rute API /uploads /socket.io agar tidak error 500/fetch failed)
+// Tangani Permintaan Fetch
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // Jangan cache rute API, Socket.io, atau folder uploads
-  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/socket.io/') || url.pathname.startsWith('/uploads/')) {
-    return; // Biarkan berjalan langsung ke jaringan tanpa Service Worker
-  }
+  // Periksa apakah permintaan BUKAN untuk API, Socket.io, atau uploads
+  const isApiOrUpload = url.pathname.startsWith('/api/') || 
+                        url.pathname.startsWith('/socket.io/') || 
+                        url.pathname.startsWith('/uploads/');
 
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        return response || fetch(event.request);
-      }).catch(() => {
-        // Fallback opsional jika offline
-      })
-  );
+  if (!isApiOrUpload) {
+    event.respondWith(
+      caches.match(event.request)
+        .then(response => {
+          // Kembalikan dari cache jika ada, jika tidak lakukan fetch ke jaringan
+          return response || fetch(event.request);
+        }).catch(() => {
+          // Fallback opsional jika offline dan aset tidak ada di cache
+          if (event.request.mode === 'navigate') {
+            return caches.match('/index.html');
+          }
+        })
+    );
+  }
+  // Jika isApiOrUpload bernilai true, event.respondWith() tidak dipanggil.
+  // Browser secara otomatis akan langsung mengambil data dari jaringan (Bypass SW).
 });
