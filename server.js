@@ -303,54 +303,60 @@ app.post('/api/update-photo', upload.single('image'), async (req, res) => {
   }
 });
 
+// ... (kode Express, Multer, dan Pool tetap sama seperti sebelumnya) ...
+
 // Map untuk pemetaan pengguna aktif WebRTC
 const activeUsers = new Map();
 
-// Konfigurasi Socket.io
 io.on('connection', async (socket) => {
-  console.log('Seorang anggota keluarga terhubung:', socket.id);
+  console.log('Anggota keluarga terhubung:', socket.id);
 
-  // Ambil Riwayat Chat dari Database
+  // 1. Ambil Riwayat Chat (Ditingkatkan ke 200 pesan terbaru)
   try {
     const historyResult = await pool.query(
-      `SELECT messages.message, messages.created_at, users.name 
-       FROM messages 
-       JOIN users ON messages.user_id = users.id 
-       ORDER BY messages.created_at ASC LIMIT 50`
+      `SELECT m.message, m.created_at, u.name 
+       FROM (SELECT * FROM messages ORDER BY created_at DESC LIMIT 200) m
+       JOIN users u ON m.user_id = u.id 
+       ORDER BY m.created_at ASC`
     );
     
     const formattedHistory = historyResult.rows.map(row => ({
       name: row.name,
       message: row.message,
-      time: new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      time: new Date(row.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
     }));
 
+    // Kirim riwayat ke user yang baru konek
     socket.emit('chat_history', formattedHistory);
   } catch (err) {
     console.error('Gagal memuat riwayat chat:', err);
   }
 
-  // Kirim dan Simpan Pesan Chat secara Real-Time ke DB
+  // 2. Simpan dan Kirim Pesan Real-Time
   socket.on('send_message', async (data) => {
     try {
+      // Validasi: Jangan simpan jika userId atau pesan kosong
+      if (!data.userId || !data.message) return;
+
       const insertResult = await pool.query(
         `INSERT INTO messages (user_id, message) VALUES ($1, $2) RETURNING created_at`,
         [data.userId, data.message]
       );
 
-      const formattedTime = new Date(insertResult.rows[0].created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const formattedTime = new Date(insertResult.rows[0].created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
+      // Kirim ke semua orang (termasuk pengirim)
       io.emit('receive_message', {
         name: data.name,
         message: data.message,
         time: formattedTime
       });
     } catch (err) {
-      console.error('Gagal menyimpan pesan ke database:', err);
+      console.error('Gagal menyimpan ke Postgres:', err.message);
     }
   });
 
-  // --- SIGNALING TELEPON (WebRTC) ---
+  // --- SIGNALING WEBRTC (Tetap Sama) ---
   socket.on('register_call_user', (userId) => {
     socket.userId = String(userId);
     activeUsers.set(socket.userId, socket.id);
@@ -363,46 +369,35 @@ io.on('connection', async (socket) => {
         fromSocketId: socket.id,
         fromUserId: socket.userId,
         callerName: data.callerName,
-        offer: data.offer,
-        toUserId: data.toUserId
+        offer: data.offer
       });
     }
   });
 
   socket.on('make_answer', (data) => {
-    io.to(data.toSocketId).emit('call_answered', {
-      answer: data.answer
-    });
+    io.to(data.toSocketId).emit('call_answered', { answer: data.answer });
   });
 
   socket.on('ice_candidate', (data) => {
-    io.to(data.targetSocketId).emit('ice_candidate', {
-      candidate: data.candidate
-    });
+    io.to(data.targetSocketId).emit('ice_candidate', { candidate: data.candidate });
   });
 
   socket.on('end_call', (data) => {
-    if (data && data.toUserId) {
+    if (data?.toUserId) {
       const targetSocketId = activeUsers.get(String(data.toUserId));
-      if (targetSocketId) {
-        io.to(targetSocketId).emit('call_ended');
-      }
+      if (targetSocketId) io.to(targetSocketId).emit('call_ended');
     }
     socket.emit('call_ended');
   });
 
   socket.on('disconnect', () => {
-    if (socket.userId) {
-      activeUsers.delete(socket.userId);
-    }
+    if (socket.userId) activeUsers.delete(socket.userId);
     console.log('Anggota keluarga terputus:', socket.id);
   });
 });
 
-// Jalankan Inisialisasi DB lalu Nyalakan Server
+// Start Server
 const PORT = process.env.PORT || 3000;
 initDB().then(() => {
-  server.listen(PORT, () => {
-    console.log(`Server Kitachat aktif di port ${PORT}`);
-  });
+  server.listen(PORT, () => console.log(`Server Kitachat running on port ${PORT}`));
 });
