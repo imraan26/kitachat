@@ -1,6 +1,15 @@
 const socket = io();
 let currentUser = null;
 
+// Registrasi Service Worker Sederhana untuk PWA
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('Service Worker terdaftar:', reg.scope))
+            .catch(err => console.log('Gagal mendaftarkan Service Worker:', err));
+    });
+}
+
 // Objek Audio untuk Nada Dering
 const chatBeepAudio = new Audio('/audio/chat-beep.mp3');
 const callRingtone = new Audio('/audio/nadadering-phone.mp3');
