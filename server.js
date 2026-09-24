@@ -18,6 +18,25 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
+// ==========================================
+// MIDDLEWARE: HTTP SECURITY HEADERS
+// ==========================================
+app.use((req, res, next) => {
+    // Mencegah peramban menebak (sniffing) tipe MIME secara keliru
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    
+    // Mencegah aplikasi Kitachat disisipkan ke dalam iframe situs lain (Mencegah Clickjacking)
+    res.setHeader('X-Frame-Options', 'DENY');
+    
+    // Mengaktifkan filter XSS bawaan dari peramban modern
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    
+    // Mengamankan informasi URL asal saat aplikasi mengambil sumber daya eksternal
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    
+    next();
+});
+
 // Pastikan folder public/uploads otomatis dibuat secara aman jika belum ada di server
 try {
   const uploadDir = path.join(__dirname, 'public', 'uploads');
