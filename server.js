@@ -13,10 +13,9 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// Middleware
+// Middleware Dasar
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static('public'));
 
 // ==========================================
 // MIDDLEWARE: HTTP SECURITY HEADERS
@@ -36,6 +35,9 @@ app.use((req, res, next) => {
     
     next();
 });
+
+// Middleware Static (HARUS diletakkan SETELAH Security Headers)
+app.use(express.static('public'));
 
 // Pastikan folder public/uploads otomatis dibuat secara aman jika belum ada di server
 try {
