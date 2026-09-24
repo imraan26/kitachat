@@ -81,6 +81,7 @@
 
             <!-- Ruang Konten Utama -->
             <div class="chat-area">
+                
                 <!-- Tab Obrolan Keluarga -->
                 <div id="content-chat" class="tab-content active" style="display: flex; flex-direction: column; height: 100%;">
                     <div class="chat-header">
@@ -98,12 +99,10 @@
                             </div>
                             <button onclick="cancelReply()" style="background: none; border: none; cursor: pointer; font-size: 14px; color: var(--text-light);"><i class="fa-solid fa-xmark"></i></button>
                         </div>
-
                         
                         <!-- Baris Input Utama -->
                         <div style="display: flex; gap: 10px; align-items: flex-end; width: 100%;">
-                            
-                            <!-- Tombol Kirim Stiker (Placeholder Sederhana / Panel Stiker) -->
+                            <!-- Tombol Kirim Stiker Cepat -->
                             <button type="button" onclick="sendSticker('/uploads/sticker-example.png')" style="background: none; border: none; cursor: pointer; color: #667781; font-size: 20px; padding-bottom: 8px; flex-shrink: 0;" title="Kirim Stiker Cepat">
                                 <i class="fa-solid fa-face-smile"></i>
                             </button>
@@ -129,8 +128,9 @@
                                 </svg>
                             </button>
                         </div>
+                    </div>
+                </div>
 
-                        
                 <!-- Tab Album Foto -->
                 <div id="content-album" class="tab-content hidden" style="display: flex; flex-direction: column; height: 100%;">
                     <div class="chat-header">
@@ -206,82 +206,83 @@
                     </div>
                 </div>
 
-<!-- Tab Pengaturan -->
-<div id="content-settings" class="tab-content hidden" style="display: flex; flex-direction: column; height: 100%;">
-    <div class="chat-header">
-        <h3><i class="fa-solid fa-gear"></i> Pengaturan Akun & Aplikasi</h3>
-    </div>
-    
-    <!-- Wrapper Utama Pengaturan -->
-    <div style="padding: 15px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 12px; max-width: 600px; margin: 0 auto; width: 100%;">
-        
-        <!-- Input File Tersembunyi untuk Ganti Foto Profil (Dieksekusi via Klik Menu) -->
-        <input type="file" id="hidden-profile-file-input" accept="image/*" style="display: none;" onchange="triggerUploadProfile(this)">
+                <!-- Tab Pengaturan -->
+                <div id="content-settings" class="tab-content hidden" style="display: flex; flex-direction: column; height: 100%;">
+                    <div class="chat-header">
+                        <h3><i class="fa-solid fa-gear"></i> Pengaturan Akun & Aplikasi</h3>
+                    </div>
+                    
+                    <!-- Wrapper Utama Pengaturan -->
+                    <div style="padding: 15px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 12px; max-width: 600px; margin: 0 auto; width: 100%;">
+                        
+                        <!-- Input File Tersembunyi untuk Ganti Foto Profil -->
+                        <input type="file" id="hidden-profile-file-input" accept="image/*" style="display: none;" onchange="triggerUploadProfile(this)">
 
-        <!-- Kartu Header Profil -->
-        <div style="background: var(--card-bg); padding: 18px; border-radius: 14px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);">
-            <img id="settings-user-avatar" src="https://via.placeholder.com/65" alt="Profil" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary-color);">
-            <div style="flex: 1; overflow: hidden;">
-                <h3 id="settings-user-name" style="margin: 0; color: var(--text-light); font-size: 17px; font-weight: bold;">Nama Pengguna</h3>
-                <p id="settings-user-phone" style="margin: 3px 0 0 0; font-size: 13px; color: gray;"><i class="fa-solid fa-phone"></i> Nomor Telepon</p>
-            </div>
-        </div>
+                        <!-- Kartu Header Profil -->
+                        <div style="background: var(--card-bg); padding: 18px; border-radius: 14px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);">
+                            <img id="settings-user-avatar" src="https://via.placeholder.com/65" alt="Profil" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary-color);">
+                            <div style="flex: 1; overflow: hidden;">
+                                <h3 id="settings-user-name" style="margin: 0; color: var(--text-light); font-size: 17px; font-weight: bold;">Nama Pengguna</h3>
+                                <p id="settings-user-phone" style="margin: 3px 0 0 0; font-size: 13px; color: gray;"><i class="fa-solid fa-phone"></i> Nomor Telepon</p>
+                            </div>
+                        </div>
 
-        <!-- Daftar Menu Pengaturan (Klik teks untuk eksekusi) -->
-        <div style="background: var(--card-bg); border-radius: 14px; border: 1px solid var(--border-color); overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.04);">
-            
-            <!-- Menu 1: Ganti Foto Profil -->
-            <div onclick="document.getElementById('hidden-profile-file-input').click()" style="padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.02)'" onmouseout="this.style.background='transparent'">
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <i class="fa-solid fa-user-pen" style="font-size: 18px; color: var(--primary-color);"></i>
-                    <div>
-                        <span style="font-size: 15px; font-weight: 500; color: var(--text-light); display: block;">Ganti Foto Profil</span>
-                        <span style="font-size: 12px; color: gray;">Tekan untuk memperbarui foto akun</span>
+                        <!-- Daftar Menu Pengaturan -->
+                        <div style="background: var(--card-bg); border-radius: 14px; border: 1px solid var(--border-color); overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.04);">
+                            
+                            <!-- Menu 1: Ganti Foto Profil -->
+                            <div onclick="document.getElementById('hidden-profile-file-input').click()" style="padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.02)'" onmouseout="this.style.background='transparent'">
+                                <div style="display: flex; align-items: center; gap: 15px;">
+                                    <i class="fa-solid fa-user-pen" style="font-size: 18px; color: var(--primary-color);"></i>
+                                    <div>
+                                        <span style="font-size: 15px; font-weight: 500; color: var(--text-light); display: block;">Ganti Foto Profil</span>
+                                        <span style="font-size: 12px; color: gray;">Tekan untuk memperbarui foto akun</span>
+                                    </div>
+                                </div>
+                                <i class="fa-solid fa-chevron-right" style="font-size: 13px; color: gray;"></i>
+                            </div>
+
+                            <!-- Menu 2: Tema Tampilan -->
+                            <div onclick="toggleTheme()" style="padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.02)'" onmouseout="this.style.background='transparent'">
+                                <div style="display: flex; align-items: center; gap: 15px;">
+                                    <i class="fa-solid fa-circle-half-stroke" style="font-size: 18px; color: var(--primary-color);"></i>
+                                    <div>
+                                        <span style="font-size: 15px; font-weight: 500; color: var(--text-light); display: block;">Tema Tampilan</span>
+                                        <span style="font-size: 12px; color: gray;">Beralih antara mode Gelap dan Terang</span>
+                                    </div>
+                                </div>
+                                <i class="fa-solid fa-chevron-right" style="font-size: 13px; color: gray;"></i>
+                            </div>
+
+                            <!-- Menu 3: Bersihkan Obrolan -->
+                            <div onclick="clearChat()" style="padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.02)'" onmouseout="this.style.background='transparent'">
+                                <div style="display: flex; align-items: center; gap: 15px;">
+                                    <i class="fa-solid fa-trash-can" style="font-size: 18px; color: #e74c3c;"></i>
+                                    <div>
+                                        <span style="font-size: 15px; font-weight: 500; color: var(--text-light); display: block;">Bersihkan Obrolan</span>
+                                        <span style="font-size: 12px; color: gray;">Hapus seluruh riwayat chat grup keluarga</span>
+                                    </div>
+                                </div>
+                                <i class="fa-solid fa-chevron-right" style="font-size: 13px; color: gray;"></i>
+                            </div>
+
+                            <!-- Menu 4: Keluar Aplikasi -->
+                            <div onclick="logout()" style="padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.02)'" onmouseout="this.style.background='transparent'">
+                                <div style="display: flex; align-items: center; gap: 15px;">
+                                    <i class="fa-solid fa-right-from-bracket" style="font-size: 18px; color: #e74c3c;"></i>
+                                    <div>
+                                        <span style="font-size: 15px; font-weight: 500; color: #e74c3c; display: block;">Keluar Aplikasi</span>
+                                        <span style="font-size: 12px; color: gray;">Akhiri sesi dan keluar akun</span>
+                                    </div>
+                                </div>
+                                <i class="fa-solid fa-chevron-right" style="font-size: 13px; color: gray;"></i>
+                            </div>
+
+                        </div>
                     </div>
                 </div>
-                <i class="fa-solid fa-chevron-right" style="font-size: 13px; color: gray;"></i>
+
             </div>
-
-            <!-- Menu 2: Tema Tampilan -->
-            <div onclick="toggleTheme()" style="padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.02)'" onmouseout="this.style.background='transparent'">
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <i class="fa-solid fa-circle-half-stroke" style="font-size: 18px; color: var(--primary-color);"></i>
-                    <div>
-                        <span style="font-size: 15px; font-weight: 500; color: var(--text-light); display: block;">Tema Tampilan</span>
-                        <span style="font-size: 12px; color: gray;">Beralih antara mode Gelap dan Terang</span>
-                    </div>
-                </div>
-                <i class="fa-solid fa-chevron-right" style="font-size: 13px; color: gray;"></i>
-            </div>
-
-            <!-- Menu 3: Bersihkan Obrolan -->
-            <div onclick="clearChat()" style="padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.02)'" onmouseout="this.style.background='transparent'">
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <i class="fa-solid fa-trash-can" style="font-size: 18px; color: #e74c3c;"></i>
-                    <div>
-                        <span style="font-size: 15px; font-weight: 500; color: var(--text-light); display: block;">Bersihkan Obrolan</span>
-                        <span style="font-size: 12px; color: gray;">Hapus seluruh riwayat chat grup keluarga</span>
-                    </div>
-                </div>
-                <i class="fa-solid fa-chevron-right" style="font-size: 13px; color: gray;"></i>
-            </div>
-
-            <!-- Menu 4: Keluar Aplikasi -->
-            <div onclick="logout()" style="padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.02)'" onmouseout="this.style.background='transparent'">
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <i class="fa-solid fa-right-from-bracket" style="font-size: 18px; color: #e74c3c;"></i>
-                    <div>
-                        <span style="font-size: 15px; font-weight: 500; color: #e74c3c; display: block;">Keluar Aplikasi</span>
-                        <span style="font-size: 12px; color: gray;">Akhiri sesi dan keluar akun</span>
-                    </div>
-                </div>
-                <i class="fa-solid fa-chevron-right" style="font-size: 13px; color: gray;"></i>
-            </div>
-
-        </div>
-
-    </div>
-</div>
 
             <!-- Menu Navigasi Bawah Khusus Mobile (WhatsApp Style Bottom Bar) -->
             <div class="sidebar-menu mobile-bottom-nav">
