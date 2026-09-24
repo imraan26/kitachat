@@ -137,6 +137,20 @@ async function checkSingleDevice(req, res, next) {
   }
 }
 
+// ==========================================
+// FUNGSI SANITASI: MENCEGAH SERANGAN XSS
+// ==========================================
+function escapeHTML(str) {
+    if (typeof str !== 'string' || !str) return str;
+    return str.replace(/[&<>'"]/g, tag => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        "'": '&#39;',
+        '"': '&quot;'
+    }[tag]));
+}
+
 // Route Uji Coba Server
 app.get('/api/status', (req, res) => {
   res.json({ status: 'Server Kitachat berjalan dengan lancar!' });
