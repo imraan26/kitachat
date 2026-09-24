@@ -223,7 +223,6 @@ async function sendMessage() {
         return;
     }
 
-    // Waktu lokal perangkat pengirim
     const localTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
     const formData = new FormData();
@@ -307,7 +306,7 @@ async function toggleVoiceRecording() {
             };
 
             mediaRecorder.start();
-            if (micBtn) micBtn.style.color = '#e74c3c'; // Indikator merah saat merekam
+            if (micBtn) micBtn.style.color = '#e74c3c';
         } catch (err) {
             console.error('Mikrofon tidak dapat diakses:', err);
             alert('Izin mikrofon ditolak atau tidak didukung perangkat.');
@@ -336,7 +335,6 @@ function setupMessageInteraction(msgDiv, messageId, messageText) {
 function showMessageActionModal(messageId, messageText) {
     const choice = confirm(`Pilih aksi untuk pesan ini:\n[OK] Balas (Reply)\n[Cancel] Hapus Pesan`);
     if (choice) {
-        // Mode Reply
         window.replyingToMessageId = messageId;
         const chatInputArea = document.getElementById('chat-input-area');
         
@@ -349,7 +347,6 @@ function showMessageActionModal(messageId, messageText) {
         }
         banner.innerHTML = `<span>Membalas: <b>${messageText || 'Lampiran'}</b></span> <button onclick="cancelReply()" style="background:none; border:none; color:red; cursor:pointer; font-weight:bold;">&times;</button>`;
     } else {
-        // Hapus Pesan
         deleteMessage(messageId);
     }
 }
@@ -446,7 +443,6 @@ function appendChatMessage(data) {
         <div class="chat-time">${displayTime}</div>
     `;
 
-    // Aktifkan interaksi tekan lama untuk reply/hapus
     setupMessageInteraction(msgDiv, data.id, data.message);
 
     container.appendChild(msgDiv);
@@ -526,51 +522,126 @@ async function loadFamilyMembers() {
     }
 }
 
+// --- FITUR ALBUM GALERI MODERN ---
+let currentAlbumFilter = 'semua';
+let globalAlbumData = [];
+
 async function loadAlbumPhotos() {
     try {
         const response = await fetch('/api/albums');
         const photos = await response.json();
 
         if (response.ok) {
-            const container = document.getElementById('album-grid-container');
-            container.innerHTML = '';
-
-            if (photos.length === 0) {
-                container.innerHTML = '<p style="color: gray;">Belum ada foto yang diunggah ke album.</p>';
-                return;
-            }
-
-            photos.forEach((item, index) => {
-                const card = document.createElement('div');
-                card.style.background = 'var(--card-bg)';
-                card.style.border = '1px solid var(--border-color)';
-                card.style.borderRadius = '8px';
-                card.style.overflow = 'hidden';
-                card.style.boxShadow = '0 2px 5px rgba(0,0,0,0.05)';
-                card.style.position = 'relative';
-
-                const menuId = `album-menu-${item.id || index}`;
-                const isOwner = currentUser && String(currentUser.id) === String(item.user_id);
-
-                card.innerHTML = `
-                    <div class="media-wrapper" style="width: 100%;">
-                        <img src="${item.image_url}" alt="Foto Album" onclick="openZoomModal('${item.image_url}')" onerror="this.src='https://via.placeholder.com/220?text=Gagal+Muat+Gambar'">
-                        <button class="photo-menu-btn" onclick="togglePhotoMenu(event, '${menuId}')"><i class="fa-solid fa-ellipsis-vertical"></i></button>
-                        <div id="${menuId}" class="photo-dropdown">
-                            <button onclick="downloadPhoto('${item.image_url}')"><i class="fa-solid fa-download"></i> Simpan</button>
-                            ${isOwner ? `<button onclick="deleteAlbumPhoto('${item.id}')" style="color: #e74c3c;"><i class="fa-solid fa-trash"></i> Hapus</button>` : ''}
-                        </div>
-                    </div>
-                    <div style="padding: 10px;">
-                        <p style="margin: 0; font-size: 14px; font-weight: bold; color: var(--text-light);">${item.caption || 'Tanpa keterangan'}</p>
-                        <p style="margin: 5px 0 0 0; font-size: 11px; color: gray;">Oleh: ${item.uploader_name}</p>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
+            globalAlbumData = photos;
+            renderAlbumGrid(globalAlbumData);
         }
     } catch (err) {
         console.error('Gagal memuat album:', err);
+    }
+}
+
+function renderAlbumGrid(photos) {
+    const container = document.getElementById('album-grid-container');
+    if (!container) return;
+    
+    container.innerHTML = '';
+
+    if (photos.length === 0) {
+        container.innerHTML = '<p style="color: gray; grid-column: span 3; text-align: center; padding: 20px;">Belum ada foto di album.</p>';
+        return;
+    }
+
+    photos.forEach((item, index) => {
+        const card = document.createElement('div');
+        card.style.cssText = 'position: relative; width: 100%; aspect-ratio: 1 / 1; border-radius: 4px; overflow: hidden; background: #ddd; cursor: pointer;';
+
+        const menuId = `album-menu-${item.id || index}`;
+        const isOwner = currentUser && String(currentUser.id) === String(item.user_id);
+
+        card.innerHTML = `
+            <img src="${item.image_url}" alt="Foto" style="width: 100%; height: 100%; object-fit: cover;" onclick="openZoomModal('${item.image_url}')" onerror="this.src='https://via.placeholder.com/150?text=Gagal'">
+            <button class="photo-menu-btn" onclick="togglePhotoMenu(event, '${menuId}')" style="width: 26px; height: 26px; font-size: 11px; bottom: 4px; right: 4px;"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+            <div id="${menuId}" class="photo-dropdown">
+                <button onclick="downloadPhoto('${item.image_url}')"><i class="fa-solid fa-download"></i> Simpan</button>
+                ${isOwner ? `<button onclick="deleteAlbumPhoto('${item.id}')" style="color: #e74c3c;"><i class="fa-solid fa-trash"></i> Hapus</button>` : ''}
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function filterAlbum(type) {
+    currentAlbumFilter = type;
+    
+    ['tahun', 'bulan', 'semua'].forEach(t => {
+        const btn = document.getElementById(`filter-btn-${t}`);
+        if (btn) {
+            if (t === type) {
+                btn.style.background = 'white';
+                btn.style.color = '#111';
+                btn.style.fontWeight = 'bold';
+                btn.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+            } else {
+                btn.style.background = 'transparent';
+                btn.style.color = '#aaa';
+                btn.style.fontWeight = '500';
+                btn.style.boxShadow = 'none';
+            }
+        }
+    });
+
+    let filtered = [...globalAlbumData];
+    const now = new Date();
+
+    if (type === 'tahun') {
+        filtered = globalAlbumData.filter(item => new Date(item.created_at).getFullYear() === now.getFullYear());
+    } else if (type === 'bulan') {
+        filtered = globalAlbumData.filter(item => {
+            const d = new Date(item.created_at);
+            return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        });
+    }
+
+    renderAlbumGrid(filtered);
+}
+
+async function handleUploadPhoto(event) {
+    event.preventDefault();
+    const fileInput = document.getElementById('photo-file-input');
+    const caption = document.getElementById('photo-caption-input').value;
+
+    if (!currentUser) {
+        alert('Silakan login terlebih dahulu!');
+        return;
+    }
+
+    if (fileInput.files.length === 0) {
+        alert('Pilih file gambar terlebih dahulu!');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('user_id', currentUser.id);
+    formData.append('image', fileInput.files[0]);
+    formData.append('caption', caption);
+
+    try {
+        const response = await fetch('/api/albums', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+
+        if (response.ok) {
+            alert(data.message);
+            fileInput.value = '';
+            document.getElementById('photo-caption-input').value = '';
+            loadAlbumPhotos();
+        } else {
+            alert(data.error);
+        }
+    } catch (err) {
+        console.error('Error upload foto:', err);
     }
 }
 
