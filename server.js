@@ -295,11 +295,21 @@ app.post('/api/albums', checkSingleDevice, upload.single('image'), async (req, r
   }
 });
 
-// 6. API DELETE /api/albums/:id (Dilindungi Middleware Single Device)
+// 6. API DELETE /api/albums/:id (Dilindungi Middleware Single Device & Cek Kepemilikan)
 app.delete('/api/albums/:id', checkSingleDevice, async (req, res) => {
     const { id } = req.params;
+    // Ambil ID pengguna yang sedang melakukan request (dari header middleware)
+    const userId = req.headers['x-user-id'] || req.body.user_id; 
+
     try {
-        await pool.query('DELETE FROM albums WHERE id = $1', [id]);
+        // Tambahkan AND user_id = $2 agar hanya pemilik foto yang bisa menghapus
+        const result = await pool.query('DELETE FROM albums WHERE id = $1 AND user_id = $2 RETURNING id', [id, userId]);
+        
+        // Jika rowCount 0, berarti foto tidak ada ATAU bukan milik user tersebut
+        if (result.rowCount === 0) {
+            return res.status(403).json({ error: 'Anda tidak memiliki izin untuk menghapus foto ini!' });
+        }
+
         res.json({ message: 'Foto berhasil dihapus dari album.' });
     } catch (err) {
         console.error('Gagal menghapus foto:', err);
@@ -461,21 +471,36 @@ app.post('/api/send-message', checkSingleDevice, upload.single('media'), async (
 // Map untuk pemetaan pengguna aktif WebRTC (userId -> socket.id)
 const activeUsers = new Map();
 
-// 11. API DELETE /api/messages/:id (Dilindungi Middleware Single Device)
+// 11. API DELETE /api/messages/:id (Dilindungi Middleware Single Device & Cek Kepemilikan)
 app.delete('/api/messages/:id', checkSingleDevice, async (req, res) => {
   try {
     const { id } = req.params;
-    // PERBAIKAN: Menggunakan single quotes atau melemparkannya sebagai parameter $1
-    await pool.query(
+    const userId = req.headers['x-user-id'] || req.body.user_id;
+
+    // Pastikan hanya pengirim pesan (user_id = $3) yang bisa mengubah status pesan menjadi terhapus
+    const result = await pool.query(
         `UPDATE messages 
          SET is_deleted = TRUE, 
              message = $1, 
              image_url = NULL, 
              sticker_url = NULL, 
              audio_url = NULL 
-         WHERE id = $2`, 
-        ['Pesan telah dihapus', id]
+         WHERE id = $2 AND user_id = $3 RETURNING id`, 
+        ['Pesan telah dihapus', id, userId]
     );
+    
+    // Jika tidak ada baris yang terpengaruh, blokir aksi tersebut
+    if (result.rowCount === 0) {
+        return res.status(403).json({ error: 'Anda tidak memiliki hak untuk menghapus pesan orang lain.' });
+    }
+
+    io.emit('message_deleted', { id: parseInt(id) });
+    res.status(200).json({ message: 'Pesan berhasil dihapus.' });
+  } catch (err) {
+    console.error('Gagal menghapus pesan:', err);
+    res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
+  }
+});
     
     io.emit('message_deleted', { id: parseInt(id) });
     res.status(200).json({ message: 'Pesan berhasil dihapus.' });
