@@ -137,26 +137,35 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// Penyesuaian Navigasi Tab Agar Tampil Sempurna
 function switchTabNav(tabName, element) {
     const contents = document.querySelectorAll('.tab-content');
-    contents.forEach(el => el.classList.add('hidden'));
+    contents.forEach(el => {
+        if (el.id !== 'call-modal') {
+            el.classList.add('hidden');
+            el.style.display = 'none';
+        }
+    });
 
     const menuItems = document.querySelectorAll('.menu-item');
     menuItems.forEach(el => el.classList.remove('active'));
 
+    const target = document.getElementById(`content-${tabName}`);
+    if (target) {
+        target.classList.remove('hidden');
+        target.style.display = 'flex';
+    }
+
     if (tabName === 'chat') {
-        document.getElementById('content-chat').classList.remove('hidden');
+        // Chat aktif
     } else if (tabName === 'album') {
-        document.getElementById('content-album').classList.remove('hidden');
         loadAlbumPhotos();
     } else if (tabName === 'agenda') {
-        document.getElementById('content-agenda').classList.remove('hidden');
         loadAgendaAndBirthdays();
     } else if (tabName === 'family') {
-        document.getElementById('content-family').classList.remove('hidden');
         loadFamilyMembers();
     } else if (tabName === 'settings') {
-        document.getElementById('content-settings').classList.remove('hidden');
+        // Pengaturan aktif
     }
 
     if (element) {
@@ -650,25 +659,27 @@ async function loadAgendaAndBirthdays() {
         const resUsers = await fetch('/api/users');
         const users = await resUsers.json();
         const bdayContainer = document.getElementById('birthday-list-container');
-        bdayContainer.innerHTML = '';
+        if (bdayContainer) {
+            bdayContainer.innerHTML = '';
 
-        const usersWithBday = users.filter(u => u.birthdate);
-        if (usersWithBday.length === 0) {
-            bdayContainer.innerHTML = '<p style="font-size: 13px; color: gray;">Belum ada data tanggal lahir.</p>';
-        } else {
-            usersWithBday.forEach(user => {
-                const bdate = new Date(user.birthdate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long' });
-                const item = document.createElement('div');
-                item.style.display = 'flex';
-                item.style.justifyContent = 'space-between';
-                item.style.padding = '8px 10px';
-                item.style.background = 'var(--bg-light)';
-                item.style.borderRadius = '6px';
-                item.style.fontSize = '14px';
+            const usersWithBday = users.filter(u => u.birthdate);
+            if (usersWithBday.length === 0) {
+                bdayContainer.innerHTML = '<p style="font-size: 13px; color: gray;">Belum ada data tanggal lahir.</p>';
+            } else {
+                usersWithBday.forEach(user => {
+                    const bdate = new Date(user.birthdate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long' });
+                    const item = document.createElement('div');
+                    item.style.display = 'flex';
+                    item.style.justifyContent = 'space-between';
+                    item.style.padding = '8px 10px';
+                    item.style.background = 'var(--bg-light)';
+                    item.style.borderRadius = '6px';
+                    item.style.fontSize = '14px';
 
-                item.innerHTML = `<span><b>${user.name}</b></span> <span style="color: var(--primary-color);"><i class="fa-solid fa-gift"></i> ${bdate}</span>`;
-                bdayContainer.appendChild(item);
-            });
+                    item.innerHTML = `<span><b>${user.name}</b></span> <span style="color: var(--primary-color);"><i class="fa-solid fa-gift"></i> ${bdate}</span>`;
+                    bdayContainer.appendChild(item);
+                });
+            }
         }
     } catch (err) {
         console.error('Gagal memuat ulang tahun:', err);
@@ -678,77 +689,80 @@ async function loadAgendaAndBirthdays() {
         const resAgendas = await fetch('/api/agendas');
         const agendas = await resAgendas.json();
         const agendaContainer = document.getElementById('agenda-list-container');
-        agendaContainer.innerHTML = '';
+        if (agendaContainer) {
+            agendaContainer.innerHTML = '';
 
-        if (agendas.length === 0) {
-            agendaContainer.innerHTML = '<p style="font-size: 13px; color: gray;">Belum ada agenda kegiatan tercatat.</p>';
-            return;
+            if (agendas.length === 0) {
+                agendaContainer.innerHTML = '<p style="font-size: 13px; color: gray;">Belum ada agenda kegiatan tercatat.</p>';
+                return;
+            }
+
+            agendas.forEach(item => {
+                const fDate = new Date(item.event_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+                const card = document.createElement('div');
+                card.style.padding = '10px 12px';
+                card.style.background = 'var(--bg-light)';
+                card.style.borderLeft = '4px solid var(--primary-color)';
+                card.style.borderRadius = '4px';
+
+                card.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <h5 style="margin: 0; font-size: 15px; color: var(--text-light);">${item.title}</h5>
+                        <span style="font-size: 12px; font-weight: bold; color: var(--primary-color);">${fDate}</span>
+                    </div>
+                    ${item.description ? `<p style="margin: 5px 0 0 0; font-size: 13px; color: gray;">${item.description}</p>` : ''}
+                `;
+                agendaContainer.appendChild(card);
+            });
         }
-
-        agendas.forEach(item => {
-            const fDate = new Date(item.event_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-            const card = document.createElement('div');
-            card.style.padding = '10px 12px';
-            card.style.background = 'var(--bg-light)';
-            card.style.borderLeft = '4px solid var(--primary-color)';
-            card.style.borderRadius = '4px';
-
-            card.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h5 style="margin: 0; font-size: 15px; color: var(--text-light);">${item.title}</h5>
-                    <span style="font-size: 12px; font-weight: bold; color: var(--primary-color);">${fDate}</span>
-                </div>
-                ${item.description ? `<p style="margin: 5px 0 0 0; font-size: 13px; color: gray;">${item.description}</p>` : ''}
-            `;
-            agendaContainer.appendChild(card);
-        });
     } catch (err) {
         console.error('Gagal memuat agenda:', err);
     }
 }
 
-async function handleUpdateProfilePhoto(event) {
-    event.preventDefault();
-    const fileInput = document.getElementById('profile-file-input');
+// --- FITUR GANTI FOTO PROFIL ---
+async function triggerUploadProfile(inputElement) {
+    if (inputElement.files && inputElement.files[0]) {
+        const file = inputElement.files[0];
 
-    if (!currentUser) {
-        alert('Silakan login terlebih dahulu!');
-        return;
-    }
-
-    if (fileInput.files.length === 0) {
-        alert('Pilih file gambar terlebih dahulu!');
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append('user_id', currentUser.id);
-    formData.append('image', fileInput.files[0]);
-
-    try {
-        const response = await fetch('/api/update-photo', {
-            method: 'POST',
-            body: formData
-        });
-        const data = await response.json();
-
-        if (response.ok) {
-            alert(data.message);
-            currentUser = data.user;
-            localStorage.setItem('kitachat_user', JSON.stringify(currentUser));
-
-            const mobileAvatar = document.getElementById('user-avatar');
-            if (mobileAvatar) mobileAvatar.src = currentUser.photo_url;
-
-            const desktopAvatar = document.getElementById('user-avatar-desktop');
-            if (desktopAvatar) desktopAvatar.src = currentUser.photo_url;
-
-            fileInput.value = '';
-        } else {
-            alert(data.error);
+        if (!currentUser) {
+            alert('Silakan login terlebih dahulu!');
+            return;
         }
-    } catch (err) {
-        console.error('Error update foto profil:', err);
+
+        const formData = new FormData();
+        formData.append('user_id', currentUser.id);
+        formData.append('image', file);
+
+        try {
+            const response = await fetch('/api/update-photo', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+                alert(data.message);
+                currentUser = data.user;
+                localStorage.setItem('kitachat_user', JSON.stringify(currentUser));
+
+                const mobileAvatar = document.getElementById('user-avatar');
+                if (mobileAvatar) mobileAvatar.src = currentUser.photo_url;
+
+                const desktopAvatar = document.getElementById('user-avatar-desktop');
+                if (desktopAvatar) desktopAvatar.src = currentUser.photo_url;
+
+                const settingsAvatar = document.getElementById('settings-user-avatar');
+                if (settingsAvatar) settingsAvatar.src = currentUser.photo_url;
+            } else {
+                alert(data.error || 'Gagal memperbarui foto profil.');
+            }
+        } catch (err) {
+            console.error('Error update foto profil:', err);
+            alert('Terjadi kesalahan jaringan.');
+        }
+
+        inputElement.value = '';
     }
 }
 
