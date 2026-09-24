@@ -2,28 +2,36 @@ const socket = io();
 let currentUser = null;
 
 // --- INTERCEPTOR FETCH UNTUK SINGLE DEVICE LOGIN ---
-// Mencegat semua request API untuk menyematkan token dan mendeteksi jika sesi ditendang
 const originalFetch = window.fetch;
 window.fetch = async function(resource, options = {}) {
-    // Tambahkan header keamanan ke semua rute '/api/' kecuali login dan register
+    // Hanya cegat rute API, dan biarkan jalur Login/Register lewat tanpa token
     if (typeof resource === 'string' && resource.startsWith('/api/') && !resource.includes('/login') && !resource.includes('/register')) {
-        options.headers = {
-            ...options.headers,
-            'x-user-id': currentUser ? currentUser.id : '',
-            'x-session-token': localStorage.getItem('kitachat_session_token') || ''
-        };
+        
+        // Gunakan objek Headers resmi peramban agar pasti terbaca oleh server
+        const newHeaders = new Headers(options.headers || {});
+        
+        if (currentUser && currentUser.id) {
+            newHeaders.set('x-user-id', String(currentUser.id));
+        }
+        
+        const token = localStorage.getItem('kitachat_session_token');
+        if (token) {
+            newHeaders.set('x-session-token', token);
+        }
+        
+        options.headers = newHeaders;
     }
     
     const response = await originalFetch(resource, options);
     
-    // Jika server merespons bahwa akun ini sudah login di perangkat lain
+    // Tangkap jika server merespons "Sesi Ditendang (403)"
     if (response.status === 403) {
         const clonedResponse = response.clone();
         try {
             const data = await clonedResponse.json();
             if (data.error === 'SESSION_KICKED') {
-                alert(data.message); // Tampilkan notifikasi ditendang
-                logout(); // Paksa keluar dari aplikasi
+                alert(data.message);
+                logout();
             }
         } catch (e) {
             console.error('Gagal membaca respons 403:', e);
