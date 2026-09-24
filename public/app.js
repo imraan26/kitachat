@@ -5,7 +5,7 @@ let currentUser = null;
 (function() {
     const savedUser = localStorage.getItem('kitachat_user');
     const savedToken = localStorage.getItem('kitachat_session_token');
-    if (savedUser && savedToken) {
+    if (savedUser && savedToken && savedUser !== "undefined") {
         try {
             currentUser = JSON.parse(savedUser);
         } catch (e) {
@@ -14,7 +14,7 @@ let currentUser = null;
     }
 })();
 
-// --- INTERCEPTOR FETCH UNTUK SINGLE DEVICE LOGIN (DIOPTIMALKAN) ---
+// --- INTERCEPTOR FETCH UNTUK SINGLE DEVICE LOGIN (DIOPTIMALKAN & ANTI-GAGAL) ---
 const originalFetch = window.fetch;
 window.fetch = async function(resource, options = {}) {
     if (typeof resource === 'string' && resource.startsWith('/api/') && !resource.includes('/login') && !resource.includes('/register')) {
@@ -23,15 +23,26 @@ window.fetch = async function(resource, options = {}) {
         if (!currentUser) {
             try {
                 const freshUser = localStorage.getItem('kitachat_user');
-                if (freshUser) currentUser = JSON.parse(freshUser);
+                if (freshUser && freshUser !== "undefined") currentUser = JSON.parse(freshUser);
             } catch (err) {}
         }
 
         const currentUserId = currentUser ? String(currentUser.id) : '';
         const currentSessionToken = localStorage.getItem('kitachat_session_token') || '';
 
+        // Penanganan aman untuk objek Headers standar peramban (Android/Desktop Fix)
+        let headersObj = {};
+        const existingHeaders = options.headers;
+        if (existingHeaders instanceof Headers) {
+            existingHeaders.forEach((value, key) => {
+                headersObj[key] = value;
+            });
+        } else if (existingHeaders) {
+            headersObj = { ...existingHeaders };
+        }
+
         options.headers = {
-            ...(options.headers || {}),
+            ...headersObj,
             'x-user-id': currentUserId,
             'x-session-token': currentSessionToken
         };
@@ -231,7 +242,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const savedUser = localStorage.getItem('kitachat_user');
     const savedToken = localStorage.getItem('kitachat_session_token');
     
-    if (savedUser && savedToken) {
+    if (savedUser && savedToken && savedUser !== "undefined") {
         currentUser = JSON.parse(savedUser);
         updateUserInterface();
         socket.emit('register_call_user', currentUser.id);
