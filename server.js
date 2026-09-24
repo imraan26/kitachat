@@ -63,15 +63,6 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-// Koneksi Database PostgreSQL menggunakan DATABASE_URL dari Railway
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  },
-  family: 4
-});
-
 // Fungsi Inisialisasi Otomatis Tabel Database (Diperbarui dengan kolom session_token untuk Single Device)
 async function initDB() {
   try {
