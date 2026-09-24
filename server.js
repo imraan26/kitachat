@@ -434,7 +434,17 @@ const activeUsers = new Map();
 app.delete('/api/messages/:id', checkSingleDevice, async (req, res) => {
   try {
     const { id } = req.params;
-    await pool.query('UPDATE messages SET is_deleted = TRUE, message = $1, image_url = NULL, sticker_url = NULL, audio_url = NULL WHERE id = $2', ['Pesan telah dihapus', id]);
+    // PERBAIKAN: Menggunakan single quotes atau melemparkannya sebagai parameter $1
+    await pool.query(
+        `UPDATE messages 
+         SET is_deleted = TRUE, 
+             message = $1, 
+             image_url = NULL, 
+             sticker_url = NULL, 
+             audio_url = NULL 
+         WHERE id = $2`, 
+        ['Pesan telah dihapus', id]
+    );
     
     io.emit('message_deleted', { id: parseInt(id) });
     res.status(200).json({ message: 'Pesan berhasil dihapus.' });
