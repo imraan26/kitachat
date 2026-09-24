@@ -217,7 +217,7 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// 2. API LOGIN (Diperbarui: Timpa session_token lama agar perangkat sebelumnya otomatis tertendang)
+// 2. API LOGIN
 app.post('/api/login', async (req, res) => {
   const { phone, password } = req.body;
 
@@ -234,13 +234,13 @@ app.post('/api/login', async (req, res) => {
       return res.status(401).json({ error: 'Password salah!' });
     }
 
-    // Generate token sesi baru untuk perangkat ini (menimpa token perangkat sebelumnya)
+    // WAJIB ADA: Generate token sesi baru dan simpan ke database
     const newSessionToken = crypto.randomBytes(32).toString('hex');
     await pool.query('UPDATE users SET session_token = $1 WHERE id = $2', [newSessionToken, user.id]);
 
     res.status(200).json({
       message: 'Login berhasil!',
-      session_token: newSessionToken, // Dikirim ke client untuk disimpan di localStorage
+      session_token: newSessionToken, // WAJIB DIKIRIM KE CLIENT
       user: {
         id: user.id,
         phone: user.phone,
