@@ -349,9 +349,10 @@ app.post('/api/send-message', upload.single('media'), async (req, res) => {
     const userResult = await pool.query('SELECT name FROM users WHERE id = $1', [user_id]);
     const userName = userResult.rows[0] ? userResult.rows[0].name : 'Keluarga';
 
+    // Di dalam rute app.post('/api/send-message', ...) pada file server.js
     const savedMsg = insertResult.rows[0];
 
-    // Ambil teks pesan yang direply jika ada
+    // Ambil teks pesan yang direply agar bisa dilihat semua anggota keluarga
     let replyText = null;
     if (savedMsg.reply_to_id) {
       const replyQuery = await pool.query('SELECT message FROM messages WHERE id = $1', [savedMsg.reply_to_id]);
@@ -371,11 +372,12 @@ app.post('/api/send-message', upload.single('media'), async (req, res) => {
       sticker_url: savedMsg.sticker_url,
       audio_url: savedMsg.audio_url,
       reply_to_id: savedMsg.reply_to_id,
-      reply_text: replyText,
+      reply_text: replyText, // Disiarkan ke semua anggota keluarga
       time: displayTime,
       is_deleted: savedMsg.is_deleted
     };
 
+    // Broadcast ke seluruh anggota keluarga yang terhubung
     io.emit('receive_message', messagePayload);
 
     res.status(201).json({ message: 'Pesan berhasil dikirim!', data: messagePayload });
