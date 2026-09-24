@@ -127,7 +127,8 @@ async function initDB() {
 // MIDDLEWARE: KEAMANAN SINGLE DEVICE LOGIN
 // ==========================================
 async function checkSingleDevice(req, res, next) {
-  const userId = req.headers['x-user-id'] || req.body.user_id;
+  // PERBAIKAN: Deteksi aman agar server tidak crash saat menerima upload file
+  const userId = req.headers['x-user-id'] || (req.body ? req.body.user_id : null);
   const clientToken = req.headers['x-session-token'];
 
   if (!userId || !clientToken) {
