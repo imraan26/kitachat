@@ -6,6 +6,7 @@ const bcrypt = require('bcrypt');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto'); // Ditambahkan untuk generate token sesi single-device
 require('dotenv').config();
 
 const app = express();
@@ -50,7 +51,7 @@ const pool = new Pool({
   family: 4
 });
 
-// Fungsi Inisialisasi Otomatis Tabel Database (Diperbarui dengan kolom lengkap)
+// Fungsi Inisialisasi Otomatis Tabel Database (Diperbarui dengan kolom session_token untuk Single Device)
 async function initDB() {
   try {
     await pool.query(`
@@ -61,6 +62,7 @@ async function initDB() {
         password VARCHAR(255) NOT NULL,
         birthdate DATE,
         photo_url TEXT,
+        session_token TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
@@ -100,12 +102,47 @@ async function initDB() {
   }
 }
 
+// ==========================================
+// MIDDLEWARE: KEAMANAN SINGLE DEVICE LOGIN
+// ==========================================
+async function checkSingleDevice(req, res, next) {
+  const userId = req.headers['x-user-id'] || req.body.user_id;
+  const clientToken = req.headers['x-session-token'];
+
+  if (!userId || !clientToken) {
+    return res.status(401).json({ error: 'Akses ditolak. Sesi tidak valid atau belum login.' });
+  }
+
+  try {
+    const result = await pool.query('SELECT session_token FROM users WHERE id = $1', [userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Pengguna tidak ditemukan.' });
+    }
+
+    const dbToken = result.rows[0].session_token;
+
+    // Jika token berbeda, berarti akun sudah login di perangkat/browser lain
+    if (dbToken !== clientToken) {
+      return res.status(403).json({ 
+        error: 'SESSION_KICKED', 
+        message: 'Akun Anda telah login di perangkat lain. Sesi di perangkat ini dihentikan.' 
+      });
+    }
+
+    next();
+  } catch (err) {
+    console.error('Error di middleware checkSingleDevice:', err);
+    res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
+  }
+}
+
 // Route Uji Coba Server
 app.get('/api/status', (req, res) => {
   res.json({ status: 'Server Kitachat berjalan dengan lancar!' });
 });
 
-// 1. API REGISTER
+// 1. API REGISTER (Diperbarui dengan pembuatan session_token untuk Single Device)
 app.post('/api/register', async (req, res) => {
   const { phone, name, password, birthdate, photo_url } = req.body;
 
@@ -117,11 +154,12 @@ app.post('/api/register', async (req, res) => {
 
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
+    const sessionToken = crypto.randomBytes(32).toString('hex'); // Token unik perangkat
 
     const newUser = await pool.query(
-      `INSERT INTO users (phone, name, password, birthdate, photo_url) 
-       VALUES ($1, $2, $3, $4, $5) RETURNING id, phone, name, birthdate, photo_url, created_at`,
-      [phone, name, hashedPassword, birthdate || null, photo_url || null]
+      `INSERT INTO users (phone, name, password, birthdate, photo_url, session_token) 
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, phone, name, birthdate, photo_url, session_token, created_at`,
+      [phone, name, hashedPassword, birthdate || null, photo_url || null, sessionToken]
     );
 
     res.status(201).json({
@@ -134,7 +172,7 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// 2. API LOGIN
+// 2. API LOGIN (Diperbarui: Timpa session_token lama agar perangkat sebelumnya otomatis tertendang)
 app.post('/api/login', async (req, res) => {
   const { phone, password } = req.body;
 
@@ -151,8 +189,13 @@ app.post('/api/login', async (req, res) => {
       return res.status(401).json({ error: 'Password salah!' });
     }
 
+    // Generate token sesi baru untuk perangkat ini (menimpa token perangkat sebelumnya)
+    const newSessionToken = crypto.randomBytes(32).toString('hex');
+    await pool.query('UPDATE users SET session_token = $1 WHERE id = $2', [newSessionToken, user.id]);
+
     res.status(200).json({
       message: 'Login berhasil!',
+      session_token: newSessionToken, // Dikirim ke client untuk disimpan di localStorage
       user: {
         id: user.id,
         phone: user.phone,
@@ -167,8 +210,8 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// 3. API GET /api/users
-app.get('/api/users', async (req, res) => {
+// 3. API GET /api/users (Dilindungi Middleware Single Device)
+app.get('/api/users', checkSingleDevice, async (req, res) => {
   try {
     const usersResult = await pool.query(
       'SELECT id, name, phone, birthdate, photo_url, created_at FROM users ORDER BY name ASC'
@@ -180,8 +223,8 @@ app.get('/api/users', async (req, res) => {
   }
 });
 
-// 4. API GET /api/albums
-app.get('/api/albums', async (req, res) => {
+// 4. API GET /api/albums (Dilindungi Middleware Single Device)
+app.get('/api/albums', checkSingleDevice, async (req, res) => {
   try {
     const albumsResult = await pool.query(
       `SELECT albums.id, albums.user_id, albums.image_url, albums.caption, albums.created_at, users.name as uploader_name 
@@ -196,8 +239,8 @@ app.get('/api/albums', async (req, res) => {
   }
 });
 
-// 5. API POST /api/albums
-app.post('/api/albums', upload.single('image'), async (req, res) => {
+// 5. API POST /api/albums (Dilindungi Middleware Single Device)
+app.post('/api/albums', checkSingleDevice, upload.single('image'), async (req, res) => {
   try {
     const body = req.body || {};
     const user_id = body.user_id;
@@ -229,8 +272,8 @@ app.post('/api/albums', upload.single('image'), async (req, res) => {
   }
 });
 
-// 6. API DELETE /api/albums/:id
-app.delete('/api/albums/:id', async (req, res) => {
+// 6. API DELETE /api/albums/:id (Dilindungi Middleware Single Device)
+app.delete('/api/albums/:id', checkSingleDevice, async (req, res) => {
     const { id } = req.params;
     try {
         await pool.query('DELETE FROM albums WHERE id = $1', [id]);
@@ -241,8 +284,8 @@ app.delete('/api/albums/:id', async (req, res) => {
     }
 });
 
-// 7. API GET /api/agendas
-app.get('/api/agendas', async (req, res) => {
+// 7. API GET /api/agendas (Dilindungi Middleware Single Device)
+app.get('/api/agendas', checkSingleDevice, async (req, res) => {
   try {
     const agendasResult = await pool.query('SELECT * FROM agendas ORDER BY event_date ASC');
     res.status(200).json(agendasResult.rows);
@@ -252,8 +295,8 @@ app.get('/api/agendas', async (req, res) => {
   }
 });
 
-// 8. API POST /api/agendas
-app.post('/api/agendas', async (req, res) => {
+// 8. API POST /api/agendas (Dilindungi Middleware Single Device)
+app.post('/api/agendas', checkSingleDevice, async (req, res) => {
   const { title, event_date, description } = req.body;
 
   if (!title || !event_date) {
@@ -277,8 +320,8 @@ app.post('/api/agendas', async (req, res) => {
   }
 });
 
-// 9. API POST /api/update-photo
-app.post('/api/update-photo', upload.single('image'), async (req, res) => {
+// 9. API POST /api/update-photo (Dilindungi Middleware Single Device)
+app.post('/api/update-photo', checkSingleDevice, upload.single('image'), async (req, res) => {
   try {
     const { user_id } = req.body;
 
@@ -311,8 +354,8 @@ app.post('/api/update-photo', upload.single('image'), async (req, res) => {
   }
 });
 
-// 10. API POST /api/send-message (Diperbarui: Mendukung Teks, Gambar, Stiker, Voice Note, Reply, & Waktu Lokal)
-app.post('/api/send-message', upload.single('media'), async (req, res) => {
+// 10. API POST /api/send-message (Dilindungi Middleware Single Device)
+app.post('/api/send-message', checkSingleDevice, upload.single('media'), async (req, res) => {
   try {
     const { user_id, message, sticker_url, reply_to_id, client_time } = req.body;
     let image_url = null;
@@ -349,10 +392,8 @@ app.post('/api/send-message', upload.single('media'), async (req, res) => {
     const userResult = await pool.query('SELECT name FROM users WHERE id = $1', [user_id]);
     const userName = userResult.rows[0] ? userResult.rows[0].name : 'Keluarga';
 
-    // Di dalam rute app.post('/api/send-message', ...) pada file server.js
     const savedMsg = insertResult.rows[0];
 
-    // Ambil teks pesan yang direply agar bisa dilihat semua anggota keluarga
     let replyText = null;
     if (savedMsg.reply_to_id) {
       const replyQuery = await pool.query('SELECT message FROM messages WHERE id = $1', [savedMsg.reply_to_id]);
@@ -372,12 +413,11 @@ app.post('/api/send-message', upload.single('media'), async (req, res) => {
       sticker_url: savedMsg.sticker_url,
       audio_url: savedMsg.audio_url,
       reply_to_id: savedMsg.reply_to_id,
-      reply_text: replyText, // Disiarkan ke semua anggota keluarga
+      reply_text: replyText,
       time: displayTime,
       is_deleted: savedMsg.is_deleted
     };
 
-    // Broadcast ke seluruh anggota keluarga yang terhubung
     io.emit('receive_message', messagePayload);
 
     res.status(201).json({ message: 'Pesan berhasil dikirim!', data: messagePayload });
@@ -390,11 +430,11 @@ app.post('/api/send-message', upload.single('media'), async (req, res) => {
 // Map untuk pemetaan pengguna aktif WebRTC (userId -> socket.id)
 const activeUsers = new Map();
 
-// 11. API DELETE /api/messages/:id (Hapus Pesan Individual)
-app.delete('/api/messages/:id', async (req, res) => {
+// 11. API DELETE /api/messages/:id (Dilindungi Middleware Single Device)
+app.delete('/api/messages/:id', checkSingleDevice, async (req, res) => {
   try {
     const { id } = req.params;
-    await pool.query('UPDATE messages SET is_deleted = TRUE, message = "Pesan telah dihapus", image_url = NULL, sticker_url = NULL, audio_url = NULL WHERE id = $1', [id]);
+    await pool.query('UPDATE messages SET is_deleted = TRUE, message = $1, image_url = NULL, sticker_url = NULL, audio_url = NULL WHERE id = $2', ['Pesan telah dihapus', id]);
     
     io.emit('message_deleted', { id: parseInt(id) });
     res.status(200).json({ message: 'Pesan berhasil dihapus.' });
@@ -404,8 +444,8 @@ app.delete('/api/messages/:id', async (req, res) => {
   }
 });
 
-// 12. API DELETE /api/messages (Bersihkan Seluruh Obrolan Keluarga)
-app.delete('/api/messages', async (req, res) => {
+// 12. API DELETE /api/messages (Dilindungi Middleware Single Device)
+app.delete('/api/messages', checkSingleDevice, async (req, res) => {
   try {
     await pool.query('DELETE FROM messages');
     io.emit('chat_cleared');
@@ -420,7 +460,6 @@ app.delete('/api/messages', async (req, res) => {
 io.on('connection', async (socket) => {
   console.log('Seorang anggota keluarga terhubung:', socket.id);
 
-  // Ambil Riwayat Chat dari Database dengan Relasi Reply
   try {
     const historyResult = await pool.query(
       `SELECT m.id, m.user_id, m.message, m.image_url, m.sticker_url, m.audio_url, m.reply_to_id, m.is_deleted, m.created_at, m.client_time, u.name 
@@ -429,7 +468,6 @@ io.on('connection', async (socket) => {
        ORDER BY m.created_at ASC LIMIT 50`
     );
     
-    // Buat pemetaan ID pesan ke teks pesan untuk pencarian cepat balasan (reply)
     const messageMap = new Map();
     historyResult.rows.forEach(row => messageMap.set(row.id, row.message || '(Media)'));
 
