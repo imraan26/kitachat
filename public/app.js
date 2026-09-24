@@ -370,23 +370,6 @@ async function sendMessage() {
     }
 }
 
-// --- FITUR STIKER ---
-async function sendSticker(stickerUrl) {
-    if (!currentUser) return;
-    
-    const localTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-    const formData = new FormData();
-    formData.append('user_id', currentUser.id);
-    formData.append('message', '');
-    formData.append('sticker_url', stickerUrl);
-    formData.append('client_time', localTime);
-
-    try {
-        await fetch('/api/send-message', { method: 'POST', body: formData });
-    } catch (err) {
-        console.error('Gagal mengirim stiker:', err);
-    }
-}
 
 // --- FITUR VOICE NOTE (REKAM SUARA) YANG DIOPTIMALKAN UNTUK ANDROID & IOS ---
 let mediaRecorder;
@@ -572,10 +555,6 @@ function appendChatMessage(data) {
     }
     if (data.image_url) {
         contentHtml += `<img src="${data.image_url}" style="max-width: 220px; border-radius: 8px; display: block; margin-top: 5px; cursor: pointer;" onclick="openZoomModal('${data.image_url}')">`;
-    }
-    if (data.sticker_url) {
-        contentHtml += `<img src="${data.sticker_url}" style="width: 120px; height: 120px; display: block; margin-top: 5px;">`;
-    }
     
     // Pemutar Voice Note yang optimal di iOS dan Android (Bisa didengar pengirim & anggota lain)
     if (data.audio_url) {
