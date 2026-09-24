@@ -4,27 +4,18 @@ let currentUser = null;
 // --- INTERCEPTOR FETCH UNTUK SINGLE DEVICE LOGIN ---
 const originalFetch = window.fetch;
 window.fetch = async function(resource, options = {}) {
-    // Hanya cegat rute API, dan biarkan jalur Login/Register lewat tanpa token
     if (typeof resource === 'string' && resource.startsWith('/api/') && !resource.includes('/login') && !resource.includes('/register')) {
         
-        // Gunakan objek Headers resmi peramban agar pasti terbaca oleh server
-        const newHeaders = new Headers(options.headers || {});
-        
-        if (currentUser && currentUser.id) {
-            newHeaders.set('x-user-id', String(currentUser.id));
-        }
-        
-        const token = localStorage.getItem('kitachat_session_token');
-        if (token) {
-            newHeaders.set('x-session-token', token);
-        }
-        
-        options.headers = newHeaders;
+        // Cara paling aman menyisipkan token tanpa merusak FormData bawaan browser
+        options.headers = {
+            ...(options.headers || {}),
+            'x-user-id': currentUser ? String(currentUser.id) : '',
+            'x-session-token': localStorage.getItem('kitachat_session_token') || ''
+        };
     }
     
     const response = await originalFetch(resource, options);
     
-    // Tangkap jika server merespons "Sesi Ditendang (403)"
     if (response.status === 403) {
         const clonedResponse = response.clone();
         try {
