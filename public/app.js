@@ -755,11 +755,21 @@ let peerConnection = null;
 let targetSocketId = null;
 let targetUserId = null;
 
+// OPTIMASI: Pendaftaran ulang otomatis saat berpindah jaringan (WiFi <-> Seluler)
+socket.on('connect', () => {
+    if (currentUser && currentUser.id) {
+        socket.emit('register_call_user', currentUser.id);
+    }
+});
+
+// OPTIMASI: STUN Server diperluas untuk menembus Firewall/Data Seluler vs WiFi
 const rtcConfig = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun2.l.google.com:19302' }
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun.cloudflare.com:3478' },
+        { urls: 'stun:stun.miwifi.com:3478' }
     ],
     iceCandidatePoolSize: 10
 };
@@ -789,14 +799,20 @@ async function startCall(peerUserId, peerName) {
         peerConnection.onicecandidate = (event) => {
             if (event.candidate && targetSocketId) socket.emit('ice_candidate', { targetSocketId, candidate: event.candidate });
         };
-        peerConnection.ontrack = (event) => { document.getElementById('remote-audio').srcObject = event.streams[0]; };
+        
+        // OPTIMASI: Paksa pemutaran suara untuk iOS & Safari
+        peerConnection.ontrack = (event) => { 
+            const remoteAudio = document.getElementById('remote-audio');
+            remoteAudio.srcObject = event.streams[0]; 
+            remoteAudio.play().catch(e => console.warn('Browser menunda pemutaran otomatis', e));
+        };
 
         const offer = await peerConnection.createOffer();
         await peerConnection.setLocalDescription(offer);
 
         socket.emit('call_user', { toUserId: peerUserId, callerName: currentUser.name, offer: offer });
     } catch (err) {
-        alert('Tidak dapat mengakses mikrofon.');
+        alert('Tidak dapat mengakses mikrofon. Pastikan izin mikrofon diberikan.');
         hangUpCall();
     }
 }
@@ -833,7 +849,13 @@ async function acceptCall() {
         peerConnection.onicecandidate = (event) => {
             if (event.candidate && targetSocketId) socket.emit('ice_candidate', { targetSocketId, candidate: event.candidate });
         };
-        peerConnection.ontrack = (event) => { document.getElementById('remote-audio').srcObject = event.streams[0]; };
+        
+        // OPTIMASI: Paksa pemutaran suara untuk iOS & Safari
+        peerConnection.ontrack = (event) => { 
+            const remoteAudio = document.getElementById('remote-audio');
+            remoteAudio.srcObject = event.streams[0]; 
+            remoteAudio.play().catch(e => console.warn('Browser menunda pemutaran otomatis', e));
+        };
 
         await peerConnection.setRemoteDescription(new RTCSessionDescription(window.incomingOffer));
         const answer = await peerConnection.createAnswer();
@@ -858,6 +880,11 @@ socket.on('ice_candidate', async (data) => {
 function hangUpCall() {
     callRingtone.pause();
     callRingtone.currentTime = 0;
+    
+    // OPTIMASI: Hapus bersih aliran media agar indikator mikrofon mati sempurna
+    const remoteAudio = document.getElementById('remote-audio');
+    if (remoteAudio) remoteAudio.srcObject = null;
+
     if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
         localStream = null;
