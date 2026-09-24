@@ -1,16 +1,39 @@
 const socket = io();
 let currentUser = null;
 
-// --- INTERCEPTOR FETCH UNTUK SINGLE DEVICE LOGIN ---
+// --- PEMULIHAN SESI AMAN SEBELUM APAPUN BERJALAN ---
+(function() {
+    const savedUser = localStorage.getItem('kitachat_user');
+    const savedToken = localStorage.getItem('kitachat_session_token');
+    if (savedUser && savedToken) {
+        try {
+            currentUser = JSON.parse(savedUser);
+        } catch (e) {
+            console.error('Gagal memuat sesi tersimpan:', e);
+        }
+    }
+})();
+
+// --- INTERCEPTOR FETCH UNTUK SINGLE DEVICE LOGIN (DIOPTIMALKAN) ---
 const originalFetch = window.fetch;
 window.fetch = async function(resource, options = {}) {
     if (typeof resource === 'string' && resource.startsWith('/api/') && !resource.includes('/login') && !resource.includes('/register')) {
         
-        // Cara paling aman menyisipkan token tanpa merusak FormData bawaan browser
+        // Pastikan selalu mengambil data terbaru dari memori/localStorage secara dinamis
+        if (!currentUser) {
+            try {
+                const freshUser = localStorage.getItem('kitachat_user');
+                if (freshUser) currentUser = JSON.parse(freshUser);
+            } catch (err) {}
+        }
+
+        const currentUserId = currentUser ? String(currentUser.id) : '';
+        const currentSessionToken = localStorage.getItem('kitachat_session_token') || '';
+
         options.headers = {
             ...(options.headers || {}),
-            'x-user-id': currentUser ? String(currentUser.id) : '',
-            'x-session-token': localStorage.getItem('kitachat_session_token') || ''
+            'x-user-id': currentUserId,
+            'x-session-token': currentSessionToken
         };
     }
     
@@ -206,10 +229,14 @@ function updateUserInterface() {
 
 window.addEventListener('DOMContentLoaded', () => {
     const savedUser = localStorage.getItem('kitachat_user');
-    if (savedUser) {
+    const savedToken = localStorage.getItem('kitachat_session_token');
+    
+    if (savedUser && savedToken) {
         currentUser = JSON.parse(savedUser);
         updateUserInterface();
         socket.emit('register_call_user', currentUser.id);
+    } else {
+        logout();
     }
 });
 
@@ -269,13 +296,6 @@ window.addEventListener('DOMContentLoaded', () => {
     } else {
         document.body.classList.add('light-mode');
         document.body.classList.remove('dark-mode');
-    }
-
-    const savedUser = localStorage.getItem('kitachat_user');
-    if (savedUser) {
-        currentUser = JSON.parse(savedUser);
-        updateUserInterface();
-        socket.emit('register_call_user', currentUser.id);
     }
 });
 
