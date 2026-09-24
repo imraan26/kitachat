@@ -4,7 +4,7 @@
   "description": "Hub Keluarga Tercinta",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node init-db.js && node server.js",
     "db:init": "node init-db.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
