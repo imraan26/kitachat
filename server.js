@@ -49,7 +49,7 @@ const pool = new Pool({
   family: 4
 });
 
-// Fungsi Inisialisasi Otomatis Tabel Database (Diperbarui dengan image_url)
+// Fungsi Inisialisasi Otomatis Tabel Database (Diperbarui dengan fitur lengkap)
 async function initDB() {
   try {
     await pool.query(`
@@ -62,7 +62,6 @@ async function initDB() {
         photo_url TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-
 
       CREATE TABLE IF NOT EXISTS albums (
         id SERIAL PRIMARY KEY,
@@ -82,27 +81,17 @@ async function initDB() {
 
       CREATE TABLE IF NOT EXISTS messages (
         id SERIAL PRIMARY KEY,
+        family_id INT,
         user_id INT REFERENCES users(id) ON DELETE CASCADE,
         message TEXT,
         image_url TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        sticker_url TEXT,
+        audio_url TEXT,
+        reply_to_id INT,
+        is_deleted BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        client_time VARCHAR(50)
       );
-
-      // Tambahan kolom baru pada tabel messages saat initDB() di server.js:
-        const createMessagesTable = `
-        CREATE TABLE IF NOT EXISTS messages (
-          id SERIAL PRIMARY KEY,
-          family_id INT, -- Untuk persiapan multi-keluarga nanti
-          user_id INT REFERENCES users(id) ON DELETE CASCADE,
-          message TEXT,
-          image_url TEXT,
-          sticker_url TEXT,       -- BARU: Untuk menyimpan jalur stiker
-          audio_url TEXT,       -- BARU: Untuk menyimpan file rekaman voice note
-          reply_to_id INT,      -- BARU: Untuk referensi pesan yang dibalas
-          is_deleted BOOLEAN DEFAULT FALSE, -- BARU: Status hapus pesan
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          client_time VARCHAR(50) -- BARU: Waktu lokal dari perangkat pengirim
-        );
     `);
     console.log('Berhasil terhubung ke database PostgreSQL dan memverifikasi tabel!');
   } catch (err) {
