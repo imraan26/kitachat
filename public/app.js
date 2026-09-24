@@ -841,13 +841,34 @@ let peerConnection = null;
 let targetSocketId = null;
 let targetUserId = null;
 
+// Konfigurasi WebRTC yang Dioptimalkan untuk Wi-Fi & Data Seluler (Multi-STUN)
 const rtcConfig = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun2.l.google.com:19302' }
-    ]
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun.ekiga.net' },
+        { urls: 'stun:stun.sipgate.net' }
+    ],
+    iceCandidatePoolSize: 10
 };
+
+// Tambahkan pemantau status koneksi jaringan/panggilan di app.js
+function monitorPeerConnection() {
+    if (!peerConnection) return;
+
+    peerConnection.oniceconnectionstatechange = () => {
+        const state = peerConnection.iceConnectionState;
+        console.log('Status Jaringan Panggilan:', state);
+
+        if (state === 'disconnected' || state === 'failed') {
+            console.warn('Jaringan berpindah (Wi-Fi/Seluler) atau melemah, mencoba menyambungkan ulang...');
+            // WebRTC akan mencoba memulihkan jalur ICE secara otomatis
+        } else if (state === 'closed') {
+            hangUpCall();
+        }
+    };
+}
 
 async function startCall(peerUserId, peerName) {
     targetUserId = peerUserId;
