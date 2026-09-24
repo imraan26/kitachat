@@ -28,14 +28,15 @@ try {
   console.error('Gagal membuat folder uploads:', err);
 }
 
-// Konfigurasi Penyimpanan File Upload menggunakan Multer
+// Konfigurasi Penyimpanan File Upload menggunakan Multer (Mendukung gambar & audio voice note)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, 'public/uploads/');
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'photo-' + uniqueSuffix + path.extname(file.originalname));
+    const ext = path.extname(file.originalname) || (file.mimetype === 'audio/webm' ? '.webm' : '.png');
+    cb(null, 'file-' + uniqueSuffix + ext);
   }
 });
 const upload = multer({ storage: storage });
@@ -49,7 +50,7 @@ const pool = new Pool({
   family: 4
 });
 
-// Fungsi Inisialisasi Otomatis Tabel Database (Diperbarui dengan fitur lengkap)
+// Fungsi Inisialisasi Otomatis Tabel Database (Diperbarui dengan kolom lengkap)
 async function initDB() {
   try {
     await pool.query(`
@@ -310,41 +311,76 @@ app.post('/api/update-photo', upload.single('image'), async (req, res) => {
   }
 });
 
-// 10. API POST /api/send-message (Baru: Mendukung Teks dan Gambar di Chat)
-app.post('/api/send-message', upload.single('image'), async (req, res) => {
+// 10. API POST /api/send-message (Diperbarui: Mendukung Teks, Gambar, Stiker, Voice Note, Reply, & Waktu Lokal)
+app.post('/api/send-message', upload.single('media'), async (req, res) => {
   try {
-    const { user_id, message } = req.body;
+    const { user_id, message, sticker_url, reply_to_id, client_time } = req.body;
     let image_url = null;
+    let audio_url = null;
 
     if (req.file) {
-      image_url = `/uploads/${req.file.filename}`;
+      if (req.file.mimetype.startsWith('audio/') || req.file.originalname.endsWith('.webm')) {
+        audio_url = `/uploads/${req.file.filename}`;
+      } else {
+        image_url = `/uploads/${req.file.filename}`;
+      }
     }
 
-    if (!user_id || (!message && !image_url)) {
-      return res.status(400).json({ error: 'Pesan atau gambar tidak boleh kosong!' });
+    const finalStickerUrl = sticker_url || null;
+
+    if (!user_id || (!message && !image_url && !finalStickerUrl && !audio_url)) {
+      return res.status(400).json({ error: 'Pesan tidak boleh kosong!' });
     }
 
     const insertResult = await pool.query(
-      `INSERT INTO messages (user_id, message, image_url) VALUES ($1, $2, $3) RETURNING *`,
-      [user_id, message || '', image_url]
+      `INSERT INTO messages (user_id, message, image_url, sticker_url, audio_url, reply_to_id, client_time) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [
+        user_id, 
+        message || '', 
+        image_url, 
+        finalStickerUrl, 
+        audio_url, 
+        reply_to_id ? parseInt(reply_to_id) : null, 
+        client_time || null
+      ]
     );
 
     const userResult = await pool.query('SELECT name FROM users WHERE id = $1', [user_id]);
     const userName = userResult.rows[0] ? userResult.rows[0].name : 'Keluarga';
 
     const savedMsg = insertResult.rows[0];
-    const formattedTime = new Date(savedMsg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    io.emit('receive_message', {
+    // Ambil teks pesan yang direply jika ada
+    let replyText = null;
+    if (savedMsg.reply_to_id) {
+      const replyQuery = await pool.query('SELECT message FROM messages WHERE id = $1', [savedMsg.reply_to_id]);
+      if (replyQuery.rows.length > 0) {
+        replyText = replyQuery.rows[0].message || '(Lampiran Media)';
+      }
+    }
+
+    const displayTime = savedMsg.client_time || new Date(savedMsg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    const messagePayload = {
+      id: savedMsg.id,
+      user_id: savedMsg.user_id,
       name: userName,
       message: savedMsg.message,
       image_url: savedMsg.image_url,
-      time: formattedTime
-    });
+      sticker_url: savedMsg.sticker_url,
+      audio_url: savedMsg.audio_url,
+      reply_to_id: savedMsg.reply_to_id,
+      reply_text: replyText,
+      time: displayTime,
+      is_deleted: savedMsg.is_deleted
+    };
 
-    res.status(201).json({ message: 'Pesan berhasil dikirim!', data: savedMsg });
+    io.emit('receive_message', messagePayload);
+
+    res.status(201).json({ message: 'Pesan berhasil dikirim!', data: messagePayload });
   } catch (err) {
-    console.error('Gagal mengirim pesan bergambar:', err);
+    console.error('Gagal mengirim pesan:', err);
     res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
   }
 });
@@ -352,15 +388,25 @@ app.post('/api/send-message', upload.single('image'), async (req, res) => {
 // Map untuk pemetaan pengguna aktif WebRTC (userId -> socket.id)
 const activeUsers = new Map();
 
-// 11. API DELETE /api/messages (Bersihkan Obrolan Keluarga)
+// 11. API DELETE /api/messages/:id (Hapus Pesan Individual)
+app.delete('/api/messages/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query('UPDATE messages SET is_deleted = TRUE, message = "Pesan telah dihapus", image_url = NULL, sticker_url = NULL, audio_url = NULL WHERE id = $1', [id]);
+    
+    io.emit('message_deleted', { id: parseInt(id) });
+    res.status(200).json({ message: 'Pesan berhasil dihapus.' });
+  } catch (err) {
+    console.error('Gagal menghapus pesan:', err);
+    res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
+  }
+});
+
+// 12. API DELETE /api/messages (Bersihkan Seluruh Obrolan Keluarga)
 app.delete('/api/messages', async (req, res) => {
   try {
-    // Hapus seluruh baris data dari tabel messages
     await pool.query('DELETE FROM messages');
-
-    // Beritahu semua client yang terhubung via Socket.io bahwa chat telah dikosongkan
     io.emit('chat_cleared');
-
     res.status(200).json({ message: 'Semua riwayat obrolan berhasil dibersihkan!' });
   } catch (err) {
     console.error('Gagal membersihkan obrolan:', err);
@@ -368,25 +414,35 @@ app.delete('/api/messages', async (req, res) => {
   }
 });
 
-
 // Konfigurasi Socket.io
 io.on('connection', async (socket) => {
   console.log('Seorang anggota keluarga terhubung:', socket.id);
 
-  // Ambil Riwayat Chat dari Database (Diperbarui mengambil image_url)
+  // Ambil Riwayat Chat dari Database dengan Relasi Reply
   try {
     const historyResult = await pool.query(
-      `SELECT messages.message, messages.image_url, messages.created_at, users.name 
-       FROM messages 
-       JOIN users ON messages.user_id = users.id 
-       ORDER BY messages.created_at ASC LIMIT 50`
+      `SELECT m.id, m.user_id, m.message, m.image_url, m.sticker_url, m.audio_url, m.reply_to_id, m.is_deleted, m.created_at, m.client_time, u.name 
+       FROM messages m
+       JOIN users u ON m.user_id = u.id 
+       ORDER BY m.created_at ASC LIMIT 50`
     );
     
+    // Buat pemetaan ID pesan ke teks pesan untuk pencarian cepat balasan (reply)
+    const messageMap = new Map();
+    historyResult.rows.forEach(row => messageMap.set(row.id, row.message || '(Media)'));
+
     const formattedHistory = historyResult.rows.map(row => ({
+      id: row.id,
+      user_id: row.user_id,
       name: row.name,
-      message: row.message,
-      image_url: row.image_url,
-      time: new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      message: row.is_deleted ? 'Pesan telah dihapus' : row.message,
+      image_url: row.is_deleted ? null : row.image_url,
+      sticker_url: row.is_deleted ? null : row.sticker_url,
+      audio_url: row.is_deleted ? null : row.audio_url,
+      reply_to_id: row.reply_to_id,
+      reply_text: row.reply_to_id ? messageMap.get(row.reply_to_id) : null,
+      time: row.client_time || new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      is_deleted: row.is_deleted
     }));
 
     socket.emit('chat_history', formattedHistory);
@@ -394,33 +450,11 @@ io.on('connection', async (socket) => {
     console.error('Gagal memuat riwayat chat:', err);
   }
 
-  // Kirim dan Simpan Pesan Teks via Socket (Opsional jika masih pakai socket murni)
-  socket.on('send_message', async (data) => {
-    try {
-      const insertResult = await pool.query(
-        `INSERT INTO messages (user_id, message) VALUES ($1, $2) RETURNING created_at`,
-        [data.userId, data.message]
-      );
-
-      const formattedTime = new Date(insertResult.rows[0].created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-      io.emit('receive_message', {
-        name: data.name,
-        message: data.message,
-        image_url: null,
-        time: formattedTime
-      });
-    } catch (err) {
-      console.error('Gagal menyimpan pesan ke database:', err);
-    }
-  });
-
-  // --- SIGNALING TELEPON (WebRTC) DENGAN PEMETAAN BERSIH ---
+  // --- SIGNALING TELEPON (WebRTC) ---
   socket.on('register_call_user', (userId) => {
     if (userId) {
       socket.userId = String(userId);
       activeUsers.set(socket.userId, socket.id);
-      console.log(`User ID ${socket.userId} terdaftar untuk panggilan dengan Socket ID: ${socket.id}`);
     }
   });
 
@@ -459,11 +493,9 @@ io.on('connection', async (socket) => {
     socket.emit('call_ended');
   });
 
-  // Membersihkan pemetaan secara total saat terjadi disconnect
   socket.on('disconnect', () => {
     if (socket.userId && activeUsers.get(socket.userId) === socket.id) {
       activeUsers.delete(socket.userId);
-      console.log(`User ID ${socket.userId} dihapus dari activeUsers karena disconnect.`);
     }
     console.log('Anggota keluarga terputus:', socket.id);
   });
