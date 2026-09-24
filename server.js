@@ -62,12 +62,6 @@ async function initDB() {
         photo_url TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-    `);
-    console.log("Database initialized successfully.");
-  } catch (error) {
-    console.error("Error initializing database:", error);
-  }
-}
 
 
       CREATE TABLE IF NOT EXISTS albums (
