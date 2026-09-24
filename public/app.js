@@ -372,27 +372,48 @@ async function loadFamilyMembers() {
         if (response.ok) {
             const container = document.getElementById('family-list-container');
             container.innerHTML = '';
+            
+            // Ubah container menjadi tata letak list-item tunggal ke bawah agar rapi
+            container.style.display = 'flex';
+            container.style.flexDirection = 'column';
+            container.style.gap = '10px';
+            container.style.maxWidth = '600px';
+            container.style.margin = '0 auto';
+            container.style.width = '100%';
 
             users.forEach(user => {
                 const card = document.createElement('div');
                 card.style.background = 'var(--card-bg)';
                 card.style.border = '1px solid var(--border-color)';
-                card.style.padding = '15px';
-                card.style.borderRadius = '8px';
-                card.style.boxShadow = '0 2px 5px rgba(0,0,0,0.05)';
+                card.style.padding = '14px 18px';
+                card.style.borderRadius = '14px';
+                card.style.display = 'flex';
+                card.style.alignItems = 'center';
+                card.style.justifyContent = 'space-between';
+                card.style.boxShadow = '0 1px 4px rgba(0,0,0,0.04)';
+                
+                // Jika bukan akun sendiri, buat baris bisa diklik untuk menelepon
+                const isOtherUser = currentUser && currentUser.id !== user.id;
+                if (isOtherUser) {
+                    card.style.cursor = 'pointer';
+                    card.style.transition = 'background 0.2s';
+                    card.onmouseover = () => card.style.background = 'rgba(0,0,0,0.02)';
+                    card.onmouseout = () => card.style.background = 'var(--card-bg)';
+                    card.onclick = () => startCall(user.id, user.name);
+                }
 
                 const bdate = user.birthdate ? new Date(user.birthdate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Tidak diisi';
+                const avatarSrc = user.photo_url || 'https://via.placeholder.com/50';
 
                 card.innerHTML = `
-                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
-                        <i class="fa-solid fa-user-circle" style="font-size: 35px; color: var(--primary-color);"></i>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <img src="${avatarSrc}" alt="Avatar" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-color);">
                         <div>
-                            <h4 style="margin: 0; color: var(--text-light);">${user.name}</h4>
-                            <p style="margin: 0; font-size: 13px; color: gray;"><i class="fa-solid fa-phone"></i> ${user.phone}</p>
+                            <h4 style="margin: 0; color: var(--text-light); font-size: 16px; font-weight: bold;">${user.name} ${!isOtherUser ? '(Anda)' : ''}</h4>
+                            <p style="margin: 2px 0 0 0; font-size: 12px; color: gray;"><i class="fa-solid fa-phone"></i> ${user.phone} &bull; <i class="fa-solid fa-cake-candles"></i> ${bdate}</p>
                         </div>
                     </div>
-                    <p style="margin: 5px 0 0 0; font-size: 12px;"><i class="fa-solid fa-cake-candles"></i> Lahir: ${bdate}</p>
-                    ${currentUser && currentUser.id !== user.id ? `<button onclick="startCall('${user.id}', '${user.name}')" class="btn-primary" style="width: 100%; margin-top: 10px; padding: 6px; font-size: 12px;"><i class="fa-solid fa-phone"></i> Telepon</button>` : ''}
+                    ${isOtherUser ? `<div style="color: var(--primary-color); font-size: 18px; padding-right: 5px;"><i class="fa-solid fa-phone-volume" title="Ketuk untuk menelepon"></i></div>` : ''}
                 `;
                 container.appendChild(card);
             });
