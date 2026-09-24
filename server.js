@@ -6,12 +6,25 @@ const bcrypt = require('bcrypt');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const crypto = require('crypto'); // Ditambahkan untuk generate token sesi single-device
+const crypto = require('crypto');
 require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
+
+// ==========================================
+// KONFIGURASI DATABASE & AUTO RECONNECT POOL
+// ==========================================
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
+
+// Mencegah server crash total saat koneksi database berkedip/terputus
+pool.on('error', (err, client) => {
+  console.error('Koneksi database terputus tak terduga, mencoba memulihkan...', err);
+});
 
 // Middleware Dasar
 app.use(express.json());
@@ -21,22 +34,14 @@ app.use(express.urlencoded({ extended: true }));
 // MIDDLEWARE: HTTP SECURITY HEADERS
 // ==========================================
 app.use((req, res, next) => {
-    // Mencegah peramban menebak (sniffing) tipe MIME secara keliru
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    
-    // Mencegah aplikasi Kitachat disisipkan ke dalam iframe situs lain (Mencegah Clickjacking)
     res.setHeader('X-Frame-Options', 'DENY');
-    
-    // Mengaktifkan filter XSS bawaan dari peramban modern
     res.setHeader('X-XSS-Protection', '1; mode=block');
-    
-    // Mengamankan informasi URL asal saat aplikasi mengambil sumber daya eksternal
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    
     next();
 });
 
-// Middleware Static (HARUS diletakkan SETELAH Security Headers)
+// Middleware Static (HARUS diletakkan SETELAH Security Headers)[cite: 10]
 app.use(express.static('public'));
 
 // Pastikan folder public/uploads otomatis dibuat secara aman jika belum ada di server
@@ -50,7 +55,7 @@ try {
   console.error('Gagal membuat folder uploads:', err);
 }
 
-// Konfigurasi Penyimpanan File Upload menggunakan Multer (Mendukung gambar & audio voice note)
+// Konfigurasi Penyimpanan File Upload menggunakan Multer
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, 'public/uploads/');
@@ -63,7 +68,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-// Fungsi Inisialisasi Otomatis Tabel Database (Diperbarui dengan kolom session_token untuk Single Device)
+// Fungsi Inisialisasi Otomatis Tabel Database
 async function initDB() {
   try {
     await pool.query(`
@@ -118,7 +123,6 @@ async function initDB() {
 // MIDDLEWARE: KEAMANAN SINGLE DEVICE LOGIN
 // ==========================================
 async function checkSingleDevice(req, res, next) {
-  // PERBAIKAN: Deteksi aman agar server tidak crash saat menerima upload file
   const userId = req.headers['x-user-id'] || (req.body ? req.body.user_id : null);
   const clientToken = req.headers['x-session-token'];
 
@@ -135,7 +139,6 @@ async function checkSingleDevice(req, res, next) {
 
     const dbToken = result.rows[0].session_token;
 
-    // Jika token berbeda, berarti akun sudah login di perangkat/browser lain
     if (dbToken !== clientToken) {
       return res.status(403).json({ 
         error: 'SESSION_KICKED', 
@@ -169,18 +172,16 @@ app.get('/api/status', (req, res) => {
   res.json({ status: 'Server Kitachat berjalan dengan lancar!' });
 });
 
-// 1. API REGISTER (Diperbarui dengan Sanitasi & Validasi)
+// 1. API REGISTER
 app.post('/api/register', async (req, res) => {
   let { phone, name, password, birthdate, photo_url } = req.body;
 
-  // Validasi Input Dasar
   if (!phone || !name || !password) {
     return res.status(400).json({ error: 'Nomor telepon, nama, dan password wajib diisi!' });
   }
 
-  // Sanitasi Input (Membersihkan karakter berbahaya)
   name = escapeHTML(name.trim());
-  phone = phone.replace(/[^0-9]/g, ''); // Pastikan nomor telepon hanya berisi angka
+  phone = phone.replace(/[^0-9]/g, '');
 
   try {
     const existingUser = await pool.query('SELECT * FROM users WHERE phone = $1', [phone]);
@@ -190,7 +191,7 @@ app.post('/api/register', async (req, res) => {
 
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
-    const sessionToken = crypto.randomBytes(32).toString('hex'); // Token unik perangkat
+    const sessionToken = crypto.randomBytes(32).toString('hex');
 
     const newUser = await pool.query(
       `INSERT INTO users (phone, name, password, birthdate, photo_url, session_token) 
@@ -225,13 +226,12 @@ app.post('/api/login', async (req, res) => {
       return res.status(401).json({ error: 'Password salah!' });
     }
 
-    // WAJIB ADA: Generate token sesi baru dan simpan ke database
     const newSessionToken = crypto.randomBytes(32).toString('hex');
     await pool.query('UPDATE users SET session_token = $1 WHERE id = $2', [newSessionToken, user.id]);
 
     res.status(200).json({
       message: 'Login berhasil!',
-      session_token: newSessionToken, // WAJIB DIKIRIM KE CLIENT
+      session_token: newSessionToken,
       user: {
         id: user.id,
         phone: user.phone,
@@ -246,7 +246,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// 3. API GET /api/users (Dilindungi Middleware Single Device)
+// 3. API GET /api/users
 app.get('/api/users', checkSingleDevice, async (req, res) => {
   try {
     const usersResult = await pool.query(
@@ -259,7 +259,7 @@ app.get('/api/users', checkSingleDevice, async (req, res) => {
   }
 });
 
-// 4. API GET /api/albums (Dilindungi Middleware Single Device)
+// 4. API GET /api/albums
 app.get('/api/albums', checkSingleDevice, async (req, res) => {
   try {
     const albumsResult = await pool.query(
@@ -275,7 +275,7 @@ app.get('/api/albums', checkSingleDevice, async (req, res) => {
   }
 });
 
-// 5. API POST /api/albums (Dilindungi Middleware Single Device)
+// 5. API POST /api/albums
 app.post('/api/albums', checkSingleDevice, upload.single('image'), async (req, res) => {
   try {
     const body = req.body || {};
@@ -308,17 +308,14 @@ app.post('/api/albums', checkSingleDevice, upload.single('image'), async (req, r
   }
 });
 
-// 6. API DELETE /api/albums/:id (Dilindungi Middleware Single Device & Cek Kepemilikan)
+// 6. API DELETE /api/albums/:id
 app.delete('/api/albums/:id', checkSingleDevice, async (req, res) => {
     const { id } = req.params;
-    // Ambil ID pengguna yang sedang melakukan request (dari header middleware)
     const userId = req.headers['x-user-id'] || req.body.user_id; 
 
     try {
-        // Tambahkan AND user_id = $2 agar hanya pemilik foto yang bisa menghapus
         const result = await pool.query('DELETE FROM albums WHERE id = $1 AND user_id = $2 RETURNING id', [id, userId]);
         
-        // Jika rowCount 0, berarti foto tidak ada ATAU bukan milik user tersebut
         if (result.rowCount === 0) {
             return res.status(403).json({ error: 'Anda tidak memiliki izin untuk menghapus foto ini!' });
         }
@@ -330,7 +327,7 @@ app.delete('/api/albums/:id', checkSingleDevice, async (req, res) => {
     }
 });
 
-// 7. API GET /api/agendas (Dilindungi Middleware Single Device)
+// 7. API GET /api/agendas
 app.get('/api/agendas', checkSingleDevice, async (req, res) => {
   try {
     const agendasResult = await pool.query('SELECT * FROM agendas ORDER BY event_date ASC');
@@ -341,7 +338,7 @@ app.get('/api/agendas', checkSingleDevice, async (req, res) => {
   }
 });
 
-// 8. API POST /api/agendas (Dilindungi Middleware Single Device & Sanitasi XSS)
+// 8. API POST /api/agendas
 app.post('/api/agendas', checkSingleDevice, async (req, res) => {
   let { title, event_date, description } = req.body;
 
@@ -349,7 +346,6 @@ app.post('/api/agendas', checkSingleDevice, async (req, res) => {
     return res.status(400).json({ error: 'Judul dan tanggal acara wajib diisi!' });
   }
 
-  // Sanitasi Input Agenda
   title = escapeHTML(title.trim());
   description = escapeHTML(description ? description.trim() : '');
 
@@ -370,7 +366,7 @@ app.post('/api/agendas', checkSingleDevice, async (req, res) => {
   }
 });
 
-// 9. API POST /api/update-photo (Dilindungi Middleware Single Device)
+// 9. API POST /api/update-photo
 app.post('/api/update-photo', checkSingleDevice, upload.single('image'), async (req, res) => {
   try {
     const { user_id } = req.body;
@@ -404,14 +400,13 @@ app.post('/api/update-photo', checkSingleDevice, upload.single('image'), async (
   }
 });
 
-// 10. API POST /api/send-message (Dilindungi Middleware Single Device & Sanitasi XSS)
+// 10. API POST /api/send-message
 app.post('/api/send-message', checkSingleDevice, upload.single('media'), async (req, res) => {
   try {
     let { user_id, message, sticker_url, reply_to_id, client_time } = req.body;
     let image_url = null;
     let audio_url = null;
 
-    // SANITASI PESAN: Cegah pengiriman script berbahaya di dalam chat
     message = escapeHTML(message);
 
     if (req.file) {
@@ -461,7 +456,7 @@ app.post('/api/send-message', checkSingleDevice, upload.single('media'), async (
       id: savedMsg.id,
       user_id: savedMsg.user_id,
       name: userName,
-      message: savedMsg.message, // Pesan yang dikirim sudah bersih dari script
+      message: savedMsg.message,
       image_url: savedMsg.image_url,
       sticker_url: savedMsg.sticker_url,
       audio_url: savedMsg.audio_url,
@@ -480,17 +475,14 @@ app.post('/api/send-message', checkSingleDevice, upload.single('media'), async (
   }
 });
 
-
-// Map untuk pemetaan pengguna aktif WebRTC (userId -> socket.id)
 const activeUsers = new Map();
 
-// 11. API DELETE /api/messages/:id (Dilindungi Middleware Single Device & Cek Kepemilikan)
+// 11. API DELETE /api/messages/:id
 app.delete('/api/messages/:id', checkSingleDevice, async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.headers['x-user-id'] || req.body.user_id;
 
-    // Pastikan hanya pengirim pesan (user_id = $3) yang bisa mengubah status pesan menjadi terhapus
     const result = await pool.query(
         `UPDATE messages 
          SET is_deleted = TRUE, 
@@ -502,7 +494,6 @@ app.delete('/api/messages/:id', checkSingleDevice, async (req, res) => {
         ['Pesan telah dihapus', id, userId]
     );
     
-// Jika tidak ada baris yang terpengaruh, blokir aksi tersebut
     if (result.rowCount === 0) {
         return res.status(403).json({ error: 'Anda tidak memiliki hak untuk menghapus pesan orang lain.' });
     }
@@ -515,7 +506,7 @@ app.delete('/api/messages/:id', checkSingleDevice, async (req, res) => {
   }
 });
 
-// 12. API DELETE /api/messages (Dilindungi Middleware Single Device)
+// 12. API DELETE /api/messages
 app.delete('/api/messages', checkSingleDevice, async (req, res) => {
   try {
     await pool.query('DELETE FROM messages');
@@ -561,7 +552,6 @@ io.on('connection', async (socket) => {
     console.error('Gagal memuat riwayat chat:', err);
   }
 
-  // --- SIGNALING TELEPON (WebRTC) ---
   socket.on('register_call_user', (userId) => {
     if (userId) {
       socket.userId = String(userId);
@@ -618,16 +608,4 @@ initDB().then(() => {
   server.listen(PORT, () => {
     console.log(`Server Kitachat aktif di port ${PORT}`);
   });
-});
-
-// Konfigurasi Pool Database
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
-});
-
-// TAMBAHKAN BLOK INI: Mencegah server crash total saat koneksi database berkedip
-pool.on('error', (err, client) => {
-  console.error('Koneksi database terputus tak terduga, mencoba memulihkan...', err);
-  // Jangan matikan proses server (biarkan pool melakukan reconnect otomatis)
 });
