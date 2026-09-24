@@ -10,6 +10,36 @@ if ('serviceWorker' in navigator) {
     });
 }
 
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    // Cegah banner bawaan browser muncul otomatis
+    e.preventDefault();
+    deferredPrompt = e;
+    
+    // Tampilkan menu tombol instal di halaman Pengaturan
+    const installContainer = document.getElementById('install-pwa-container');
+    if (installContainer) {
+        installContainer.classList.remove('hidden');
+    }
+});
+
+function installAppToAndroid() {
+    if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+                console.log('Pengguna menerima instalasi PWA');
+            } else {
+                console.log('Pengguna menolak instalasi PWA');
+            }
+            deferredPrompt = null;
+        });
+    } else {
+        alert('Aplikasi sudah terinstal atau peramban Anda tidak mendukung instalasi otomatis. Gunakan menu "Tambahkan ke Layar Utama" di peramban.');
+    }
+}
+
 // Objek Audio untuk Nada Dering
 const chatBeepAudio = new Audio('/audio/chat-beep.mp3');
 const callRingtone = new Audio('/audio/nadadering-phone.mp3');
