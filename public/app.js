@@ -6,6 +6,9 @@ const chatBeepAudio = new Audio('/audio/chat-beep.mp3');
 const callRingtone = new Audio('/audio/nadadering-phone.mp3');
 callRingtone.loop = true;
 
+// Variabel Global untuk Fitur Reply Pesan
+window.replyingToMessageId = null;
+
 // Ganti Tab Login / Register
 function switchTab(tab) {
     if (tab === 'login') {
@@ -64,8 +67,6 @@ async function handleLogin(event) {
 
         if (response.ok) {
             currentUser = data.user;
-            
-            // [OPTIMALISASI A] Menggunakan localStorage agar sesi tidak hilang saat browser ditutup
             localStorage.setItem('kitachat_user', JSON.stringify(currentUser));
 
             chatBeepAudio.play().catch(() => {});
@@ -117,7 +118,6 @@ function updateUserInterface() {
         mainScreen.style.display = 'flex';
     }
 
-    // Sinkronisasi informasi ke halaman pengaturan ala WhatsApp
     const settingsAvatar = document.getElementById('settings-user-avatar');
     if (settingsAvatar && currentUser.photo_url) settingsAvatar.src = currentUser.photo_url;
 
@@ -128,7 +128,6 @@ function updateUserInterface() {
     if (settingsPhone) settingsPhone.innerHTML = `<i class="fa-solid fa-phone"></i> ${currentUser.phone}`;
 }
 
-// [OPTIMALISASI A] Memuat sesi dari localStorage saat halaman dimuat
 window.addEventListener('DOMContentLoaded', () => {
     const savedUser = localStorage.getItem('kitachat_user');
     if (savedUser) {
@@ -197,7 +196,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 function logout() {
     currentUser = null;
-    localStorage.removeItem('kitachat_user'); // [OPTIMALISASI A] Hapus dari localStorage
+    localStorage.removeItem('kitachat_user');
     
     const mainScreen = document.getElementById('main-screen');
     if (mainScreen) {
@@ -210,18 +209,13 @@ function logout() {
         authScreen.classList.add('active');
         authScreen.style.display = 'flex';
     }
-
-    const loginPhone = document.getElementById('login-phone');
-    const loginPassword = document.getElementById('login-password');
-    if (loginPhone) loginPhone.value = '';
-    if (loginPassword) loginPassword.value = '';
 }
 
+// --- FITUR KIRIM PESAN & WAKTU LOKAL PONSEL ---
 async function sendMessage() {
     const input = document.getElementById('message-input');
     const messageText = input.value.trim();
     
-    // Jika tidak ada teks dan tidak ada lampiran lain, batalkan
     if (!messageText) return;
 
     if (!currentUser) {
@@ -229,15 +223,14 @@ async function sendMessage() {
         return;
     }
 
-    // Ambil waktu lokal perangkat saat tombol kirim ditekan
+    // Waktu lokal perangkat pengirim
     const localTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
     const formData = new FormData();
     formData.append('user_id', currentUser.id);
     formData.append('message', messageText);
-    formData.append('client_time', localTime); // Kirim waktu lokal ke server
+    formData.append('client_time', localTime);
 
-    // Jika sedang dalam mode membalas pesan (reply)
     if (window.replyingToMessageId) {
         formData.append('reply_to_id', window.replyingToMessageId);
     }
@@ -252,7 +245,7 @@ async function sendMessage() {
         if (response.ok) {
             input.value = '';
             input.style.height = 'auto';
-            cancelReply(); // Bersihkan mode reply setelah terkirim
+            cancelReply();
         } else {
             alert(result.error || 'Gagal mengirim pesan.');
         }
@@ -261,52 +254,7 @@ async function sendMessage() {
     }
 }
 
-async function triggerUploadProfile(inputElement) {
-    if (inputElement.files && inputElement.files[0]) {
-        const file = inputElement.files[0];
-
-        if (!currentUser) {
-            alert('Silakan login terlebih dahulu!');
-            return;
-        }
-
-        const formData = new FormData();
-        formData.append('user_id', currentUser.id);
-        formData.append('image', file);
-
-        try {
-            const response = await fetch('/api/update-photo', {
-                method: 'POST',
-                body: formData
-            });
-            const data = await response.json();
-
-            if (response.ok) {
-                alert(data.message);
-                currentUser = data.user;
-                localStorage.setItem('kitachat_user', JSON.stringify(currentUser));
-
-                // Perbarui tampilan avatar di seluruh aplikasi
-                const mobileAvatar = document.getElementById('user-avatar');
-                if (mobileAvatar) mobileAvatar.src = currentUser.photo_url;
-
-                const desktopAvatar = document.getElementById('user-avatar-desktop');
-                if (desktopAvatar) desktopAvatar.src = currentUser.photo_url;
-
-                const settingsAvatar = document.getElementById('settings-user-avatar');
-                if (settingsAvatar) settingsAvatar.src = currentUser.photo_url;
-            } else {
-                alert(data.error);
-            }
-        } catch (err) {
-            console.error('Error update foto profil:', err);
-            alert('Terjadi kesalahan jaringan.');
-        }
-
-        inputElement.value = '';
-    }
-}
-
+// --- FITUR STIKER ---
 async function sendSticker(stickerUrl) {
     if (!currentUser) return;
     
@@ -324,29 +272,131 @@ async function sendSticker(stickerUrl) {
     }
 }
 
-// [OPTIMALISASI B] Event listener chat_history aktif untuk memuat riwayat obrolan otomatis
+// --- FITUR VOICE NOTE (REKAM SUARA) ---
+let mediaRecorder;
+let audioChunks = [];
+
+async function toggleVoiceRecording() {
+    const micBtn = document.getElementById('mic-btn');
+    
+    if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+
+            mediaRecorder.ondataavailable = event => {
+                audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                const localTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                
+                const formData = new FormData();
+                formData.append('user_id', currentUser.id);
+                formData.append('media', audioBlob, 'voicenote.webm');
+                formData.append('client_time', localTime);
+
+                try {
+                    const response = await fetch('/api/send-message', { method: 'POST', body: formData });
+                    if (!response.ok) alert('Gagal mengirim pesan suara.');
+                } catch (err) {
+                    console.error('Gagal upload voice note:', err);
+                }
+            };
+
+            mediaRecorder.start();
+            if (micBtn) micBtn.style.color = '#e74c3c'; // Indikator merah saat merekam
+        } catch (err) {
+            console.error('Mikrofon tidak dapat diakses:', err);
+            alert('Izin mikrofon ditolak atau tidak didukung perangkat.');
+        }
+    } else {
+        mediaRecorder.stop();
+        if (micBtn) micBtn.style.color = 'var(--text-light)';
+    }
+}
+
+// --- FITUR REPLY & DELETE PESAN ---
+function setupMessageInteraction(msgDiv, messageId, messageText) {
+    let pressTimer;
+
+    msgDiv.addEventListener('mousedown', () => {
+        pressTimer = setTimeout(() => showMessageActionModal(messageId, messageText), 600);
+    });
+
+    msgDiv.addEventListener('mouseup', () => clearTimeout(pressTimer));
+    msgDiv.addEventListener('touchstart', () => {
+        pressTimer = setTimeout(() => showMessageActionModal(messageId, messageText), 600);
+    });
+    msgDiv.addEventListener('touchend', () => clearTimeout(pressTimer));
+}
+
+function showMessageActionModal(messageId, messageText) {
+    const choice = confirm(`Pilih aksi untuk pesan ini:\n[OK] Balas (Reply)\n[Cancel] Hapus Pesan`);
+    if (choice) {
+        // Mode Reply
+        window.replyingToMessageId = messageId;
+        const chatInputArea = document.getElementById('chat-input-area');
+        
+        let banner = document.getElementById('reply-banner');
+        if (!banner) {
+            banner = document.createElement('div');
+            banner.id = 'reply-banner';
+            banner.style.cssText = 'background: var(--bg-light); padding: 6px 12px; font-size: 12px; border-left: 3px solid var(--primary-color); display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; border-radius: 4px; color: var(--text-light);';
+            chatInputArea.parentNode.insertBefore(banner, chatInputArea);
+        }
+        banner.innerHTML = `<span>Membalas: <b>${messageText || 'Lampiran'}</b></span> <button onclick="cancelReply()" style="background:none; border:none; color:red; cursor:pointer; font-weight:bold;">&times;</button>`;
+    } else {
+        // Hapus Pesan
+        deleteMessage(messageId);
+    }
+}
+
+function cancelReply() {
+    window.replyingToMessageId = null;
+    const banner = document.getElementById('reply-banner');
+    if (banner) banner.remove();
+}
+
+async function deleteMessage(messageId) {
+    try {
+        const response = await fetch(`/api/messages/${messageId}`, { method: 'DELETE' });
+        if (!response.ok) alert('Gagal menghapus pesan.');
+    } catch (err) {
+        console.error('Error hapus pesan:', err);
+    }
+}
+
+// Socket event listeners untuk obrolan
 socket.on('chat_history', (history) => {
     const container = document.getElementById('chat-messages-container');
     if (container) {
         container.innerHTML = ''; 
-        history.forEach(data => {
-            appendChatMessage(data);
-        });
+        history.forEach(data => appendChatMessage(data));
     }
 });
 
 socket.on('receive_message', (data) => {
     appendChatMessage(data);
 
-    if (currentUser && data.name !== currentUser.name) {
+    if (currentUser && data.user_id !== currentUser.id) {
         chatBeepAudio.play().catch(() => {});
         
         if (Notification.permission === 'granted') {
             new Notification(`Pesan Baru dari ${data.name}`, {
-                body: data.message || 'Mengirim sebuah gambar',
+                body: data.message || 'Mengirim sebuah lampiran',
                 icon: '/logo-kitachat.png'
             });
         }
+    }
+});
+
+socket.on('message_deleted', (data) => {
+    const bubble = document.getElementById(`msg-bubble-${data.id}`);
+    if (bubble) {
+        bubble.innerHTML = `<div style="font-style: italic; color: gray; font-size: 13px;">Pesan telah dihapus</div>`;
     }
 });
 
@@ -355,12 +405,19 @@ function appendChatMessage(data) {
     if (!container) return;
     
     const msgDiv = document.createElement('div');
-    const isSelf = currentUser && data.name === currentUser.name;
+    msgDiv.id = `msg-bubble-${data.id}`;
+    const isSelf = currentUser && data.user_id === currentUser.id;
     msgDiv.className = isSelf ? 'chat-bubble chat-outgoing' : 'chat-bubble chat-incoming';
+
+    if (data.is_deleted) {
+        msgDiv.innerHTML = `<div style="font-style: italic; color: gray; font-size: 13px;">Pesan telah dihapus</div>`;
+        container.appendChild(msgDiv);
+        container.scrollTop = container.scrollHeight;
+        return;
+    }
 
     let contentHtml = '';
 
-    // 1. Render kutipan balasan (Reply) jika ada
     if (data.reply_text) {
         contentHtml += `
             <div style="border-left: 3px solid var(--primary-color); background: rgba(0,0,0,0.05); padding: 4px 8px; margin-bottom: 6px; border-radius: 4px; font-size: 11px; opacity: 0.8;">
@@ -368,7 +425,6 @@ function appendChatMessage(data) {
             </div>`;
     }
 
-    // 2. Render Teks / Stiker / Gambar / Voice Note
     if (data.message) {
         contentHtml += `<div>${data.message}</div>`;
     }
@@ -382,14 +438,16 @@ function appendChatMessage(data) {
         contentHtml += `<audio controls src="${data.audio_url}" style="max-width: 200px; height: 35px; margin-top: 5px;"></audio>`;
     }
 
-    // Gunakan waktu lokal perangkat yang dikirimkan, fallback ke jam server jika kosong
-    const displayTime = data.client_time || data.time || '';
+    const displayTime = data.time || '';
 
     msgDiv.innerHTML = `
         ${!isSelf ? `<div class="chat-sender-name">${data.name}</div>` : ''}
         ${contentHtml}
         <div class="chat-time">${displayTime}</div>
     `;
+
+    // Aktifkan interaksi tekan lama untuk reply/hapus
+    setupMessageInteraction(msgDiv, data.id, data.message);
 
     container.appendChild(msgDiv);
     container.scrollTop = container.scrollHeight;
@@ -420,7 +478,6 @@ async function loadFamilyMembers() {
             const container = document.getElementById('family-list-container');
             container.innerHTML = '';
             
-            // Ubah container menjadi tata letak list-item tunggal ke bawah agar rapi
             container.style.display = 'flex';
             container.style.flexDirection = 'column';
             container.style.gap = '10px';
@@ -439,7 +496,6 @@ async function loadFamilyMembers() {
                 card.style.justifyContent = 'space-between';
                 card.style.boxShadow = '0 1px 4px rgba(0,0,0,0.04)';
                 
-                // Jika bukan akun sendiri, buat baris bisa diklik untuk menelepon
                 const isOtherUser = currentUser && currentUser.id !== user.id;
                 if (isOtherUser) {
                     card.style.cursor = 'pointer';
@@ -518,46 +574,6 @@ async function loadAlbumPhotos() {
     }
 }
 
-async function handleUploadPhoto(event) {
-    event.preventDefault();
-    const fileInput = document.getElementById('photo-file-input');
-    const caption = document.getElementById('photo-caption-input').value;
-
-    if (!currentUser) {
-        alert('Silakan login terlebih dahulu!');
-        return;
-    }
-
-    if (fileInput.files.length === 0) {
-        alert('Pilih file gambar terlebih dahulu!');
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append('user_id', currentUser.id);
-    formData.append('image', fileInput.files[0]);
-    formData.append('caption', caption);
-
-    try {
-        const response = await fetch('/api/albums', {
-            method: 'POST',
-            body: formData
-        });
-        const data = await response.json();
-
-        if (response.ok) {
-            alert(data.message);
-            fileInput.value = '';
-            document.getElementById('photo-caption-input').value = '';
-            loadAlbumPhotos();
-        } else {
-            alert(data.error);
-        }
-    } catch (err) {
-        console.error('Error upload foto:', err);
-    }
-}
-
 async function loadAgendaAndBirthdays() {
     try {
         const resUsers = await fetch('/api/users');
@@ -620,34 +636,6 @@ async function loadAgendaAndBirthdays() {
     }
 }
 
-async function handleCreateAgenda(event) {
-    event.preventDefault();
-    const title = document.getElementById('agenda-title').value;
-    const event_date = document.getElementById('agenda-date').value;
-    const description = document.getElementById('agenda-desc').value;
-
-    try {
-        const response = await fetch('/api/agendas', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title, event_date, description })
-        });
-        const data = await response.json();
-
-        if (response.ok) {
-            alert(data.message);
-            document.getElementById('agenda-title').value = '';
-            document.getElementById('agenda-date').value = '';
-            document.getElementById('agenda-desc').value = '';
-            loadAgendaAndBirthdays();
-        } else {
-            alert(data.error);
-        }
-    } catch (err) {
-        console.error('Error tambah agenda:', err);
-    }
-}
-
 async function handleUpdateProfilePhoto(event) {
     event.preventDefault();
     const fileInput = document.getElementById('profile-file-input');
@@ -676,8 +664,6 @@ async function handleUpdateProfilePhoto(event) {
         if (response.ok) {
             alert(data.message);
             currentUser = data.user;
-            
-            // [OPTIMALISASI A] Perbarui localStorage saat foto profil diganti
             localStorage.setItem('kitachat_user', JSON.stringify(currentUser));
 
             const mobileAvatar = document.getElementById('user-avatar');
@@ -696,7 +682,6 @@ async function handleUpdateProfilePhoto(event) {
 }
 
 // --- FITUR TELEPON / VOICE CALL (WebRTC) ---
-
 let localStream = null;
 let peerConnection = null;
 let targetSocketId = null;
@@ -753,7 +738,7 @@ async function startCall(peerUserId, peerName) {
 
 socket.on('incoming_call', async (data) => {
     if (currentUser && data.toUserId == currentUser.id) {
-        targetSocketId = data.fromSocketId; // Pastikan backend mengirim fromSocketId
+        targetSocketId = data.fromSocketId;
         targetUserId = data.fromUserId;
         
         const modal = document.getElementById('call-modal');
@@ -814,7 +799,6 @@ socket.on('call_answered', async (data) => {
     if (data.targetSocketId) {
         targetSocketId = data.targetSocketId;
     }
-    
     document.getElementById('call-status-title').innerText = 'Terhubung';
     try {
         await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
@@ -861,8 +845,7 @@ function hangUpCall() {
     window.incomingOffer = null;
 }
 
-// --- FITUR ZOOM, SIMPAN, DAN HAPUS FOTO ---
-
+// --- FITUR ZOOM, SIMPAN, DAN HAPUS FOTO ALBUM ---
 function openZoomModal(imageUrl) {
     const modal = document.getElementById('photo-zoom-modal');
     const zoomedImg = document.getElementById('zoomed-img-element');
@@ -935,9 +918,8 @@ async function deleteAlbumPhoto(photoId) {
     }
 }
 
-// --- FITUR KIRIM GAMBAR DI OBROLAN (MENGGUNAKAN /api/send-message) ---
+// --- KIRIM GAMBAR DI OBROLAN ---
 const chatFileInput = document.getElementById('chat-file-input');
-
 if (chatFileInput) {
     chatFileInput.addEventListener('change', async function() {
         if (this.files && this.files[0]) {
@@ -948,10 +930,12 @@ if (chatFileInput) {
                 return;
             }
 
+            const localTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
             const formData = new FormData();
-            formData.append('image', file);
+            formData.append('media', file);
             formData.append('user_id', currentUser.id);
             formData.append('message', '');
+            formData.append('client_time', localTime);
 
             try {
                 const response = await fetch('/api/send-message', {
@@ -973,16 +957,14 @@ if (chatFileInput) {
     });
 }
 
-// --- FITUR BERSIHKAN OBROLAN ---
+// --- BERSIHKAN SELURUH OBROLAN ---
 function clearChat() {
     if (confirm('Apakah Anda yakin ingin menghapus semua riwayat obrolan untuk semua anggota keluarga?')) {
         fetch('/api/messages', {
             method: 'DELETE',
         })
         .then(response => response.json())
-        .then(data => {
-            console.log(data.message);
-        })
+        .then(data => console.log(data.message))
         .catch(err => {
             console.error('Gagal menghapus obrolan:', err);
             alert('Terjadi kesalahan saat membersihkan obrolan.');
@@ -992,9 +974,7 @@ function clearChat() {
 
 socket.on('chat_cleared', () => {
     const chatContainer = document.getElementById('chat-messages-container');
-    if (chatContainer) {
-        chatContainer.innerHTML = '';
-    }
+    if (chatContainer) chatContainer.innerHTML = '';
 });
 
 socket.on('call_ended', () => {
