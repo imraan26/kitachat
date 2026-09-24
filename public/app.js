@@ -853,7 +853,7 @@ const rtcConfig = {
     iceCandidatePoolSize: 10
 };
 
-// Tambahkan pemantau status koneksi jaringan/panggilan di app.js
+// Pemantau status koneksi jaringan/panggilan
 function monitorPeerConnection() {
     if (!peerConnection) return;
 
@@ -863,7 +863,6 @@ function monitorPeerConnection() {
 
         if (state === 'disconnected' || state === 'failed') {
             console.warn('Jaringan berpindah (Wi-Fi/Seluler) atau melemah, mencoba menyambungkan ulang...');
-            // WebRTC akan mencoba memulihkan jalur ICE secara otomatis
         } else if (state === 'closed') {
             hangUpCall();
         }
@@ -882,6 +881,8 @@ async function startCall(peerUserId, peerName) {
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         
         peerConnection = new RTCPeerConnection(rtcConfig);
+        monitorPeerConnection(); // Diaktifkan untuk memantau kestabilan Wi-Fi/Seluler
+        
         localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
         peerConnection.onicecandidate = (event) => {
@@ -945,6 +946,8 @@ async function acceptCall() {
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         
         peerConnection = new RTCPeerConnection(rtcConfig);
+        monitorPeerConnection(); // Diaktifkan untuk memantau kestabilan Wi-Fi/Seluler
+
         localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
         peerConnection.onicecandidate = (event) => {
