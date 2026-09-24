@@ -319,30 +319,47 @@ async function sendSticker(stickerUrl) {
     }
 }
 
-// --- FITUR VOICE NOTE (REKAM SUARA) ---
+// --- FITUR VOICE NOTE (REKAM SUARA) YANG DIOPTIMALKAN UNTUK ANDROID & IOS ---
 let mediaRecorder;
 let audioChunks = [];
+let isRecording = false;
 
 async function toggleVoiceRecording() {
     const micBtn = document.getElementById('mic-btn');
-    
-    if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+
+    if (!isRecording) {
+        // --- MULAI MEREKAM ---
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream);
+            
+            // Deteksi dukungan MIME type untuk Android / iOS / Desktop
+            let options = { mimeType: 'audio/webm' };
+            if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                options = { mimeType: 'audio/mp4' }; // Lebih optimal untuk iOS
+            } else if (!MediaRecorder.isTypeSupported('audio/webm')) {
+                options = {}; // Gunakan default browser jika tidak didukung
+            }
+
+            mediaRecorder = new MediaRecorder(stream, options);
             audioChunks = [];
 
             mediaRecorder.ondataavailable = event => {
-                audioChunks.push(event.data);
+                if (event.data.size > 0) {
+                    audioChunks.push(event.data);
+                }
             };
 
             mediaRecorder.onstop = async () => {
-                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                // Hentikan seluruh Jalur Media (Microphone Stream) agar indikator mic di HP/Laptop tertutup otomatis
+                stream.getTracks().forEach(track => track.stop());
+
+                const blobType = options.mimeType || 'audio/webm';
+                const audioBlob = new Blob(audioChunks, { type: blobType });
                 const localTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
                 
                 const formData = new FormData();
                 formData.append('user_id', currentUser.id);
-                formData.append('media', audioBlob, 'voicenote.webm');
+                formData.append('media', audioBlob, blobType.includes('mp4') ? 'voicenote.mp4' : 'voicenote.webm');
                 formData.append('client_time', localTime);
 
                 try {
@@ -351,17 +368,27 @@ async function toggleVoiceRecording() {
                 } catch (err) {
                     console.error('Gagal upload voice note:', err);
                 }
+
+                // Kembalikan status tombol mic ke normal
+                isRecording = false;
+                if (micBtn) micBtn.style.color = 'var(--text-light)';
             };
 
             mediaRecorder.start();
-            if (micBtn) micBtn.style.color = '#e74c3c';
+            isRecording = true;
+            if (micBtn) micBtn.style.color = '#e74c3c'; // Indikator merah saat merekam
+            
         } catch (err) {
             console.error('Mikrofon tidak dapat diakses:', err);
             alert('Izin mikrofon ditolak atau tidak didukung perangkat.');
+            isRecording = false;
+            if (micBtn) micBtn.style.color = 'var(--text-light)';
         }
     } else {
-        mediaRecorder.stop();
-        if (micBtn) micBtn.style.color = 'var(--text-light)';
+        // --- HENTIKAN PEREKAMAN SECARA MANUAL ---
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+        }
     }
 }
 
