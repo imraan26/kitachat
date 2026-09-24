@@ -508,19 +508,11 @@ app.delete('/api/messages/:id', checkSingleDevice, async (req, res) => {
         ['Pesan telah dihapus', id, userId]
     );
     
-    // Jika tidak ada baris yang terpengaruh, blokir aksi tersebut
+// Jika tidak ada baris yang terpengaruh, blokir aksi tersebut
     if (result.rowCount === 0) {
         return res.status(403).json({ error: 'Anda tidak memiliki hak untuk menghapus pesan orang lain.' });
     }
 
-    io.emit('message_deleted', { id: parseInt(id) });
-    res.status(200).json({ message: 'Pesan berhasil dihapus.' });
-  } catch (err) {
-    console.error('Gagal menghapus pesan:', err);
-    res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
-  }
-});
-    
     io.emit('message_deleted', { id: parseInt(id) });
     res.status(200).json({ message: 'Pesan berhasil dihapus.' });
   } catch (err) {
