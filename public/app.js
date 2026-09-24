@@ -220,6 +220,8 @@ function logout() {
 async function sendMessage() {
     const input = document.getElementById('message-input');
     const messageText = input.value.trim();
+    
+    // Jika tidak ada teks dan tidak ada lampiran lain, batalkan
     if (!messageText) return;
 
     if (!currentUser) {
@@ -227,13 +229,18 @@ async function sendMessage() {
         return;
     }
 
-    / Ambil waktu lokal perangkat saat tombol kirim ditekan
+    // Ambil waktu lokal perangkat saat tombol kirim ditekan
     const localTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
     const formData = new FormData();
     formData.append('user_id', currentUser.id);
     formData.append('message', messageText);
     formData.append('client_time', localTime); // Kirim waktu lokal ke server
+
+    // Jika sedang dalam mode membalas pesan (reply)
+    if (window.replyingToMessageId) {
+        formData.append('reply_to_id', window.replyingToMessageId);
+    }
 
     try {
         const response = await fetch('/api/send-message', {
@@ -245,6 +252,7 @@ async function sendMessage() {
         if (response.ok) {
             input.value = '';
             input.style.height = 'auto';
+            cancelReply(); // Bersihkan mode reply setelah terkirim
         } else {
             alert(result.error || 'Gagal mengirim pesan.');
         }
