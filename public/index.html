@@ -99,25 +99,38 @@
                             <button onclick="cancelReply()" style="background: none; border: none; cursor: pointer; font-size: 14px; color: var(--text-light);"><i class="fa-solid fa-xmark"></i></button>
                         </div>
 
+                        
                         <!-- Baris Input Utama -->
                         <div style="display: flex; gap: 10px; align-items: flex-end; width: 100%;">
+                            
+                            <!-- Tombol Kirim Stiker (Placeholder Sederhana / Panel Stiker) -->
+                            <button type="button" onclick="sendSticker('/uploads/sticker-example.png')" style="background: none; border: none; cursor: pointer; color: #667781; font-size: 20px; padding-bottom: 8px; flex-shrink: 0;" title="Kirim Stiker Cepat">
+                                <i class="fa-solid fa-face-smile"></i>
+                            </button>
+                        
                             <!-- Tombol Ikon Klip untuk Unggah Gambar di Chat -->
                             <label for="chat-file-input" style="cursor: pointer; color: #667781; font-size: 20px; padding-bottom: 8px; flex-shrink: 0;" title="Kirim Gambar">
                                 <i class="fa-solid fa-paperclip"></i>
                             </label>
                             <input type="file" id="chat-file-input" accept="image/*" style="display: none;">
-
-                            <textarea id="message-input" placeholder="Ketik pesan..." rows="1" style="resize: none;"></textarea>
+                        
+                            <!-- Kolom Teks Pesan -->
+                            <textarea id="message-input" placeholder="Ketik pesan..." rows="1" style="resize: none; flex: 1;"></textarea>
                             
+                            <!-- Tombol Voice Note (Mikrofon Rekam Suara) -->
+                            <button type="button" id="mic-btn" onclick="toggleVoiceRecording()" style="background: none; border: none; cursor: pointer; color: #667781; font-size: 20px; padding-bottom: 8px; flex-shrink: 0;" title="Tekan untuk Rekam Suara (Voice Note)">
+                                <i class="fa-solid fa-microphone"></i>
+                            </button>
+                        
+                            <!-- Tombol Kirim Teks -->
                             <button class="send-button" onclick="sendMessage()" title="Kirim Pesan">
                                 <svg viewBox="0 0 24 24" width="20" height="20" fill="white">
                                     <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
                                 </svg>
                             </button>
                         </div>
-                    </div>
-                </div>
 
+                        
                 <!-- Tab Album Foto -->
                 <div id="content-album" class="tab-content hidden" style="display: flex; flex-direction: column; height: 100%;">
                     <div class="chat-header">
