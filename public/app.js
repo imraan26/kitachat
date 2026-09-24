@@ -307,6 +307,23 @@ async function triggerUploadProfile(inputElement) {
     }
 }
 
+async function sendSticker(stickerUrl) {
+    if (!currentUser) return;
+    
+    const localTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    const formData = new FormData();
+    formData.append('user_id', currentUser.id);
+    formData.append('message', '');
+    formData.append('sticker_url', stickerUrl);
+    formData.append('client_time', localTime);
+
+    try {
+        await fetch('/api/send-message', { method: 'POST', body: formData });
+    } catch (err) {
+        console.error('Gagal mengirim stiker:', err);
+    }
+}
+
 // [OPTIMALISASI B] Event listener chat_history aktif untuk memuat riwayat obrolan otomatis
 socket.on('chat_history', (history) => {
     const container = document.getElementById('chat-messages-container');
@@ -339,21 +356,39 @@ function appendChatMessage(data) {
     
     const msgDiv = document.createElement('div');
     const isSelf = currentUser && data.name === currentUser.name;
-
     msgDiv.className = isSelf ? 'chat-bubble chat-outgoing' : 'chat-bubble chat-incoming';
 
     let contentHtml = '';
+
+    // 1. Render kutipan balasan (Reply) jika ada
+    if (data.reply_text) {
+        contentHtml += `
+            <div style="border-left: 3px solid var(--primary-color); background: rgba(0,0,0,0.05); padding: 4px 8px; margin-bottom: 6px; border-radius: 4px; font-size: 11px; opacity: 0.8;">
+                <b>Membalas:</b> ${data.reply_text}
+            </div>`;
+    }
+
+    // 2. Render Teks / Stiker / Gambar / Voice Note
     if (data.message) {
         contentHtml += `<div>${data.message}</div>`;
     }
     if (data.image_url) {
         contentHtml += `<img src="${data.image_url}" style="max-width: 220px; border-radius: 8px; display: block; margin-top: 5px; cursor: pointer;" onclick="openZoomModal('${data.image_url}')">`;
     }
+    if (data.sticker_url) {
+        contentHtml += `<img src="${data.sticker_url}" style="width: 120px; height: 120px; display: block; margin-top: 5px;">`;
+    }
+    if (data.audio_url) {
+        contentHtml += `<audio controls src="${data.audio_url}" style="max-width: 200px; height: 35px; margin-top: 5px;"></audio>`;
+    }
+
+    // Gunakan waktu lokal perangkat yang dikirimkan, fallback ke jam server jika kosong
+    const displayTime = data.client_time || data.time || '';
 
     msgDiv.innerHTML = `
         ${!isSelf ? `<div class="chat-sender-name">${data.name}</div>` : ''}
         ${contentHtml}
-        <div class="chat-time">${data.time}</div>
+        <div class="chat-time">${displayTime}</div>
     `;
 
     container.appendChild(msgDiv);
