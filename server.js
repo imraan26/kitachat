@@ -156,9 +156,18 @@ app.get('/api/status', (req, res) => {
   res.json({ status: 'Server Kitachat berjalan dengan lancar!' });
 });
 
-// 1. API REGISTER (Diperbarui dengan pembuatan session_token untuk Single Device)
+// 1. API REGISTER (Diperbarui dengan Sanitasi & Validasi)
 app.post('/api/register', async (req, res) => {
-  const { phone, name, password, birthdate, photo_url } = req.body;
+  let { phone, name, password, birthdate, photo_url } = req.body;
+
+  // Validasi Input Dasar
+  if (!phone || !name || !password) {
+    return res.status(400).json({ error: 'Nomor telepon, nama, dan password wajib diisi!' });
+  }
+
+  // Sanitasi Input (Membersihkan karakter berbahaya)
+  name = escapeHTML(name.trim());
+  phone = phone.replace(/[^0-9]/g, ''); // Pastikan nomor telepon hanya berisi angka
 
   try {
     const existingUser = await pool.query('SELECT * FROM users WHERE phone = $1', [phone]);
