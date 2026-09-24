@@ -227,9 +227,13 @@ async function sendMessage() {
         return;
     }
 
+    / Ambil waktu lokal perangkat saat tombol kirim ditekan
+    const localTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
     const formData = new FormData();
     formData.append('user_id', currentUser.id);
     formData.append('message', messageText);
+    formData.append('client_time', localTime); // Kirim waktu lokal ke server
 
     try {
         const response = await fetch('/api/send-message', {
