@@ -318,19 +318,23 @@ app.get('/api/agendas', checkSingleDevice, async (req, res) => {
   }
 });
 
-// 8. API POST /api/agendas (Dilindungi Middleware Single Device)
+// 8. API POST /api/agendas (Dilindungi Middleware Single Device & Sanitasi XSS)
 app.post('/api/agendas', checkSingleDevice, async (req, res) => {
-  const { title, event_date, description } = req.body;
+  let { title, event_date, description } = req.body;
 
   if (!title || !event_date) {
     return res.status(400).json({ error: 'Judul dan tanggal acara wajib diisi!' });
   }
 
+  // Sanitasi Input Agenda
+  title = escapeHTML(title.trim());
+  description = escapeHTML(description ? description.trim() : '');
+
   try {
     const newAgenda = await pool.query(
       `INSERT INTO agendas (title, event_date, description) 
        VALUES ($1, $2, $3) RETURNING *`,
-      [title, event_date, description || '']
+      [title, event_date, description]
     );
 
     res.status(201).json({
@@ -377,12 +381,15 @@ app.post('/api/update-photo', checkSingleDevice, upload.single('image'), async (
   }
 });
 
-// 10. API POST /api/send-message (Dilindungi Middleware Single Device)
+// 10. API POST /api/send-message (Dilindungi Middleware Single Device & Sanitasi XSS)
 app.post('/api/send-message', checkSingleDevice, upload.single('media'), async (req, res) => {
   try {
-    const { user_id, message, sticker_url, reply_to_id, client_time } = req.body;
+    let { user_id, message, sticker_url, reply_to_id, client_time } = req.body;
     let image_url = null;
     let audio_url = null;
+
+    // SANITASI PESAN: Cegah pengiriman script berbahaya di dalam chat
+    message = escapeHTML(message);
 
     if (req.file) {
       if (req.file.mimetype.startsWith('audio/') || req.file.originalname.endsWith('.webm')) {
@@ -431,7 +438,7 @@ app.post('/api/send-message', checkSingleDevice, upload.single('media'), async (
       id: savedMsg.id,
       user_id: savedMsg.user_id,
       name: userName,
-      message: savedMsg.message,
+      message: savedMsg.message, // Pesan yang dikirim sudah bersih dari script
       image_url: savedMsg.image_url,
       sticker_url: savedMsg.sticker_url,
       audio_url: savedMsg.audio_url,
@@ -449,6 +456,7 @@ app.post('/api/send-message', checkSingleDevice, upload.single('media'), async (
     res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
   }
 });
+
 
 // Map untuk pemetaan pengguna aktif WebRTC (userId -> socket.id)
 const activeUsers = new Map();
