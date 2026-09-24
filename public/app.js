@@ -500,42 +500,6 @@ function appendChatMessage(data) {
     container.scrollTop = container.scrollHeight;
 }
 
-    let contentHtml = '';
-
-    if (data.reply_text) {
-        contentHtml += `
-            <div style="border-left: 3px solid var(--primary-color); background: rgba(0,0,0,0.05); padding: 4px 8px; margin-bottom: 6px; border-radius: 4px; font-size: 11px; opacity: 0.8;">
-                <b>Membalas:</b> ${data.reply_text}
-            </div>`;
-    }
-
-    if (data.message) {
-        contentHtml += `<div>${data.message}</div>`;
-    }
-    if (data.image_url) {
-        contentHtml += `<img src="${data.image_url}" style="max-width: 220px; border-radius: 8px; display: block; margin-top: 5px; cursor: pointer;" onclick="openZoomModal('${data.image_url}')">`;
-    }
-    if (data.sticker_url) {
-        contentHtml += `<img src="${data.sticker_url}" style="width: 120px; height: 120px; display: block; margin-top: 5px;">`;
-    }
-    if (data.audio_url) {
-        contentHtml += `<audio controls src="${data.audio_url}" style="max-width: 200px; height: 35px; margin-top: 5px;"></audio>`;
-    }
-
-    const displayTime = data.time || '';
-
-    msgDiv.innerHTML = `
-        ${!isSelf ? `<div class="chat-sender-name">${data.name}</div>` : ''}
-        ${contentHtml}
-        <div class="chat-time">${displayTime}</div>
-    `;
-
-    setupMessageInteraction(msgDiv, data.id, data.message);
-
-    container.appendChild(msgDiv);
-    container.scrollTop = container.scrollHeight;
-}
-
 const msgInput = document.getElementById('message-input');
 if (msgInput) {
     msgInput.addEventListener('input', function() {
