@@ -628,3 +628,15 @@ initDB().then(() => {
     console.log(`Server Kitachat aktif di port ${PORT}`);
   });
 });
+
+// Konfigurasi Pool Database
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
+
+// TAMBAHKAN BLOK INI: Mencegah server crash total saat koneksi database berkedip
+pool.on('error', (err, client) => {
+  console.error('Koneksi database terputus tak terduga, mencoba memulihkan...', err);
+  // Jangan matikan proses server (biarkan pool melakukan reconnect otomatis)
+});
