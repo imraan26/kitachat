@@ -10,17 +10,15 @@ const isProduction = process.env.NODE_ENV === 'production';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  max: Number(process.env.DB_POOL_MAX) || 5,
+  max: Math.max(1, Number(process.env.DB_POOL_MAX) || 5),
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000,
   family: 4,
-  ssl: isProduction
-    ? { rejectUnauthorized: false }
-    : false
+  ssl: isProduction ? { rejectUnauthorized: false } : false
 });
 
 pool.on('error', error => {
-  console.error('Unexpected PostgreSQL pool error:', error);
+  console.warn('Koneksi PostgreSQL idle terputus:', error.code || error.message);
 });
 
 async function setupDatabase() {
@@ -41,131 +39,70 @@ async function setupDatabase() {
         email VARCHAR(255) UNIQUE,
         reset_token VARCHAR(255),
         reset_token_expiry BIGINT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
 
-    await client.query(`
       CREATE TABLE IF NOT EXISTS albums (
         id SERIAL PRIMARY KEY,
-        user_id INT NOT NULL
-          REFERENCES users(id)
-          ON DELETE CASCADE,
+        user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         image_url TEXT NOT NULL,
         caption TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
 
-    await client.query(`
       CREATE TABLE IF NOT EXISTS agendas (
         id SERIAL PRIMARY KEY,
         title VARCHAR(150) NOT NULL,
         event_date DATE NOT NULL,
         description TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
 
-    await client.query(`
       CREATE TABLE IF NOT EXISTS messages (
         id SERIAL PRIMARY KEY,
         family_id INT,
-        user_id INT NOT NULL
-          REFERENCES users(id)
-          ON DELETE CASCADE,
+        user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         message TEXT,
         image_url TEXT,
         sticker_url TEXT,
         audio_url TEXT,
-        reply_to_id INT,
+        reply_to_id INT REFERENCES messages(id) ON DELETE SET NULL,
         is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        client_time VARCHAR(50),
-        CONSTRAINT messages_reply_to_id_fkey
-          FOREIGN KEY (reply_to_id)
-          REFERENCES messages(id)
-          ON DELETE SET NULL
-      )
+        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        client_time VARCHAR(50)
+      );
     `);
 
-    // Migrasi tambahan untuk database lama
-    await client.query(`
-      ALTER TABLE users
-      ADD COLUMN IF NOT EXISTS email VARCHAR(255)
-    `);
+    await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255)');
+    await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255)');
+    await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expiry BIGINT');
+    await client.query('ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_to_id INT');
 
-    await client.query(`
-      ALTER TABLE users
-      ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255)
-    `);
-
-    await client.query(`
-      ALTER TABLE users
-      ADD COLUMN IF NOT EXISTS reset_token_expiry BIGINT
-    `);
-
-    await client.query(`
-      ALTER TABLE messages
-      ADD COLUMN IF NOT EXISTS reply_to_id INT
-    `);
-
-    // Index untuk query yang sering digunakan
-    await client.query(`
-      CREATE INDEX IF NOT EXISTS idx_messages_created_at
-      ON messages(created_at)
-    `);
-
-    await client.query(`
-      CREATE INDEX IF NOT EXISTS idx_messages_user_id
-      ON messages(user_id)
-    `);
-
-    await client.query(`
-      CREATE INDEX IF NOT EXISTS idx_messages_reply_to_id
-      ON messages(reply_to_id)
-    `);
-
-    await client.query(`
-      CREATE INDEX IF NOT EXISTS idx_albums_created_at
-      ON albums(created_at)
-    `);
-
-    await client.query(`
-      CREATE INDEX IF NOT EXISTS idx_albums_user_id
-      ON albums(user_id)
-    `);
-
-    await client.query(`
-      CREATE INDEX IF NOT EXISTS idx_users_session_token
-      ON users(session_token)
-    `);
-
-    await client.query(`
-      CREATE INDEX IF NOT EXISTS idx_agendas_event_date
-      ON agendas(event_date)
-    `);
+    await client.query('CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_messages_user_id ON messages(user_id)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_messages_reply_to_id ON messages(reply_to_id)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_albums_created_at ON albums(created_at)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_albums_user_id ON albums(user_id)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_users_session_token ON users(session_token)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_agendas_event_date ON agendas(event_date)');
 
     await client.query('COMMIT');
-
-    console.log(
-      'Schema database Kitachat berhasil dibuat dan diperbarui.'
-    );
+    console.log('Schema database Kitachat berhasil dibuat dan diperbarui.');
   } catch (error) {
-    await client.query('ROLLBACK');
-
-    console.error('Gagal membuat atau memperbarui database:', error);
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('Gagal membuat atau memperbarui database:', error.message);
     process.exitCode = 1;
   } finally {
     client.release();
-
-    try {
-      await pool.end();
-    } catch (error) {
-      console.error('Gagal menutup koneksi database:', error);
+    await pool.end().catch(error => {
+      console.error('Gagal menutup koneksi database:', error.message);
       process.exitCode = 1;
-    }
+    });
   }
 }
 
-setupDatabase();
+setupDatabase().catch(async error => {
+  console.error('Inisialisasi database gagal:', error.message);
+  await pool.end().catch(() => {});
+  process.exitCode = 1;
+});
