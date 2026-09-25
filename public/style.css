@@ -326,12 +326,12 @@ form input:focus {
 
 .tab-scroll-content {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: auto; /* Kunci utama untuk mengaktifkan scroll atas-bawah */
   padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  min-height: 0;
+  min-height: 0; /* Sangat penting dalam Flexbox agar kontainer tahu batas tinggi dan bisa memicu scroll */
 }
 
 .chat-header {
