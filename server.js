@@ -4,6 +4,7 @@ const { Server } = require('socket.io');
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const multer = require('multer');
+const path = require('path');
 const nodemailer = require('nodemailer');
 const path = require('path');
 const fs = require('fs');
@@ -81,18 +82,44 @@ try {
   console.error('Gagal membuat folder uploads:', err);
 }
 
-// Konfigurasi Penyimpanan File Upload menggunakan Multer ke dalam Volume
+// Konfigurasi penyimpanan aman untuk upload
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, 'data', 'uploads'));
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname) || (file.mimetype === 'audio/webm' ? '.webm' : '.png');
-    cb(null, 'file-' + uniqueSuffix + ext);
-  }
+    destination: (req, file, cb) => {
+        cb(null, path.join(__dirname, 'data', 'uploads'));
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + path.extname(file.originalname));
+    }
 });
-const upload = multer({ storage: storage });
+
+const imageUpload = multer({
+    storage,
+    limits: {
+        fileSize: 10 * 1024 * 1024 // Batas 10MB
+    },
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Hanya file gambar yang diizinkan!'), false);
+        }
+    }
+});
+
+app.use((err, req, res, next) => {
+    if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+            return res.status(413).json({
+                error: 'Ukuran file terlalu besar. Maksimal adalah 10MB.'
+            });
+        }
+    }
+    if (err) {
+        return res.status(400).json({ error: err.message });
+    }
+    next();
+});
 
 // ==========================================
 // FUNGSI INISIALISASI DATABASE
