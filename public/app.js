@@ -15,20 +15,28 @@ let currentUser = null;
 })();
 
 // ==========================================================
-// FUNGSI API AMAN (PENGGANTI FETCH GLOBAL UNTUK MENCEGAH BUG DI iOS/ANDROID)
+// FUNGSI API AMAN (DUAL-LAYER TOKEN DELIVERY UNTUK ANDROID & IOS)
 // ==========================================================
 async function apiFetch(url, options = {}) {
     const token = localStorage.getItem('kitachat_session_token') || '';
     const userId = currentUser ? String(currentUser.id) : '';
 
-    // Salin header yang ada dengan aman tanpa merusak FormData peramban
+    // Salin header yang ada dengan aman
     const headers = options.headers ? { ...options.headers } : {};
     
-    // Sisipkan kredensial login
+    // LAPISAN 1: Sisipkan kredensial login via Header (Untuk iOS & Desktop)
     if (userId) headers['x-user-id'] = userId;
     if (token) headers['x-session-token'] = token;
-
     options.headers = headers;
+
+    // LAPISAN 2: Sisipkan kredensial via Body/Query (Fallback Anti-Gagal Khusus Android)
+    if (options.body instanceof FormData) {
+        if (userId && !options.body.has('user_id')) options.body.append('user_id', userId);
+        if (token && !options.body.has('session_token')) options.body.append('session_token', token);
+    } else if (!options.body && options.method !== 'POST' && options.method !== 'PUT') {
+        const char = url.includes('?') ? '&' : '?';
+        url += `${char}user_id=${userId}&session_token=${token}`;
+    }
 
     const response = await fetch(url, options);
 
