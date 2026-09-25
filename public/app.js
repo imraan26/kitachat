@@ -336,6 +336,36 @@ async function sendMessage() {
     }
 }
 
+// --- FITUR PERBARUI APLIKASI MANUAL ---
+async function forceUpdateApp() {
+    if (confirm('Cek dan perbarui aplikasi ke versi server terbaru?')) {
+        if ('serviceWorker' in navigator) {
+            try {
+                // Ambil semua registrasi Service Worker yang aktif
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (let reg of registrations) {
+                    await reg.update(); // Paksa browser mengecek file sw.js baru ke server
+                }
+                
+                // Hapus semua cache lokal secara agresif untuk mencegah nyangkut
+                const cacheNames = await caches.keys();
+                await Promise.all(cacheNames.map(cache => caches.delete(cache)));
+                
+                alert('Pembaruan berhasil ditarik! Aplikasi akan dimuat ulang.');
+                
+                // Muat ulang halaman dari server, mengabaikan cache
+                window.location.reload(true);
+            } catch (err) {
+                console.error('Gagal memperbarui aplikasi:', err);
+                alert('Gagal menarik pembaruan. Pastikan koneksi internet stabil.');
+            }
+        } else {
+            // Fallback jika browser perangkat tidak mendukung Service Worker
+            window.location.reload(true);
+        }
+    }
+}
+
 // --- FITUR VOICE NOTE ---
 let mediaRecorder;
 let audioChunks = [];
