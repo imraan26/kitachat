@@ -73,10 +73,13 @@ self.addEventListener('fetch', event => {
             // PERBAIKAN: Validasi URL Namespace SVG W3C agar gambar offline berhasil merender sempurna
             if (event.request.destination === 'image') {
               return new Response(
-                '<svg xmlns="http://w3.org" width="40" height="40" viewBox="0 0 40 40"><rect width="100%" height="100%" fill="#e0e0e0"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#666666">Offline</text></svg>',
-                { headers: { 'Content-Type': 'image/svg+xml' } }
+                '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><rect width="100%" height="100%" fill="#e0e0e0"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#666666">Offline</text></svg>',
+                {
+                  headers: {
+                    'Content-Type': 'image/svg+xml'
+                  }
+                }
               );
-            }
 
             // Kirim respons error HTTP yang valid alih-alih membiarkannya crash
             return new Response('Service Unavailable', { status: 503 });
