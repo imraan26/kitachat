@@ -757,6 +757,47 @@ async function triggerUploadProfile(inputElement) {
     }
 }
 
+// --- FITUR GANTI PASSWORD ---
+function openChangePasswordModal() {
+    document.getElementById('password-modal').classList.remove('hidden');
+}
+
+function closeChangePasswordModal() {
+    document.getElementById('password-modal').classList.add('hidden');
+    document.getElementById('old-password').value = '';
+    document.getElementById('new-password').value = '';
+}
+
+async function handleChangePassword(event) {
+    event.preventDefault();
+    const oldPassword = document.getElementById('old-password').value;
+    const newPassword = document.getElementById('new-password').value;
+
+    if (!currentUser) return alert('Silakan login terlebih dahulu!');
+
+    try {
+        const response = await apiFetch('/api/update-password', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                old_password: oldPassword,
+                new_password: newPassword
+            })
+        });
+        const data = await response.json();
+
+        if (response.ok) {
+            alert(data.message);
+            closeChangePasswordModal();
+        } else {
+            alert(data.error || 'Gagal mengganti password.');
+        }
+    } catch (err) {
+        console.error('Error ganti password:', err);
+        alert('Terjadi kesalahan jaringan.');
+    }
+}
+
 // --- FITUR TELEPON / VOICE CALL (WebRTC) ---
 let localStream = null;
 let peerConnection = null;
