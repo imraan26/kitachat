@@ -381,14 +381,13 @@ function onAlbumFileChange(event) {
         if (fileNameEl) fileNameEl.innerText = `Terpilih: ${file.name}`;
         if (formCard) formCard.style.display = 'flex'; // Langsung memunculkan form input caption & tombol kirim
 
-        // --- TAMBAHAN UNTUK PRATINJAU GAMBAR OTOMATIS ---
-        // Pastikan Anda memiliki elemen <img> dengan id="photo-preview" di HTML Anda
+        // Opsional: Jika Anda ingin menampilkan pratinjau gambar sebelum dikirim
         const previewEl = document.getElementById('photo-preview');
         if (previewEl) {
             const reader = new FileReader();
             reader.onload = function(e) {
                 previewEl.src = e.target.result;
-                previewEl.style.display = 'block'; // Menampilkan elemen gambar
+                previewEl.style.display = 'block';
             };
             reader.readAsDataURL(file);
         }
@@ -404,15 +403,14 @@ function cancelAlbumUpload() {
     if (labelEl) labelEl.innerText = 'Ketuk untuk pilih dari galeri atau kamera';
     if (formEl) formEl.style.display = 'none';
 
-    // --- TAMBAHAN UNTUK ME-RESET PRATINJAU SAAT BATAL ---
     const previewEl = document.getElementById('photo-preview');
     if (previewEl) {
         previewEl.src = '';
-        previewEl.style.display = 'none'; // Menyembunyikan kembali elemen gambar
+        previewEl.style.display = 'none';
     }
 }
 
-// --- FUNGSI MENGIRIM FOTO KE SERVER SECARA ASINKRON (TANPA REFRESH) ---
+// --- REFACTOR: PENANGANAN UPLOAD FOTO & MEMUAT OTOMATIS KE ALBUM ---
 async function handleUploadPhoto(event) {
     event.preventDefault();
     if (!currentUser) {
@@ -429,27 +427,35 @@ async function handleUploadPhoto(event) {
     }
 
     const caption = captionInput ? captionInput.value : '';
+
     const formData = new FormData();
     formData.append('user_id', currentUser.id);
     formData.append('image', fileInput.files[0]);
     formData.append('caption', caption);
 
     try {
-        // Menggunakan apiFetch agar token keamanan sesi tidak hilang
         const response = await apiFetch('/api/albums', { method: 'POST', body: formData });
         const data = await response.json();
         
         if (response.ok) {
-            alert(data.message);
+            // Reset form dan batalkan tampilan unggah sementara
             cancelAlbumUpload();
             if (captionInput) captionInput.value = '';
-            loadAlbumPhotos(); // Memuat ulang grid album secara otomatis tanpa reload halaman!
+            
+            // Langsung muat ulang data foto album terbaru dari server
+            await loadAlbumPhotos(); 
+
+            // Pastikan pengguna langsung melihat hasil foto di tab album
+            const albumMenuBtn = document.querySelector('.sidebar-menu button:nth-child(2)') || document.querySelector('.mobile-bottom-nav button:nth-child(2)');
+            switchTabNav('album', albumMenuBtn);
+
+            alert(data.message || 'Foto berhasil diunggah ke album keluarga!');
         } else {
             alert(data.error || 'Gagal mengunggah foto.');
         }
     } catch (err) {
         console.error('Error upload foto:', err);
-        alert('Terjadi kesalahan jaringan.');
+        alert('Terjadi kesalahan jaringan saat mengunggah foto.');
     }
 }
 
