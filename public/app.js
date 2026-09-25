@@ -301,6 +301,23 @@ function logout() {
     }
 }
 
+// --- FUNGSI BUKA/TUTUP FORM TAMBAH AGENDA ---
+function toggleAgendaForm() {
+    const form = document.getElementById('agenda-form-container');
+    const label = document.getElementById('agenda-toggle-label');
+    const chevron = document.getElementById('agenda-chevron-icon');
+    
+    if (form.style.display === 'none' || !form.style.display) {
+        form.style.display = 'flex';
+        if (label) label.innerText = 'Isi detail jadwal kegiatan keluarga';
+        if (chevron) chevron.style.transform = 'rotate(90deg)';
+    } else {
+        form.style.display = 'none';
+        if (label) label.innerText = 'Ketuk untuk membuat jadwal acara baru';
+        if (chevron) chevron.style.transform = 'rotate(0deg)';
+    }
+}
+
 // --- FITUR KIRIM PESAN ---
 async function sendMessage() {
     const input = document.getElementById('message-input');
@@ -872,19 +889,19 @@ async function loadAgendaAndBirthdays() {
                 agendaContainer.innerHTML = '';
                 if (agendas.length === 0) agendaContainer.innerHTML = '<p style="font-size: 13px; color: gray;">Belum ada agenda kegiatan tercatat.</p>';
                 else {
-                    agendas.forEach(item => {
-                        const fDate = new Date(item.event_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-                        const card = document.createElement('div');
-                        card.style.cssText = 'padding: 10px 12px; background: var(--bg-light); border-left: 4px solid var(--primary-color); border-radius: 4px;';
-                        card.innerHTML = `
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <h5 style="margin: 0; font-size: 15px; color: var(--text-light);">${item.title}</h5>
-                                <span style="font-size: 12px; font-weight: bold; color: var(--primary-color);">${fDate}</span>
-                            </div>
-                            ${item.description ? `<p style="margin: 5px 0 0 0; font-size: 13px; color: gray;">${item.description}</p>` : ''}
-                        `;
-                        agendaContainer.appendChild(card);
-                    });
+agendas.forEach(item => {
+        const fDate = new Date(item.event_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+        const card = document.createElement('div');
+        card.style.cssText = 'padding: 14px; background: var(--bg-light); border: 1px solid var(--border-color); border-left: 4px solid var(--primary-color); border-radius: 8px; display: flex; flex-direction: column; gap: 4px;';
+        card.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h5 style="margin: 0; font-size: 15px; color: var(--text-light); font-weight: 600;">${item.title}</h5>
+                <span style="font-size: 12px; font-weight: bold; color: var(--primary-color); background: var(--primary-light); padding: 3px 8px; border-radius: 6px;"><i class="fa-solid fa-calendar-days"></i> ${fDate}</span>
+            </div>
+            ${item.description ? `<p style="margin: 4px 0 0 0; font-size: 13px; color: gray;">${item.description}</p>` : ''}
+        `;
+        agendaContainer.appendChild(card);
+    });
                 }
             }
         }
