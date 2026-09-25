@@ -611,6 +611,47 @@ io.on('connection', async (socket) => {
   });
 });
 
+
+// API: UPDATE PASSWORD
+app.put('/api/update-password', checkSingleDevice, async (req, res) => {
+    const userId = req.headers['x-user-id'] || req.body.user_id;
+    const { old_password, new_password } = req.body;
+
+    if (!old_password || !new_password) {
+        return res.status(400).json({ error: 'Password lama dan password baru wajib diisi!' });
+    }
+
+    try {
+        // Ambil password lama dari database
+        const userResult = await pool.query('SELECT password FROM users WHERE id = $1', [userId]);
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Pengguna tidak ditemukan.' });
+        }
+
+        const hashedOldPassword = userResult.rows[0].password;
+
+        // Verifikasi password lama
+        const isMatch = await bcrypt.compare(old_password, hashedOldPassword);
+        if (!isMatch) {
+            return res.status(401).json({ error: 'Password lama salah!' });
+        }
+
+        // Enkripsi (Hash) password baru
+        const saltRounds = 10;
+        const hashedNewPassword = await bcrypt.hash(new_password, saltRounds);
+
+        // Update password ke dalam database
+        await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashedNewPassword, userId]);
+
+        res.status(200).json({ message: 'Password berhasil diperbarui!' });
+    } catch (err) {
+        console.error('Error update password:', err);
+        res.status(500).json({ error: 'Terjadi kesalahan pada server saat memperbarui password.' });
+    }
+});
+
+
+
 // Jalankan Inisialisasi DB lalu Nyalakan Server
 const PORT = process.env.PORT || 3000;
 initDB().then(() => {
