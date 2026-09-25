@@ -787,8 +787,18 @@ async function handleChangePassword(event) {
         const data = await response.json();
 
         if (response.ok) {
-            alert(data.message);
+            // 1. Tutup popup TERLEBIH DAHULU
             closeChangePasswordModal();
+            
+            // 2. Beri jeda 300ms agar modal benar-benar hilang dari layar, baru munculkan notifikasi
+            setTimeout(() => {
+                alert(data.message || 'Status: Password berhasil diubah!');
+                
+                // Opsional: Kosongkan form setelah sukses
+                document.getElementById('old-password').value = '';
+                document.getElementById('new-password').value = '';
+            }, 300);
+            
         } else {
             alert(data.error || 'Gagal mengganti password.');
         }
