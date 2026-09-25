@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kitachat-pwa-v7'; // Versi dinaikkan
+const CACHE_NAME = 'kitachat-pwa-v8'; // Versi dinaikkan
 const urlsToCache = [
   '/',
   '/index.html',
