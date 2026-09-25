@@ -826,7 +826,7 @@ async function handleUploadPhoto(event) {
     }
 }
 
-// --- FITUR AGENDA ---
+// --- FITUR AGENDA (Dioptimalkan dengan Penutupan Form Otomatis) ---
 async function handleCreateAgenda(event) {
     event.preventDefault();
     const title = document.getElementById('agenda-title').value;
@@ -845,9 +845,20 @@ async function handleCreateAgenda(event) {
         
         if (response.ok) {
             alert(data.message);
+            
+            // Reset isi input form
             document.getElementById('agenda-title').value = '';
             document.getElementById('agenda-date').value = '';
             document.getElementById('agenda-desc').value = '';
+            
+            // Otomatis tutup form dan kembalikan ikon ke kondisi semula
+            const form = document.getElementById('agenda-form-container');
+            const label = document.getElementById('agenda-toggle-label');
+            const chevron = document.getElementById('agenda-chevron-icon');
+            if (form) form.style.display = 'none';
+            if (label) label.innerText = 'Ketuk untuk membuat jadwal acara baru';
+            if (chevron) chevron.style.transform = 'rotate(0deg)';
+
             loadAgendaAndBirthdays();
         } else {
             alert(data.error);
