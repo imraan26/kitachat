@@ -424,22 +424,33 @@ async function toggleVoiceRecording() {
     }
 }
 
-// --- FITUR POP-UP MENU ALA WHATSAPP & REPLY/DELETE ---
+// --- FITUR POP-UP MENU ALA WHATSAPP & REPLY/DELETE (Dioptimalkan) ---
 function setupMessageInteraction(msgDiv, messageId, messageText, isSelf) {
     let pressTimer;
     
-    const triggerAction = (e) => {
-        e.preventDefault();
-        showWhatsAppStyleMenu(messageId, messageText, isSelf);
+    const startTimer = (e) => {
+        clearTimeout(pressTimer);
+        pressTimer = setTimeout(() => {
+            showWhatsAppStyleMenu(messageId, messageText, isSelf);
+        }, 500); // Tahan selama 0.5 detik untuk memunculkan menu
     };
 
-    msgDiv.addEventListener('mousedown', () => pressTimer = setTimeout(triggerAction, 500));
-    msgDiv.addEventListener('mouseup', () => clearTimeout(pressTimer));
-    msgDiv.addEventListener('touchstart', () => pressTimer = setTimeout(triggerAction, 500));
-    msgDiv.addEventListener('touchend', () => clearTimeout(pressTimer));
+    const cancelTimer = () => {
+        clearTimeout(pressTimer);
+    };
+
+    // Event untuk Desktop & Mobile (ditambah touchmove agar tidak konflik saat scroll)
+    msgDiv.addEventListener('mousedown', startTimer);
+    msgDiv.addEventListener('mouseup', cancelTimer);
+    msgDiv.addEventListener('mouseleave', cancelTimer);
+    
+    msgDiv.addEventListener('touchstart', startTimer, { passive: true });
+    msgDiv.addEventListener('touchend', cancelTimer);
+    msgDiv.addEventListener('touchmove', cancelTimer, { passive: true });
 }
 
 function showWhatsAppStyleMenu(messageId, messageText, isSelf) {
+    // Hapus menu lama jika sempat terbuka
     const existingOverlay = document.getElementById('chat-action-overlay');
     if (existingOverlay) existingOverlay.remove();
 
@@ -447,25 +458,34 @@ function showWhatsAppStyleMenu(messageId, messageText, isSelf) {
     overlay.id = 'chat-action-overlay';
     overlay.className = 'chat-popup-overlay';
 
-    let menuHtml = `
-        <div class="chat-popup-menu">
-            <div class="chat-popup-item" onclick="selectReplyAction('${messageId}', \`${encodeURIComponent(messageText || 'Lampiran')}\`)">
-                <i class="fa-solid fa-reply" style="color: var(--primary-color);"></i> Balas
-            </div>
-    `;
+    const menu = document.createElement('div');
+    menu.className = 'chat-popup-menu';
 
-    // Menu Hapus hanya muncul jika itu pesan milik sendiri
+    // Tombol Balas (Selalu ada untuk semua pesan)
+    const replyItem = document.createElement('div');
+    replyItem.className = 'chat-popup-item';
+    replyItem.innerHTML = `<i class="fa-solid fa-reply" style="color: var(--primary-color);"></i> Balas`;
+    replyItem.onclick = () => {
+        overlay.remove();
+        selectReplyActionDirect(messageId, messageText || 'Lampiran');
+    };
+    menu.appendChild(replyItem);
+
+    // Tombol Hapus (Hanya muncul khusus untuk pesan milik sendiri / isSelf)
     if (isSelf) {
-        menuHtml += `
-            <div class="chat-popup-item danger" onclick="selectDeleteAction('${messageId}')">
-                <i class="fa-solid fa-trash-can"></i> Hapus Pesan
-            </div>
-        `;
+        const deleteItem = document.createElement('div');
+        deleteItem.className = 'chat-popup-item danger';
+        deleteItem.innerHTML = `<i class="fa-solid fa-trash-can"></i> Hapus Pesan`;
+        deleteItem.onclick = () => {
+            overlay.remove();
+            deleteMessage(messageId);
+        };
+        menu.appendChild(deleteItem);
     }
 
-    menuHtml += `</div>`;
-    overlay.innerHTML = menuHtml;
+    overlay.appendChild(menu);
 
+    // Tutup pop-up jika pengguna mengetuk area di luar kotak menu
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) overlay.remove();
     });
@@ -473,8 +493,7 @@ function showWhatsAppStyleMenu(messageId, messageText, isSelf) {
     document.body.appendChild(overlay);
 }
 
-function selectReplyAction(messageId, encodedText) {
-    const messageText = decodeURIComponent(encodedText);
+function selectReplyActionDirect(messageId, messageText) {
     window.replyingToMessageId = messageId;
     
     const chatInputArea = document.getElementById('chat-input-area');
@@ -488,16 +507,6 @@ function selectReplyAction(messageId, encodedText) {
     }
     
     banner.innerHTML = `<span>Membalas: <b>${messageText}</b></span> <button onclick="cancelReply()" style="background:none; border:none; color:red; cursor:pointer; font-weight:bold;">&times;</button>`;
-    
-    const overlay = document.getElementById('chat-action-overlay');
-    if (overlay) overlay.remove();
-}
-
-function selectDeleteAction(messageId) {
-    const overlay = document.getElementById('chat-action-overlay');
-    if (overlay) overlay.remove();
-    
-    deleteMessage(messageId);
 }
 
 function cancelReply() {
