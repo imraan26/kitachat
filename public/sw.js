@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kitachat-pwa-v2';
+const CACHE_NAME = 'kitachat-pwa-v3'; // Versi dinaikkan ke v3 untuk memicu auto-update
 const urlsToCache = [
   '/',
   '/index.html',
@@ -25,18 +25,18 @@ self.addEventListener('activate', event => {
       return Promise.all(
         cacheNames.map(cacheName => {
           if (cacheName !== CACHE_NAME) {
+            console.log('Menghapus cache versi lama:', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
     })
   );
-  // Sudah Benar: Mengambil kendali client PWA secara instan
+  // Mengambil kendali client PWA secara instan
   self.clients.claim(); 
 });
 
-
-// Tangani Permintaan Fetch (Sudah Diperbaiki)
+// Tangani Permintaan Fetch (Logika Bypass & Offline Fallback yang Solid)
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
@@ -72,7 +72,4 @@ self.addEventListener('fetch', event => {
         })
     );
   }
-  
-  // Catatan: Jika isBypassRoute bernilai TRUE, event.respondWith() sengaja tidak dipanggil.
-  // Ini adalah cara yang benar di PWA agar browser langsung mengambil data ke jaringan.
 });
