@@ -50,7 +50,19 @@ app.use((req, res, next) => {
     next();
 });
 
-// Middleware Static (HARUS diletakkan SETELAH Security Headers)
+// ==========================================
+// MENCEGAH CACHE UNTUK FILE PEMBARUAN PWA (AUTO-UPDATE)
+// ==========================================
+app.use((req, res, next) => {
+    if (req.url === '/sw.js' || req.url === '/app.js') {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+    }
+    next();
+});
+
+// Middleware Static (HARUS diletakkan SETELAH Security Headers & Cache Control)
 app.use(express.static('public'));
 
 // Pastikan folder public/uploads otomatis dibuat secara aman jika belum ada di server
