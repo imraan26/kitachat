@@ -219,6 +219,7 @@ form input:focus {
   width: 100%;
   z-index: 10;
   min-height: 60px;
+  flex-shrink: 0;
 }
 
 .sidebar-icons {
@@ -317,7 +318,6 @@ form input:focus {
   background: var(--bg-light);
   height: 100%;
   overflow: hidden;
-  padding-bottom: 60px;
 }
 
 .chat-header {
@@ -327,6 +327,7 @@ form input:focus {
   padding: 12px 15px;
   background: var(--card-bg);
   border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
 }
 
 .chat-header h3 {
@@ -499,7 +500,7 @@ form input:focus {
 }
 
 /* =========================
-   ALBUM / HOME UI
+   ALBUM / MEDIA UI
 ========================= */
 #album-grid-container {
   display: grid;
@@ -543,13 +544,13 @@ form input:focus {
 .photo-dropdown {
   display: none;
   position: absolute;
-  bottom: 42px;
-  right: 8px;
+  bottom: 38px;
+  right: 4px;
   background: var(--card-bg);
   border: 1px solid var(--border-color);
   border-radius: 8px;
   box-shadow: var(--shadow-soft);
-  min-width: 150px;
+  min-width: 130px;
   z-index: 20;
   overflow: hidden;
 }
@@ -561,6 +562,7 @@ form input:focus {
 .photo-dropdown button {
   display: flex;
   align-items: center;
+  gap: 8px;
   width: 100%;
   padding: 10px 12px;
   background: transparent;
@@ -747,7 +749,6 @@ form input:focus {
   .chat-area {
     flex: 1;
     height: 100%;
-    padding-bottom: 0;
   }
 
   .chat-area .tab-content {
@@ -768,32 +769,15 @@ form input:focus {
 
   #main-screen {
     position: relative;
-    padding-bottom: 58px;
   }
 
   .chat-area {
-    height: calc(100vh - 60px);
-    padding-bottom: 70px;
+    height: calc(100vh - 60px - 58px);
   }
 
   .chat-input-area {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 58px;
-    z-index: 50;
-    padding: 8px 12px;
     background: var(--card-bg);
     border-top: 1px solid var(--border-color);
-    box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.04);
-  }
-
-  .chat-messages {
-    padding-bottom: 90px;
-  }
-
-  #message-input {
-    font-size: 1rem;
   }
 
   #album-grid-container {
