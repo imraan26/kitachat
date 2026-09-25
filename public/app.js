@@ -584,16 +584,22 @@ function appendChatMessage(data) {
     if (data.reply_text) {
         contentHtml += `<div style="border-left: 3px solid var(--primary-color); background: rgba(0,0,0,0.05); padding: 4px 8px; margin-bottom: 6px; border-radius: 4px; font-size: 11px; opacity: 0.8;"><b>Membalas:</b> ${data.reply_text}</div>`;
     }
+
     
+    // --- FITUR PARAGRAF & KLIK LINK EKSTERNAL ---
     if (data.message) {
+        // Mengubah URL menjadi teks interaktif yang memicu fungsi buka browser/aplikasi luar
         let formattedMsg = data.message.replace(
             /(https?:\/\/[^\s]+)/g, 
-            '<a href="$1" target="_blank" rel="noopener noreferrer" style="color: #3498db; text-decoration: underline; word-break: break-all;">$1</a>'
+            '<span onclick="openExternalLink(\'$1\')" style="color: #3498db; text-decoration: underline; word-break: break-all; cursor: pointer;">$1</span>'
         );
         formattedMsg = formattedMsg.replace(/\n/g, '<br>');
         
         contentHtml += `<div style="line-height: 1.4;">${formattedMsg}</div>`;
     }
+
+
+    
     
     if (data.image_url) contentHtml += `<img src="${data.image_url}" style="max-width: 220px; border-radius: 8px; display: block; margin-top: 5px; cursor: pointer;" onclick="openZoomModal('${data.image_url}')">`;
     if (data.audio_url) contentHtml += `<audio controls preload="metadata" src="${data.audio_url}" style="max-width: 200px; height: 35px; margin-top: 5px;"></audio>`;
