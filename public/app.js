@@ -54,11 +54,26 @@ async function apiFetch(url, options = {}) {
 }
 // ==========================================================
 
+// --- REGISTRASI SERVICE WORKER (DIPERBARUI UNTUK AUTO-UPDATE PWA) ---
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('Service Worker terdaftar:', reg.scope))
-            .catch(err => console.log('Gagal mendaftarkan Service Worker:', err));
+        navigator.serviceWorker.register('/sw.js').then((reg) => {
+            console.log('Service Worker terdaftar:', reg.scope);
+
+            // Deteksi jika ada pembaruan Service Worker di server
+            reg.addEventListener('updatefound', () => {
+                const newWorker = reg.installing;
+                newWorker.addEventListener('statechange', () => {
+                    // Cek apakah service worker baru sudah terinstal dan mengambil alih
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        // Munculkan pop-up ke pengguna jika ada versi baru
+                        if (confirm('Versi baru Kitachat telah tersedia! Ketuk OK untuk memperbarui aplikasi.')) {
+                            window.location.reload(true);
+                        }
+                    }
+                });
+            });
+        }).catch(err => console.log('Gagal mendaftarkan Service Worker:', err));
     });
 }
 
