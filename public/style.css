@@ -538,7 +538,7 @@ form input:focus {
   max-width: 650px;
   margin: 0 auto;
   width: 100%;
-  overflow: hidden;
+  overflow: visible !important; /* Diubah dari hidden agar form dan pratinjau foto tidak terpotong */
   display: flex;
   flex-direction: column;
 }
