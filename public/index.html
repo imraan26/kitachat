@@ -147,17 +147,34 @@
                     <!-- Area Konten Album dengan Scroll -->
                     <div style="padding: 15px; overflow-y: auto; flex: 1;">
                         
-                        <!-- Kotak Unggah Momen Keluarga di Bagian Atas -->
-                        <div style="background: var(--card-bg); padding: 15px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
-                            <h4 style="margin-bottom: 10px; color: var(--primary-color); font-size: 15px;"><i class="fa-solid fa-cloud-arrow-up"></i> Unggah Momen Keluarga</h4>
-                            <form onsubmit="handleUploadPhoto(event)" style="display: flex; gap: 10px; flex-direction: column;">
-                                <div>
-                                    <label style="font-size: 13px; display: block; margin-bottom: 5px; color: var(--text-light);">Pilih Gambar / Ambil Foto:</label>
-                                    <input type="file" id="photo-file-input" accept="image/*" required style="padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-light); color: var(--text-light); width: 100%; font-size: 13px;">
+                        <!-- Kotak Unggah Momen Keluarga (Gaya Kartu Pengaturan & Pemicu Kamera/Galeri) -->
+                        <div style="background: var(--card-bg); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                            
+                            <!-- Kartu Pemicu Utama (Bisa diketuk untuk buka galeri/kamera HP) -->
+                            <div onclick="document.getElementById('photo-file-input').click()" style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 4px 0;">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <div style="width: 38px; height: 38px; border-radius: 50%; background: var(--primary-light); display: flex; align-items: center; justify-content: center; color: var(--primary-color); font-size: 16px;">
+                                        <i class="fa-solid fa-camera-retro"></i>
+                                    </div>
+                                    <div>
+                                        <h4 style="margin: 0; color: var(--text-light); font-size: 14px; font-weight: 600;">Unggah Momen Keluarga</h4>
+                                        <p style="margin: 2px 0 0 0; font-size: 12px; color: gray;" id="selected-file-label">Ketuk untuk pilih dari galeri atau kamera</p>
+                                    </div>
                                 </div>
-                                <input type="text" id="photo-caption-input" placeholder="Keterangan / Caption Foto" style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-light); color: var(--text-light); font-size: 13px;">
-                                <button type="submit" class="btn-primary" style="width: 100%;">Unggah Ke Album</button>
+                                <i class="fa-solid fa-chevron-right" style="color: gray; font-size: 13px;"></i>
+                            </div>
+
+                            <!-- Form Unggah Tersembunyi yang akan muncul setelah foto dipilih -->
+                            <form id="photo-upload-form" onsubmit="handleUploadPhoto(event)" class="hidden" style="display: none; flex-direction: column; gap: 10px; margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+                                <input type="text" id="photo-caption-input" placeholder="Keterangan / Caption Foto (Opsional)" style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-light); color: var(--text-light); font-size: 13px;">
+                                <div style="display: flex; gap: 8px;">
+                                    <button type="submit" class="btn-primary" style="flex: 1; border-radius: 6px; padding: 10px; font-weight: bold;">Kirim Foto</button>
+                                    <button type="button" onclick="cancelAlbumUpload()" style="background: none; border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; cursor: pointer; color: var(--text-light); font-size: 13px;">Batal</button>
+                                </div>
                             </form>
+
+                            <!-- Input File Asli (Atribut capture="environment" memicu opsi kamera di HP, disembunyikan secara visual) -->
+                            <input type="file" id="photo-file-input" accept="image/*" capture="environment" style="display: none;" onchange="onAlbumFileChange(event)">
                         </div>
 
                         <!-- Grid Galeri Foto -->
@@ -174,26 +191,41 @@
                 <!-- Tab Agenda -->
                 <div id="content-agenda" class="tab-content hidden" style="display: flex; flex-direction: column; height: 100%;">
                     <div class="chat-header">
-                        <h3><i class="fa-solid fa-calendar-days"></i> Agenda</h3>
+                        <h3><i class="fa-solid fa-calendar-days"></i> Agenda & Ulang Tahun</h3>
                     </div>
-                    <div style="padding: 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 20px;">
-                        <div style="background: var(--card-bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
-                            <h4 style="margin-bottom: 10px; color: var(--primary-color);"><i class="fa-solid fa-cake-candles"></i> Daftar Ulang Tahun Anggota</h4>
+                    
+                    <!-- Area Konten Agenda dengan Scroll -->
+                    <div style="padding: 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 20px; max-width: 700px; margin: 0 auto; width: 100%;">
+                        
+                        <!-- 1. Daftar Ulang Tahun Anggota -->
+                        <div style="background: var(--card-bg); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                            <h4 style="margin-bottom: 12px; color: var(--primary-color); font-size: 15px; display: flex; align-items: center; gap: 8px;">
+                                <i class="fa-solid fa-cake-candles"></i> Daftar Ulang Tahun Anggota
+                            </h4>
                             <div id="birthday-list-container" style="display: flex; flex-direction: column; gap: 8px;"></div>
                         </div>
-                        <div style="background: var(--card-bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
-                            <h4 style="margin-bottom: 10px; color: var(--primary-color);"><i class="fa-solid fa-plus-circle"></i> Tambah Agenda Keluarga</h4>
-                            <form onsubmit="handleCreateAgenda(event)" style="display: flex; gap: 10px; flex-direction: column;">
-                                <input type="text" id="agenda-title" placeholder="Nama Acara / Kegiatan (Cth: Arisan)" required style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-light); color: var(--text-light);">
-                                <input type="date" id="agenda-date" required style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-light); color: var(--text-light);">
-                                <input type="text" id="agenda-desc" placeholder="Keterangan / Lokasi (Opsional)" style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-light); color: var(--text-light);">
-                                <button type="submit" class="btn-primary" style="width: 170px;">Simpan Agenda</button>
+
+                        <!-- 2. Tambah Agenda Keluarga -->
+                        <div style="background: var(--card-bg); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                            <h4 style="margin-bottom: 12px; color: var(--primary-color); font-size: 15px; display: flex; align-items: center; gap: 8px;">
+                                <i class="fa-solid fa-plus-circle"></i> Tambah Agenda Keluarga
+                            </h4>
+                            <form onsubmit="handleCreateAgenda(event)" style="display: flex; gap: 12px; flex-direction: column;">
+                                <input type="text" id="agenda-title" placeholder="Nama Acara / Kegiatan (Cth: Arisan Keluarga)" required style="padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-light); color: var(--text-light); font-size: 14px; outline: none;">
+                                <input type="date" id="agenda-date" required style="padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-light); color: var(--text-light); font-size: 14px; outline: none;">
+                                <input type="text" id="agenda-desc" placeholder="Keterangan / Lokasi (Opsional)" style="padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-light); color: var(--text-light); font-size: 14px; outline: none;">
+                                <button type="submit" class="btn-primary" style="border-radius: 8px; padding: 12px; font-weight: bold; width: 100%;">Simpan Agenda</button>
                             </form>
                         </div>
-                        <div style="background: var(--card-bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
-                            <h4 style="margin-bottom: 10px; color: var(--primary-color);"><i class="fa-solid fa-list-check"></i> Daftar Kegiatan Mendatang</h4>
+
+                        <!-- 3. Daftar Kegiatan Mendatang -->
+                        <div style="background: var(--card-bg); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                            <h4 style="margin-bottom: 12px; color: var(--primary-color); font-size: 15px; display: flex; align-items: center; gap: 8px;">
+                                <i class="fa-solid fa-list-check"></i> Daftar Kegiatan Mendatang
+                            </h4>
                             <div id="agenda-list-container" style="display: flex; flex-direction: column; gap: 10px;"></div>
                         </div>
+
                     </div>
                 </div>
 
