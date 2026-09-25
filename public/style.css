@@ -305,14 +305,14 @@ form input:focus {
   display: none !important;
 }
 
-/* Chat & Content Area */
+/* Pastikan kontainer utama chat-area dan tab-content mengunci tinggi dan aktifkan scroll */
 .chat-area {
   flex: 1;
   display: flex;
   flex-direction: column;
   background: var(--bg-light);
   height: 100%;
-  min-height: 0; /* Kunci agar flex item bisa dibatasi tingginya */
+  min-height: 0; /* Kunci penting agar flex item bisa dibatasi tingginya */
   overflow: hidden;
   position: relative;
 }
@@ -321,7 +321,7 @@ form input:focus {
   display: flex;
   flex-direction: column;
   height: 100%;
-  min-height: 0; /* Kunci agar flex item bisa dibatasi tingginya */
+  min-height: 0; /* Kunci penting agar flex item bisa dibatasi tingginya */
   width: 100%;
   overflow: hidden;
 }
@@ -329,7 +329,8 @@ form input:focus {
 .tab-scroll-content {
   flex: 1;
   min-height: 0; /* Kunci agar area scroll aktif */
-  overflow-y: auto;
+  overflow-y: auto; /* Mengaktifkan scroll vertikal */
+  -webkit-overflow-scrolling: touch; /* Scroll mulus di perangkat iOS/Mobile */
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -950,6 +951,7 @@ form input:focus {
   #main-screen {
     flex-direction: row;
     height: 100%;
+    min-height: 0;
   }
 
   .mobile-header-top {
@@ -1023,6 +1025,16 @@ form input:focus {
   .chat-area {
     flex: 1;
     height: 100%;
+    min-height: 0; /* WAJIB ADA agar scroll aktif */
+    overflow: hidden; /* WAJIB ADA agar scroll aktif */
+  }
+
+  .chat-area .tab-content {
+    height: 100%;
+    min-height: 0; /* WAJIB ADA agar scroll aktif */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* WAJIB ADA agar scroll aktif */
   }
 }
 
@@ -1032,10 +1044,18 @@ form input:focus {
 @media (max-width: 767px) {
   #main-screen {
     padding-bottom: 58px;
+    min-height: 0;
   }
 
   .chat-area {
     height: calc(100vh - 60px - 58px);
+    min-height: 0; /* WAJIB ADA agar scroll aktif */
+    overflow: hidden; /* WAJIB ADA agar scroll aktif */
+  }
+
+  .chat-area .tab-content {
+    min-height: 0; /* WAJIB ADA agar scroll aktif */
+    overflow: hidden; /* WAJIB ADA agar scroll aktif */
   }
 
   .sidebar-menu.mobile-bottom-nav {
