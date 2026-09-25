@@ -7,6 +7,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const cors = require('cors'); // WAJIB DITAMBAHKAN UNTUK ANDROID
 require('dotenv').config();
 
 const app = express();
@@ -26,7 +27,14 @@ pool.on('error', (err, client) => {
   console.error('Koneksi database terputus tak terduga, mencoba memulihkan...', err);
 });
 
-// Middleware Dasar
+// ==========================================
+// MIDDLEWARE DASAR & CORS (FIX UNTUK ANDROID)
+// ==========================================
+app.use(cors({
+    origin: '*', 
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id', 'x-session-token'] // Mengizinkan Android mengirim token
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -41,7 +49,7 @@ app.use((req, res, next) => {
     next();
 });
 
-// Middleware Static (HARUS diletakkan SETELAH Security Headers)[cite: 10]
+// Middleware Static (HARUS diletakkan SETELAH Security Headers)
 app.use(express.static('public'));
 
 // Pastikan folder public/uploads otomatis dibuat secara aman jika belum ada di server
@@ -123,8 +131,9 @@ async function initDB() {
 // MIDDLEWARE: KEAMANAN SINGLE DEVICE LOGIN
 // ==========================================
 async function checkSingleDevice(req, res, next) {
-  const userId = req.headers['x-user-id'] || (req.body ? req.body.user_id : null);
-  const clientToken = req.headers['x-session-token'];
+  // BACA TOKEN DARI 3 SUMBER: Header (Desktop/iOS), Body (Android POST), Query (Android GET)
+  const userId = req.headers['x-user-id'] || (req.body && req.body.user_id) || (req.query && req.query.user_id) || null;
+  const clientToken = req.headers['x-session-token'] || (req.body && req.body.session_token) || (req.query && req.query.session_token) || null;
 
   if (!userId || !clientToken) {
     return res.status(401).json({ error: 'Akses ditolak. Sesi tidak valid atau belum login.' });
