@@ -22,15 +22,12 @@ async function apiFetch(url, options = {}) {
     const token = localStorage.getItem('kitachat_session_token') || '';
     const userId = currentUser ? String(currentUser.id) : '';
 
-    // Salin header yang ada dengan aman
     const headers = options.headers ? { ...options.headers } : {};
     
-    // LAPISAN 1: Sisipkan kredensial login via Header (Untuk iOS & Desktop)
     if (userId) headers['x-user-id'] = userId;
     if (token) headers['x-session-token'] = token;
     options.headers = headers;
 
-    // LAPISAN 2: Sisipkan kredensial via Body/Query (Fallback Anti-Gagal Khusus Android)
     if (options.body instanceof FormData) {
         if (userId && !options.body.has('user_id')) options.body.append('user_id', userId);
         if (token && !options.body.has('session_token')) options.body.append('session_token', token);
@@ -41,7 +38,6 @@ async function apiFetch(url, options = {}) {
 
     const response = await fetch(url, options);
 
-    // Cek jika sesi ditolak / ditendang oleh server
     if (response.status === 401 || response.status === 403) {
         try {
             const data = await response.clone().json();
@@ -58,7 +54,6 @@ async function apiFetch(url, options = {}) {
 }
 // ==========================================================
 
-// Registrasi Service Worker Sederhana untuk PWA
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
@@ -138,6 +133,7 @@ async function handleLogin(event) {
     event.preventDefault();
     const phone = document.getElementById('login-phone').value;
     const password = document.getElementById('login-password').value;
+    const forgotBtn = document.getElementById('forgot-password-btn');
 
     try {
         const response = await fetch('/api/login', {
@@ -149,7 +145,7 @@ async function handleLogin(event) {
 
         if (response.ok) {
             failedLoginAttempts = 0; 
-            document.getElementById('forgot-password-btn').classList.add('hidden');
+            if (forgotBtn) forgotBtn.classList.add('hidden');
             
             currentUser = data.user;
             localStorage.setItem('kitachat_user', JSON.stringify(currentUser));
@@ -166,8 +162,8 @@ async function handleLogin(event) {
             alert(data.error);
             if (data.error === 'Password salah!') {
                 failedLoginAttempts++;
-                if (failedLoginAttempts >= 3) {
-                    document.getElementById('forgot-password-btn').classList.remove('hidden');
+                if (failedLoginAttempts >= 3 && forgotBtn) {
+                    forgotBtn.classList.remove('hidden');
                 }
             }
         }
@@ -762,13 +758,18 @@ async function triggerUploadProfile(inputElement) {
 
 // --- FITUR GANTI PASSWORD ---
 function openChangePasswordModal() {
-    document.getElementById('password-modal').classList.remove('hidden');
+    const modal = document.getElementById('password-modal');
+    if (modal) modal.classList.remove('hidden');
 }
 
 function closeChangePasswordModal() {
-    document.getElementById('password-modal').classList.add('hidden');
-    document.getElementById('old-password').value = '';
-    document.getElementById('new-password').value = '';
+    const modal = document.getElementById('password-modal');
+    if (modal) modal.classList.add('hidden');
+    
+    const oldPw = document.getElementById('old-password');
+    const newPw = document.getElementById('new-password');
+    if (oldPw) oldPw.value = '';
+    if (newPw) newPw.value = '';
 }
 
 async function handleChangePassword(event) {
@@ -790,18 +791,14 @@ async function handleChangePassword(event) {
         const data = await response.json();
 
         if (response.ok) {
-            // 1. Tutup popup TERLEBIH DAHULU
             closeChangePasswordModal();
-            
-            // 2. Beri jeda 300ms agar modal benar-benar hilang dari layar, baru munculkan notifikasi
             setTimeout(() => {
                 alert(data.message || 'Status: Password berhasil diubah!');
-                
-                // Opsional: Kosongkan form setelah sukses
-                document.getElementById('old-password').value = '';
-                document.getElementById('new-password').value = '';
+                const oldPw = document.getElementById('old-password');
+                const newPw = document.getElementById('new-password');
+                if (oldPw) oldPw.value = '';
+                if (newPw) newPw.value = '';
             }, 300);
-            
         } else {
             alert(data.error || 'Gagal mengganti password.');
         }
@@ -817,10 +814,8 @@ let peerConnection = null;
 let targetSocketId = null;
 let targetUserId = null;
 
-// TAMBAHAN: Antrean untuk mencegah masalah suara hilang (Safari iOS vs Android)
 let iceCandidateQueue = []; 
 
-// Pendaftaran ulang otomatis saat berpindah jaringan
 socket.on('connect', () => {
     if (currentUser && currentUser.id) {
         socket.emit('register_call_user', currentUser.id);
@@ -848,13 +843,18 @@ function monitorPeerConnection() {
 
 async function startCall(peerUserId, peerName) {
     targetUserId = peerUserId;
-    iceCandidateQueue = []; // Kosongkan antrean setiap mulai telepon baru
+    iceCandidateQueue = []; 
     
     const modal = document.getElementById('call-modal');
-    modal.classList.remove('hidden');
-    document.getElementById('call-status-title').innerText = 'Memanggil...';
-    document.getElementById('call-peer-name').innerText = peerName;
-    document.getElementById('btn-accept-call').style.display = 'none';
+    if (modal) modal.classList.remove('hidden');
+    
+    const title = document.getElementById('call-status-title');
+    const peerNameEl = document.getElementById('call-peer-name');
+    const acceptBtn = document.getElementById('btn-accept-call');
+    
+    if (title) title.innerText = 'Memanggil...';
+    if (peerNameEl) peerNameEl.innerText = peerName;
+    if (acceptBtn) acceptBtn.style.display = 'none';
 
     try {
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
@@ -868,8 +868,10 @@ async function startCall(peerUserId, peerName) {
         
         peerConnection.ontrack = (event) => { 
             const remoteAudio = document.getElementById('remote-audio');
-            remoteAudio.srcObject = event.streams[0]; 
-            remoteAudio.play().catch(e => console.warn('Browser menunda pemutaran otomatis', e));
+            if (remoteAudio) {
+                remoteAudio.srcObject = event.streams[0]; 
+                remoteAudio.play().catch(e => console.warn('Browser menunda pemutaran otomatis', e));
+            }
         };
 
         const offer = await peerConnection.createOffer();
@@ -886,13 +888,18 @@ socket.on('incoming_call', async (data) => {
     if (currentUser && data.toUserId == currentUser.id) {
         targetSocketId = data.fromSocketId;
         targetUserId = data.fromUserId;
-        iceCandidateQueue = []; // Kosongkan antrean
+        iceCandidateQueue = []; 
         
         const modal = document.getElementById('call-modal');
-        modal.classList.remove('hidden');
-        document.getElementById('call-status-title').innerText = 'Panggilan Masuk...';
-        document.getElementById('call-peer-name').innerText = data.callerName;
-        document.getElementById('btn-accept-call').style.display = 'inline-block';
+        if (modal) modal.classList.remove('hidden');
+        
+        const title = document.getElementById('call-status-title');
+        const peerNameEl = document.getElementById('call-peer-name');
+        const acceptBtn = document.getElementById('btn-accept-call');
+
+        if (title) title.innerText = 'Panggilan Masuk...';
+        if (peerNameEl) peerNameEl.innerText = data.callerName;
+        if (acceptBtn) acceptBtn.style.display = 'inline-block';
 
         callRingtone.play().catch(() => {});
         window.incomingOffer = data.offer;
@@ -903,8 +910,11 @@ async function acceptCall() {
     callRingtone.pause();
     callRingtone.currentTime = 0;
 
-    document.getElementById('btn-accept-call').style.display = 'none';
-    document.getElementById('call-status-title').innerText = 'Terhubung';
+    const acceptBtn = document.getElementById('btn-accept-call');
+    const title = document.getElementById('call-status-title');
+    
+    if (acceptBtn) acceptBtn.style.display = 'none';
+    if (title) title.innerText = 'Terhubung';
 
     try {
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
@@ -918,13 +928,14 @@ async function acceptCall() {
         
         peerConnection.ontrack = (event) => { 
             const remoteAudio = document.getElementById('remote-audio');
-            remoteAudio.srcObject = event.streams[0]; 
-            remoteAudio.play().catch(e => console.warn('Browser menunda pemutaran otomatis', e));
+            if (remoteAudio) {
+                remoteAudio.srcObject = event.streams[0]; 
+                remoteAudio.play().catch(e => console.warn('Browser menunda pemutaran otomatis', e));
+            }
         };
 
         await peerConnection.setRemoteDescription(new RTCSessionDescription(window.incomingOffer));
         
-        // Eksekusi antrean ICE yang datang lebih cepat (Solusi untuk Android)
         while (iceCandidateQueue.length) {
             const candidate = iceCandidateQueue.shift();
             await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
@@ -941,11 +952,12 @@ async function acceptCall() {
 
 socket.on('call_answered', async (data) => {
     if (data.targetSocketId) targetSocketId = data.targetSocketId;
-    document.getElementById('call-status-title').innerText = 'Terhubung';
+    const title = document.getElementById('call-status-title');
+    if (title) title.innerText = 'Terhubung';
+    
     try { 
         await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer)); 
         
-        // Eksekusi antrean ICE yang datang lebih cepat (Solusi untuk iOS Safari)
         while (iceCandidateQueue.length) {
             const candidate = iceCandidateQueue.shift();
             await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
@@ -956,11 +968,9 @@ socket.on('call_answered', async (data) => {
 socket.on('ice_candidate', async (data) => {
     try { 
         if (peerConnection) {
-            // Safari sangat ketat: Hanya izinkan ICE masuk jika RemoteDescription sudah terpasang
             if (peerConnection.remoteDescription) {
                 await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
             } else {
-                // Jika RemoteDescription belum siap, antrekan dulu
                 iceCandidateQueue.push(data.candidate);
             }
         }
@@ -995,15 +1005,20 @@ function hangUpCall() {
 // --- FITUR LAINNYA ---
 function openZoomModal(imageUrl) {
     const modal = document.getElementById('photo-zoom-modal');
-    document.getElementById('zoomed-img-element').src = imageUrl;
-    modal.classList.remove('hidden');
-    modal.style.display = 'flex';
+    const img = document.getElementById('zoomed-img-element');
+    if (modal && img) {
+        img.src = imageUrl;
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+    }
 }
 
 function closeZoomModal() {
     const modal = document.getElementById('photo-zoom-modal');
-    modal.classList.add('hidden');
-    modal.style.display = 'none';
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+    }
 }
 
 function togglePhotoMenu(event, menuId) {
@@ -1069,7 +1084,10 @@ if (chatFileInput) {
 // --- FITUR EMAIL PEMULIHAN & LUPA PASSWORD ---
 async function handleUpdateEmail(event) {
     event.preventDefault();
-    const email = document.getElementById('recovery-email').value;
+    const emailInput = document.getElementById('recovery-email');
+    if (!emailInput) return;
+    
+    const email = emailInput.value;
     if (!currentUser) return alert('Silakan login terlebih dahulu!');
 
     try {
@@ -1081,14 +1099,18 @@ async function handleUpdateEmail(event) {
         const data = await response.json();
         if (response.ok) {
             alert(data.message);
-            document.getElementById('email-modal').classList.add('hidden');
+            const modal = document.getElementById('email-modal');
+            if (modal) modal.classList.add('hidden');
         } else alert(data.error);
     } catch (err) { alert('Kesalahan jaringan.'); }
 }
 
 async function requestOTP() {
-    const phone = document.getElementById('login-phone').value;
-    if (!phone) return alert('Masukkan nomor telepon Anda di atas terlebih dahulu.');
+    const phoneInput = document.getElementById('login-phone');
+    if (!phoneInput) return;
+    
+    const phone = phoneInput.value;
+    if (!phone) return alert('Masukkan nomor telepon Anda di form login terlebih dahulu.');
 
     try {
         const response = await fetch('/api/forgot-password', {
@@ -1100,7 +1122,8 @@ async function requestOTP() {
         
         if (response.ok) {
             alert(data.message);
-            document.getElementById('otp-modal').classList.remove('hidden');
+            const otpModal = document.getElementById('otp-modal');
+            if (otpModal) otpModal.classList.remove('hidden');
         } else alert(data.error);
     } catch (err) { alert('Terjadi kesalahan jaringan.'); }
 }
@@ -1121,14 +1144,19 @@ async function handleResetPassword(event) {
 
         if (response.ok) {
             alert(data.message);
-            document.getElementById('otp-modal').classList.add('hidden');
-            document.getElementById('forgot-password-btn').classList.add('hidden');
-            document.getElementById('login-password').value = '';
+            
+            const otpModal = document.getElementById('otp-modal');
+            const forgotBtn = document.getElementById('forgot-password-btn');
+            const loginPw = document.getElementById('login-password');
+            
+            if (otpModal) otpModal.classList.add('hidden');
+            if (forgotBtn) forgotBtn.classList.add('hidden');
+            if (loginPw) loginPw.value = '';
+            
             failedLoginAttempts = 0;
         } else alert(data.error);
     } catch (err) { alert('Kesalahan jaringan.'); }
 }
-
 
 function clearChat() {
     if (confirm('Yakin ingin menghapus semua riwayat obrolan?')) {
