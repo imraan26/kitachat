@@ -64,9 +64,7 @@ if ('serviceWorker' in navigator) {
             reg.addEventListener('updatefound', () => {
                 const newWorker = reg.installing;
                 newWorker.addEventListener('statechange', () => {
-                    // Cek apakah service worker baru sudah terinstal dan mengambil alih
                     if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                        // Munculkan pop-up ke pengguna jika ada versi baru
                         if (confirm('Versi baru Kitachat telah tersedia! Ketuk OK untuk memperbarui aplikasi.')) {
                             window.location.reload(true);
                         }
@@ -307,7 +305,8 @@ function toggleAgendaForm() {
     const label = document.getElementById('agenda-toggle-label');
     const chevron = document.getElementById('agenda-chevron-icon');
     
-    // Buka paksa gembok class 'hidden' dari HTML
+    if (!form) return; // Mencegah peringatan error di code editor
+
     form.classList.remove('hidden');
     
     if (form.style.display === 'none' || form.style.display === '') {
@@ -357,21 +356,28 @@ async function sendMessage() {
 }
 
 // --- HELPER INTERAKSI KARTU ALBUM BARU ---
-function onAlbumFileSelected(event) {
+function onAlbumFileChange(event) {
     const file = event.target.files[0];
     if (file) {
         const formCard = document.getElementById('photo-upload-form');
-        const fileNameEl = document.getElementById('selected-file-name');
-        if (fileNameEl) fileNameEl.innerText = `File terpilih: ${file.name}`;
+        const fileNameEl = document.getElementById('selected-file-label');
+        if (fileNameEl) fileNameEl.innerText = `Terpilih: ${file.name}`;
         if (formCard) formCard.style.display = 'flex';
     }
 }
 
-function cancelPhotoUpload() {
+function cancelAlbumUpload() {
     const fileInput = document.getElementById('photo-file-input');
-    const formCard = document.getElementById('photo-upload-form');
+    const labelEl = document.getElementById('selected-file-label');
+    const formEl = document.getElementById('photo-upload-form');
     if (fileInput) fileInput.value = '';
-    if (formCard) formCard.style.display = 'none';
+    if (labelEl) labelEl.innerText = 'Ketuk untuk pilih dari galeri atau kamera';
+    if (formEl) formEl.style.display = 'none';
+}
+
+function cancelPhotoUpload() {
+    // Fungsi fallback untuk dukungan kompatibilitas nama
+    cancelAlbumUpload();
 }
 
 // --- FITUR PERBARUI APLIKASI MANUAL ---
@@ -379,26 +385,19 @@ async function forceUpdateApp() {
     if (confirm('Cek dan perbarui aplikasi ke versi server terbaru?')) {
         if ('serviceWorker' in navigator) {
             try {
-                // Ambil semua registrasi Service Worker yang aktif
                 const registrations = await navigator.serviceWorker.getRegistrations();
                 for (let reg of registrations) {
-                    await reg.update(); // Paksa browser mengecek file sw.js baru ke server
+                    await reg.update();
                 }
-                
-                // Hapus semua cache lokal secara agresif untuk mencegah nyangkut
                 const cacheNames = await caches.keys();
                 await Promise.all(cacheNames.map(cache => caches.delete(cache)));
-                
                 alert('Pembaruan berhasil ditarik! Aplikasi akan dimuat ulang.');
-                
-                // Muat ulang halaman dari server, mengabaikan cache
                 window.location.reload(true);
             } catch (err) {
                 console.error('Gagal memperbarui aplikasi:', err);
                 alert('Gagal menarik pembaruan. Pastikan koneksi internet stabil.');
             }
         } else {
-            // Fallback jika browser perangkat tidak mendukung Service Worker
             window.location.reload(true);
         }
     }
@@ -406,7 +405,6 @@ async function forceUpdateApp() {
 
 // --- FUNGSI PEMBUKA TAUTAN EKSTERNAL / DEEP LINK ---
 function openExternalLink(url) {
-    // Membuat elemen link sementara untuk memaksa OS/Browser utama membuka aplikasi tujuan (seperti Shopee)
     const a = document.createElement('a');
     a.href = url;
     a.target = '_blank';
@@ -474,7 +472,7 @@ async function toggleVoiceRecording() {
     }
 }
 
-// --- FITUR POP-UP MENU ALA WHATSAPP & REPLY/DELETE (Dioptimalkan) ---
+// --- FITUR POP-UP MENU ALA WHATSAPP & REPLY/DELETE ---
 function setupMessageInteraction(msgDiv, messageId, messageText, isSelf) {
     let pressTimer;
     
@@ -482,14 +480,13 @@ function setupMessageInteraction(msgDiv, messageId, messageText, isSelf) {
         clearTimeout(pressTimer);
         pressTimer = setTimeout(() => {
             showWhatsAppStyleMenu(messageId, messageText, isSelf);
-        }, 500); // Tahan selama 0.5 detik untuk memunculkan menu
+        }, 500);
     };
 
     const cancelTimer = () => {
         clearTimeout(pressTimer);
     };
 
-    // Event untuk Desktop & Mobile (ditambah touchmove agar tidak konflik saat scroll)
     msgDiv.addEventListener('mousedown', startTimer);
     msgDiv.addEventListener('mouseup', cancelTimer);
     msgDiv.addEventListener('mouseleave', cancelTimer);
@@ -500,7 +497,6 @@ function setupMessageInteraction(msgDiv, messageId, messageText, isSelf) {
 }
 
 function showWhatsAppStyleMenu(messageId, messageText, isSelf) {
-    // Hapus menu lama jika sempat terbuka
     const existingOverlay = document.getElementById('chat-action-overlay');
     if (existingOverlay) existingOverlay.remove();
 
@@ -511,7 +507,6 @@ function showWhatsAppStyleMenu(messageId, messageText, isSelf) {
     const menu = document.createElement('div');
     menu.className = 'chat-popup-menu';
 
-    // Tombol Balas (Selalu ada untuk semua pesan)
     const replyItem = document.createElement('div');
     replyItem.className = 'chat-popup-item';
     replyItem.innerHTML = `<i class="fa-solid fa-reply" style="color: var(--primary-color);"></i> Balas`;
@@ -521,7 +516,6 @@ function showWhatsAppStyleMenu(messageId, messageText, isSelf) {
     };
     menu.appendChild(replyItem);
 
-    // Tombol Hapus (Hanya muncul khusus untuk pesan milik sendiri / isSelf)
     if (isSelf) {
         const deleteItem = document.createElement('div');
         deleteItem.className = 'chat-popup-item danger';
@@ -535,7 +529,6 @@ function showWhatsAppStyleMenu(messageId, messageText, isSelf) {
 
     overlay.appendChild(menu);
 
-    // Tutup pop-up jika pengguna mengetuk area di luar kotak menu
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) overlay.remove();
     });
@@ -547,6 +540,8 @@ function selectReplyActionDirect(messageId, messageText) {
     window.replyingToMessageId = messageId;
     
     const chatInputArea = document.getElementById('chat-input-area');
+    if (!chatInputArea) return; // Mencegah editor menampilkan peringatan error
+
     let banner = document.getElementById('reply-banner');
     
     if (!banner) {
@@ -623,10 +618,7 @@ function appendChatMessage(data) {
         contentHtml += `<div style="border-left: 3px solid var(--primary-color); background: rgba(0,0,0,0.05); padding: 4px 8px; margin-bottom: 6px; border-radius: 4px; font-size: 11px; opacity: 0.8;"><b>Membalas:</b> ${data.reply_text}</div>`;
     }
 
-    
-    // --- FITUR PARAGRAF & KLIK LINK EKSTERNAL ---
     if (data.message) {
-        // Mengubah URL menjadi teks interaktif yang memicu fungsi buka browser/aplikasi luar
         let formattedMsg = data.message.replace(
             /(https?:\/\/[^\s]+)/g, 
             '<span onclick="openExternalLink(\'$1\')" style="color: #3498db; text-decoration: underline; word-break: break-all; cursor: pointer;">$1</span>'
@@ -635,16 +627,12 @@ function appendChatMessage(data) {
         
         contentHtml += `<div style="line-height: 1.4;">${formattedMsg}</div>`;
     }
-
-
-    
     
     if (data.image_url) contentHtml += `<img src="${data.image_url}" style="max-width: 220px; border-radius: 8px; display: block; margin-top: 5px; cursor: pointer;" onclick="openZoomModal('${data.image_url}')">`;
     if (data.audio_url) contentHtml += `<audio controls preload="metadata" src="${data.audio_url}" style="max-width: 200px; height: 35px; margin-top: 5px;"></audio>`;
 
     const displayTime = data.time || '';
     
-    // Tampilan bubble bersih tanpa ikon tong sampah di bawah
     msgDiv.innerHTML = `
         ${!isSelf ? `<div class="chat-sender-name">${data.name}</div>` : ''}
         ${contentHtml}
@@ -653,7 +641,6 @@ function appendChatMessage(data) {
         </div>
     `;
 
-    // Memanggil fungsi interaksi pop-up
     setupMessageInteraction(msgDiv, data.id, data.message, isSelf);
     
     container.appendChild(msgDiv);
@@ -682,6 +669,7 @@ async function loadFamilyMembers() {
         if (response.ok) {
             const users = await response.json();
             const container = document.getElementById('family-list-container');
+            if (!container) return; // Mencegah error jika elemen tidak ada
             container.innerHTML = '';
             container.style.display = 'flex';
             container.style.flexDirection = 'column';
@@ -808,7 +796,7 @@ async function handleUploadPhoto(event) {
     const caption = document.getElementById('photo-caption-input').value;
 
     if (!currentUser) return alert('Silakan login terlebih dahulu!');
-    if (fileInput.files.length === 0) return alert('Pilih file gambar terlebih dahulu!');
+    if (!fileInput || fileInput.files.length === 0) return alert('Pilih file gambar terlebih dahulu!');
 
     const formData = new FormData();
     formData.append('user_id', currentUser.id);
@@ -820,8 +808,10 @@ async function handleUploadPhoto(event) {
         const data = await response.json();
         if (response.ok) {
             alert(data.message);
-            cancelPhotoUpload();
-            document.getElementById('photo-caption-input').value = '';
+            cancelAlbumUpload();
+            if (document.getElementById('photo-caption-input')) {
+                document.getElementById('photo-caption-input').value = '';
+            }
             loadAlbumPhotos();
         } else alert(data.error);
     } catch (err) {
@@ -829,7 +819,7 @@ async function handleUploadPhoto(event) {
     }
 }
 
-// --- FITUR AGENDA (Dioptimalkan dengan Penutupan Form Otomatis) ---
+// --- FITUR AGENDA ---
 async function handleCreateAgenda(event) {
     event.preventDefault();
     const title = document.getElementById('agenda-title').value;
@@ -849,12 +839,10 @@ async function handleCreateAgenda(event) {
         if (response.ok) {
             alert(data.message);
             
-            // Reset isi input form
             document.getElementById('agenda-title').value = '';
             document.getElementById('agenda-date').value = '';
             document.getElementById('agenda-desc').value = '';
             
-            // Otomatis tutup form dan kembalikan ikon ke kondisi semula
             const form = document.getElementById('agenda-form-container');
             const label = document.getElementById('agenda-toggle-label');
             const chevron = document.getElementById('agenda-chevron-icon');
@@ -903,19 +891,19 @@ async function loadAgendaAndBirthdays() {
                 agendaContainer.innerHTML = '';
                 if (agendas.length === 0) agendaContainer.innerHTML = '<p style="font-size: 13px; color: gray;">Belum ada agenda kegiatan tercatat.</p>';
                 else {
-agendas.forEach(item => {
-        const fDate = new Date(item.event_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-        const card = document.createElement('div');
-        card.style.cssText = 'padding: 14px; background: var(--bg-light); border: 1px solid var(--border-color); border-left: 4px solid var(--primary-color); border-radius: 8px; display: flex; flex-direction: column; gap: 4px;';
-        card.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h5 style="margin: 0; font-size: 15px; color: var(--text-light); font-weight: 600;">${item.title}</h5>
-                <span style="font-size: 12px; font-weight: bold; color: var(--primary-color); background: var(--primary-light); padding: 3px 8px; border-radius: 6px;"><i class="fa-solid fa-calendar-days"></i> ${fDate}</span>
-            </div>
-            ${item.description ? `<p style="margin: 4px 0 0 0; font-size: 13px; color: gray;">${item.description}</p>` : ''}
-        `;
-        agendaContainer.appendChild(card);
-    });
+                    agendas.forEach(item => {
+                        const fDate = new Date(item.event_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+                        const card = document.createElement('div');
+                        card.style.cssText = 'padding: 14px; background: var(--bg-light); border: 1px solid var(--border-color); border-left: 4px solid var(--primary-color); border-radius: 8px; display: flex; flex-direction: column; gap: 4px;';
+                        card.innerHTML = `
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <h5 style="margin: 0; font-size: 15px; color: var(--text-light); font-weight: 600;">${item.title}</h5>
+                                <span style="font-size: 12px; font-weight: bold; color: var(--primary-color); background: var(--primary-light); padding: 3px 8px; border-radius: 6px;"><i class="fa-solid fa-calendar-days"></i> ${fDate}</span>
+                            </div>
+                            ${item.description ? `<p style="margin: 4px 0 0 0; font-size: 13px; color: gray;">${item.description}</p>` : ''}
+                        `;
+                        agendaContainer.appendChild(card);
+                    });
                 }
             }
         }
