@@ -62,24 +62,29 @@ app.use((req, res, next) => {
     next();
 });
 
-// Middleware Static (HARUS diletakkan SETELAH Security Headers & Cache Control)
-app.use(express.static('public'));
+// ==========================================
+// PENYELARASAN FOLDER MEDIA KE VOLUME RAILWAY PERMANEN
+// ==========================================
+// Middleware Static dasar
+app.use(express.static('public')); 
+// Buka akses khusus untuk folder volume permanen agar media bisa dimuat di aplikasi
+app.use('/uploads', express.static(path.join(__dirname, 'data', 'uploads')));
 
-// Pastikan folder public/uploads otomatis dibuat secara aman jika belum ada di server
+// Pastikan folder data/uploads otomatis dibuat di dalam Volume secara aman
 try {
-  const uploadDir = path.join(__dirname, 'public', 'uploads');
+  const uploadDir = path.join(__dirname, 'data', 'uploads');
   if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
-    console.log('Folder public/uploads berhasil dibuat secara otomatis.');
+    console.log('Folder data/uploads (Volume Permanen) berhasil dibuat secara otomatis.');
   }
 } catch (err) {
   console.error('Gagal membuat folder uploads:', err);
 }
 
-// Konfigurasi Penyimpanan File Upload menggunakan Multer
+// Konfigurasi Penyimpanan File Upload menggunakan Multer ke dalam Volume
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'public/uploads/');
+    cb(null, path.join(__dirname, 'data', 'uploads'));
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -89,7 +94,9 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-// Fungsi Inisialisasi Otomatis Tabel Database
+// ==========================================
+// FUNGSI INISIALISASI DATABASE
+// ==========================================
 async function initDB() {
   try {
     await pool.query(`
@@ -558,7 +565,7 @@ app.delete('/api/messages', checkSingleDevice, async (req, res) => {
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 465,
-    secure: true, // Menggunakan SSL murni untuk port 465 agar tembus firewall & tidak masuk spam
+    secure: true, 
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
@@ -618,7 +625,7 @@ app.post('/api/forgot-password', async (req, res) => {
     }
 });
 
-// API: Verifikasi OTP dan Ganti Password (Dioptimalkan agar langsung mengganti data)
+// API: Verifikasi OTP dan Ganti Password
 app.post('/api/reset-password', async (req, res) => {
     let { phone, otp, new_password } = req.body;
     if (!phone || !otp || !new_password) {
@@ -644,7 +651,6 @@ app.post('/api/reset-password', async (req, res) => {
         const saltRounds = 10;
         const hashedNewPassword = await bcrypt.hash(new_password, saltRounds);
         
-        // Update password baru DAN hapus token reset agar tidak bisa dipakai ulang, sekaligus mereset session_token agar perangkat lain tertendang
         await pool.query(
             'UPDATE users SET password = $1, reset_token = NULL, reset_token_expiry = NULL, session_token = NULL WHERE id = $2', 
             [hashedNewPassword, userData.id]
@@ -781,6 +787,6 @@ app.put('/api/update-password', checkSingleDevice, async (req, res) => {
 const PORT = process.env.PORT || 3000;
 initDB().then(() => {
   server.listen(PORT, () => {
-    console.log(`Server Kitachat aktif di port ${PORT}`);
+    console.log(`Server Kitachat aktif di port ${PORT} dan siap digunakan di Volume!`);
   });
 });
