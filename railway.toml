@@ -3,6 +3,3 @@ builder = "NIXPACKS"
 
 [deploy]
 startCommand = "npm start"
-
-[deploy.volumes]
-uploads_volume = "/app/public/uploads"
