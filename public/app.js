@@ -424,32 +424,80 @@ async function toggleVoiceRecording() {
     }
 }
 
-// --- FITUR REPLY & DELETE PESAN ---
-function setupMessageInteraction(msgDiv, messageId, messageText) {
+// --- FITUR POP-UP MENU ALA WHATSAPP & REPLY/DELETE ---
+function setupMessageInteraction(msgDiv, messageId, messageText, isSelf) {
     let pressTimer;
-    msgDiv.addEventListener('mousedown', () => pressTimer = setTimeout(() => showMessageActionModal(messageId, messageText), 600));
+    
+    const triggerAction = (e) => {
+        e.preventDefault();
+        showWhatsAppStyleMenu(messageId, messageText, isSelf);
+    };
+
+    msgDiv.addEventListener('mousedown', () => pressTimer = setTimeout(triggerAction, 500));
     msgDiv.addEventListener('mouseup', () => clearTimeout(pressTimer));
-    msgDiv.addEventListener('touchstart', () => pressTimer = setTimeout(() => showMessageActionModal(messageId, messageText), 600));
+    msgDiv.addEventListener('touchstart', () => pressTimer = setTimeout(triggerAction, 500));
     msgDiv.addEventListener('touchend', () => clearTimeout(pressTimer));
 }
 
-function showMessageActionModal(messageId, messageText) {
-    const choice = confirm(`Pilih aksi untuk pesan ini:\n[OK] Balas (Reply)\n[Cancel] Hapus Pesan`);
-    if (choice) {
-        window.replyingToMessageId = messageId;
-        const chatInputArea = document.getElementById('chat-input-area');
-        
-        let banner = document.getElementById('reply-banner');
-        if (!banner) {
-            banner = document.createElement('div');
-            banner.id = 'reply-banner';
-            banner.style.cssText = 'background: var(--bg-light); padding: 6px 12px; font-size: 12px; border-left: 3px solid var(--primary-color); display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; border-radius: 4px; color: var(--text-light);';
-            chatInputArea.parentNode.insertBefore(banner, chatInputArea);
-        }
-        banner.innerHTML = `<span>Membalas: <b>${messageText || 'Lampiran'}</b></span> <button onclick="cancelReply()" style="background:none; border:none; color:red; cursor:pointer; font-weight:bold;">&times;</button>`;
-    } else {
-        deleteMessage(messageId);
+function showWhatsAppStyleMenu(messageId, messageText, isSelf) {
+    const existingOverlay = document.getElementById('chat-action-overlay');
+    if (existingOverlay) existingOverlay.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'chat-action-overlay';
+    overlay.className = 'chat-popup-overlay';
+
+    let menuHtml = `
+        <div class="chat-popup-menu">
+            <div class="chat-popup-item" onclick="selectReplyAction('${messageId}', \`${encodeURIComponent(messageText || 'Lampiran')}\`)">
+                <i class="fa-solid fa-reply" style="color: var(--primary-color);"></i> Balas
+            </div>
+    `;
+
+    // Menu Hapus hanya muncul jika itu pesan milik sendiri
+    if (isSelf) {
+        menuHtml += `
+            <div class="chat-popup-item danger" onclick="selectDeleteAction('${messageId}')">
+                <i class="fa-solid fa-trash-can"></i> Hapus Pesan
+            </div>
+        `;
     }
+
+    menuHtml += `</div>`;
+    overlay.innerHTML = menuHtml;
+
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) overlay.remove();
+    });
+
+    document.body.appendChild(overlay);
+}
+
+function selectReplyAction(messageId, encodedText) {
+    const messageText = decodeURIComponent(encodedText);
+    window.replyingToMessageId = messageId;
+    
+    const chatInputArea = document.getElementById('chat-input-area');
+    let banner = document.getElementById('reply-banner');
+    
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'reply-banner';
+        banner.style.cssText = 'background: var(--bg-light); padding: 6px 12px; font-size: 12px; border-left: 3px solid var(--primary-color); display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; border-radius: 4px; color: var(--text-light);';
+        chatInputArea.parentNode.insertBefore(banner, chatInputArea);
+    }
+    
+    banner.innerHTML = `<span>Membalas: <b>${messageText}</b></span> <button onclick="cancelReply()" style="background:none; border:none; color:red; cursor:pointer; font-weight:bold;">&times;</button>`;
+    
+    const overlay = document.getElementById('chat-action-overlay');
+    if (overlay) overlay.remove();
+}
+
+function selectDeleteAction(messageId) {
+    const overlay = document.getElementById('chat-action-overlay');
+    if (overlay) overlay.remove();
+    
+    deleteMessage(messageId);
 }
 
 function cancelReply() {
@@ -516,7 +564,6 @@ function appendChatMessage(data) {
         contentHtml += `<div style="border-left: 3px solid var(--primary-color); background: rgba(0,0,0,0.05); padding: 4px 8px; margin-bottom: 6px; border-radius: 4px; font-size: 11px; opacity: 0.8;"><b>Membalas:</b> ${data.reply_text}</div>`;
     }
     
-    // --- FITUR PARAGRAF & KLIK LINK ---
     if (data.message) {
         let formattedMsg = data.message.replace(
             /(https?:\/\/[^\s]+)/g, 
@@ -532,21 +579,18 @@ function appendChatMessage(data) {
 
     const displayTime = data.time || '';
     
-    // --- FITUR HAPUS CHAT SATU-SATU (ICON TONG SAMPAH) ---
-    let deleteBtnHtml = '';
-    if (isSelf) {
-        deleteBtnHtml = `<span onclick="deleteMessage('${data.id}')" style="margin-left: 10px; color: #e74c3c; cursor: pointer; font-size: 13px;" title="Hapus Pesan"><i class="fa-solid fa-trash-can"></i></span>`;
-    }
-
+    // Tampilan bubble bersih tanpa ikon tong sampah di bawah
     msgDiv.innerHTML = `
         ${!isSelf ? `<div class="chat-sender-name">${data.name}</div>` : ''}
         ${contentHtml}
-        <div class="chat-time" style="display: flex; justify-content: ${isSelf ? 'flex-end' : 'flex-start'}; align-items: center; margin-top: 4px;">
-            ${displayTime} ${deleteBtnHtml}
+        <div class="chat-time" style="margin-top: 4px; text-align: ${isSelf ? 'right' : 'left'};">
+            ${displayTime}
         </div>
     `;
 
-    setupMessageInteraction(msgDiv, data.id, data.message);
+    // Memanggil fungsi interaksi pop-up
+    setupMessageInteraction(msgDiv, data.id, data.message, isSelf);
+    
     container.appendChild(msgDiv);
     container.scrollTop = container.scrollHeight;
 }
