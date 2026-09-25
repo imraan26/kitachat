@@ -6,300 +6,535 @@ const bcrypt = require('bcrypt');
 const multer = require('multer');
 const path = require('path');
 const nodemailer = require('nodemailer');
-const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-const cors = require('cors'); // WAJIB DITAMBAHKAN UNTUK ANDROID
+const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
 
-// ==========================================
-// KONFIGURASI DATABASE & AUTO RECONNECT POOL
-// ==========================================
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
-});
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
+  : '*';
 
-// Mencegah server crash total saat koneksi database berkedip/terputus
-pool.on('error', (err, client) => {
-  console.error('Koneksi database terputus tak terduga, mencoba memulihkan...', err);
-});
-
-// ==========================================
-// MIDDLEWARE DASAR & CORS (FIX UNTUK ANDROID)
-// ==========================================
-app.use(cors({
-    origin: '*', 
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id', 'x-session-token'] // Mengizinkan Android mengirim token
-}));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// ==========================================
-// MIDDLEWARE: HTTP SECURITY HEADERS
-// ==========================================
-app.use((req, res, next) => {
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('X-XSS-Protection', '1; mode=block');
-    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    next();
-});
-
-// ==========================================
-// MENCEGAH CACHE UNTUK FILE PEMBARUAN PWA (AUTO-UPDATE)
-// ==========================================
-app.use((req, res, next) => {
-    if (req.url === '/sw.js' || req.url === '/app.js') {
-        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-        res.setHeader('Pragma', 'no-cache');
-        res.setHeader('Expires', '0');
-    }
-    next();
-});
-
-// ==========================================
-// PENYELARASAN FOLDER MEDIA KE VOLUME RAILWAY PERMANEN
-// ==========================================
-// Middleware Static dasar
-app.use(express.static('public')); 
-// Buka akses khusus untuk folder volume permanen agar media bisa dimuat di aplikasi
-app.use('/uploads', express.static(path.join(__dirname, 'data', 'uploads')));
-
-// Pastikan folder data/uploads otomatis dibuat di dalam Volume secara aman
-try {
-  const uploadDir = path.join(__dirname, 'data', 'uploads');
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-    console.log('Folder data/uploads (Volume Permanen) berhasil dibuat secara otomatis.');
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    methods: ['GET', 'POST'],
+    credentials: true
   }
-} catch (err) {
-  console.error('Gagal membuat folder uploads:', err);
+});
+
+// ==========================================
+// KONFIGURASI DASAR
+// ==========================================
+
+const PORT = Number(process.env.PORT) || 3000;
+const uploadDir = process.env.UPLOAD_DIR ||
+  path.join(__dirname, 'data', 'uploads');
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const PASSWORD_MIN_LENGTH = 8;
+
+function ensureUploadDirectory() {
+  try {
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+      console.log(`Folder upload berhasil dibuat: ${uploadDir}`);
+    }
+  } catch (error) {
+    console.error('Gagal membuat folder upload:', error);
+    throw error;
+  }
 }
 
-// Konfigurasi penyimpanan aman untuk upload
+ensureUploadDirectory();
+
+// ==========================================
+// DATABASE
+// ==========================================
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: Number(process.env.DB_POOL_MAX) || 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+  ssl: process.env.NODE_ENV === 'production'
+    ? { rejectUnauthorized: false }
+    : false
+});
+
+pool.on('error', error => {
+  console.error('Unexpected PostgreSQL pool error:', error);
+});
+
+// ==========================================
+// MIDDLEWARE DASAR
+// ==========================================
+
+app.disable('x-powered-by');
+
+app.use(cors({
+  origin: allowedOrigins,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'x-user-id',
+    'x-session-token'
+  ],
+  credentials: true
+}));
+
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({
+  extended: true,
+  limit: '1mb'
+}));
+
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+
+app.use((req, res, next) => {
+  const requestPath = req.path;
+
+  if (requestPath === '/sw.js' || requestPath === '/app.js') {
+    res.setHeader(
+      'Cache-Control',
+      'no-store, no-cache, must-revalidate, proxy-revalidate'
+    );
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+
+  next();
+});
+
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.use(
+  '/uploads',
+  express.static(uploadDir, {
+    dotfiles: 'deny',
+    index: false,
+    maxAge: process.env.NODE_ENV === 'production' ? '1d' : 0
+  })
+);
+
+// ==========================================
+// MULTER UPLOAD
+// ==========================================
+
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, path.join(__dirname, 'data', 'uploads'));
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + path.extname(file.originalname));
-    }
+  destination: (req, file, callback) => {
+    callback(null, uploadDir);
+  },
+
+  filename: (req, file, callback) => {
+    const extension = path.extname(file.originalname).toLowerCase();
+    callback(null, `${crypto.randomUUID()}${extension}`);
+  }
 });
 
 const imageUpload = multer({
-    storage,
-    limits: {
-        fileSize: 10 * 1024 * 1024 // Batas 10MB
-    },
-    fileFilter: (req, file, cb) => {
-        if (file.mimetype.startsWith('image/')) {
-            cb(null, true);
-        } else {
-            cb(new Error('Hanya file gambar yang diizinkan!'), false);
-        }
+  storage,
+  limits: {
+    fileSize: MAX_FILE_SIZE,
+    files: 1
+  },
+  fileFilter: (req, file, callback) => {
+    if (!file.mimetype.startsWith('image/')) {
+      return callback(new Error('Hanya file gambar yang diizinkan.'));
     }
+
+    callback(null, true);
+  }
 });
 
-app.use((err, req, res, next) => {
-    if (err instanceof multer.MulterError) {
-        if (err.code === 'LIMIT_FILE_SIZE') {
-            return res.status(413).json({
-                error: 'Ukuran file terlalu besar. Maksimal adalah 10MB.'
-            });
-        }
+const mediaUpload = multer({
+  storage,
+  limits: {
+    fileSize: MAX_FILE_SIZE,
+    files: 1
+  },
+  fileFilter: (req, file, callback) => {
+    const isImage = file.mimetype.startsWith('image/');
+    const isAudio = file.mimetype.startsWith('audio/');
+
+    if (!isImage && !isAudio) {
+      return callback(new Error(
+        'Hanya file gambar atau audio yang diizinkan.'
+      ));
     }
-    if (err) {
-        return res.status(400).json({ error: err.message });
-    }
-    next();
+
+    callback(null, true);
+  }
 });
 
 // ==========================================
-// FUNGSI INISIALISASI DATABASE
+// HELPER
 // ==========================================
-async function initDB() {
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        phone VARCHAR(20) UNIQUE NOT NULL,
-        name VARCHAR(100) NOT NULL,
-        password VARCHAR(255) NOT NULL,
-        birthdate DATE,
-        photo_url TEXT,
-        session_token TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
 
-      CREATE TABLE IF NOT EXISTS albums (
-        id SERIAL PRIMARY KEY,
-        user_id INT REFERENCES users(id) ON DELETE CASCADE,
-        image_url TEXT NOT NULL,
-        caption TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-
-      CREATE TABLE IF NOT EXISTS agendas (
-        id SERIAL PRIMARY KEY,
-        title VARCHAR(150) NOT NULL,
-        event_date DATE NOT NULL,
-        description TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-
-      CREATE TABLE IF NOT EXISTS messages (
-        id SERIAL PRIMARY KEY,
-        family_id INT,
-        user_id INT REFERENCES users(id) ON DELETE CASCADE,
-        message TEXT,
-        image_url TEXT,
-        sticker_url TEXT,
-        audio_url TEXT,
-        reply_to_id INT,
-        is_deleted BOOLEAN DEFAULT FALSE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        client_time VARCHAR(50)
-      );
-      
-    `);
-    console.log('Berhasil terhubung ke database PostgreSQL dan memverifikasi tabel!');
-  } catch (err) {
-    console.error('Gagal menginisialisasi skema database:', err);
+function escapeHTML(value) {
+  if (typeof value !== 'string') {
+    return value;
   }
-  
-  // Menambahkan kolom pemulihan tanpa merusak tabel yang ada
-  try {
-       await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255) UNIQUE;`);
-       await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(10);`);
-       await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expiry BIGINT;`);
-       console.log('Kolom pemulihan email berhasil diverifikasi.');
-  } catch(e) { 
-       console.log('Catatan kolom pemulihan:', e.message); 
+
+  return value.replace(/[&<>'"]/g, character => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    "'": '&#39;',
+    '"': '&quot;'
+  })[character]);
+}
+
+function normalizePhone(phone) {
+  return String(phone || '').replace(/[^0-9]/g, '');
+}
+
+function isValidPassword(password) {
+  return typeof password === 'string' &&
+    password.length >= PASSWORD_MIN_LENGTH;
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function getRequestUserId(req) {
+  return req.userId || req.headers['x-user-id'];
+}
+
+function getUploadUrl(filename) {
+  return `/uploads/${filename}`;
+}
+
+function deleteUploadedFile(file) {
+  if (!file || !file.path) {
+    return;
   }
+
+  fs.unlink(file.path, error => {
+    if (error && error.code !== 'ENOENT') {
+      console.error('Gagal menghapus file upload:', error);
+    }
+  });
+}
+
+function getSafeMessageText(message) {
+  return message || '(Lampiran Media)';
 }
 
 // ==========================================
-// MIDDLEWARE: KEAMANAN SINGLE DEVICE LOGIN
+// DATABASE INITIALIZATION
 // ==========================================
+
+async function initDB() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      phone VARCHAR(20) UNIQUE NOT NULL,
+      name VARCHAR(100) NOT NULL,
+      password VARCHAR(255) NOT NULL,
+      birthdate DATE,
+      photo_url TEXT,
+      session_token TEXT,
+      email VARCHAR(255) UNIQUE,
+      reset_token VARCHAR(255),
+      reset_token_expiry BIGINT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS albums (
+      id SERIAL PRIMARY KEY,
+      user_id INT REFERENCES users(id) ON DELETE CASCADE,
+      image_url TEXT NOT NULL,
+      caption TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS agendas (
+      id SERIAL PRIMARY KEY,
+      title VARCHAR(150) NOT NULL,
+      event_date DATE NOT NULL,
+      description TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS messages (
+      id SERIAL PRIMARY KEY,
+      family_id INT,
+      user_id INT REFERENCES users(id) ON DELETE CASCADE,
+      message TEXT,
+      image_url TEXT,
+      sticker_url TEXT,
+      audio_url TEXT,
+      reply_to_id INT REFERENCES messages(id) ON DELETE SET NULL,
+      is_deleted BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      client_time VARCHAR(50)
+    );
+  `);
+
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS email VARCHAR(255)
+  `);
+
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255)
+  `);
+
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS reset_token_expiry BIGINT
+  `);
+
+  await pool.query(`
+    ALTER TABLE messages
+    ADD COLUMN IF NOT EXISTS reply_to_id INT
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_messages_created_at
+    ON messages(created_at)
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_messages_user_id
+    ON messages(user_id)
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_albums_created_at
+    ON albums(created_at)
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_users_session_token
+    ON users(session_token)
+  `);
+
+  console.log('Database berhasil diinisialisasi.');
+}
+
+// ==========================================
+// AUTHENTICATION MIDDLEWARE
+// ==========================================
+
 async function checkSingleDevice(req, res, next) {
-  const userId = req.headers['x-user-id'] || (req.body && req.body.user_id) || (req.query && req.query.user_id) || null;
-  const clientToken = req.headers['x-session-token'] || (req.body && req.body.session_token) || (req.query && req.query.session_token) || null;
+  const userId = req.headers['x-user-id'];
+  const clientToken = req.headers['x-session-token'];
 
   if (!userId || !clientToken) {
-    return res.status(401).json({ error: 'Akses ditolak. Sesi tidak valid atau belum login.' });
+    return res.status(401).json({
+      error: 'Akses ditolak. Sesi tidak valid atau belum login.'
+    });
   }
 
   try {
-    const result = await pool.query('SELECT session_token FROM users WHERE id = $1', [userId]);
-    
+    const result = await pool.query(
+      `
+        SELECT id, session_token
+        FROM users
+        WHERE id = $1
+      `,
+      [userId]
+    );
+
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Pengguna tidak ditemukan.' });
+      return res.status(404).json({
+        error: 'Pengguna tidak ditemukan.'
+      });
     }
 
     const dbToken = result.rows[0].session_token;
 
-    if (dbToken !== clientToken) {
-      return res.status(403).json({ 
-        error: 'SESSION_KICKED', 
-        message: 'Akun Anda telah login di perangkat lain. Sesi di perangkat ini dihentikan.' 
+    if (!dbToken || dbToken !== clientToken) {
+      return res.status(403).json({
+        error: 'SESSION_KICKED',
+        message: 'Akun Anda telah login di perangkat lain.'
       });
     }
 
+    req.userId = result.rows[0].id;
+    req.sessionToken = clientToken;
+
     next();
-  } catch (err) {
-    console.error('Error di middleware checkSingleDevice:', err);
-    res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
+  } catch (error) {
+    console.error('Error checkSingleDevice:', error);
+
+    return res.status(500).json({
+      error: 'Terjadi kesalahan pada server.'
+    });
   }
 }
 
 // ==========================================
-// FUNGSI SANITASI: MENCEGAH SERANGAN XSS
+// ROUTE STATUS
 // ==========================================
-function escapeHTML(str) {
-    if (typeof str !== 'string' || !str) return str;
-    return str.replace(/[&<>'"]/g, tag => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        "'": '&#39;',
-        '"': '&quot;'
-    }[tag]));
-}
 
-// Route Uji Coba Server
 app.get('/api/status', (req, res) => {
-  res.json({ status: 'Server Kitachat berjalan dengan lancar!' });
+  res.json({
+    status: 'Server Kitachat berjalan dengan lancar!'
+  });
 });
 
-// 1. API REGISTER
+// ==========================================
+// REGISTER
+// ==========================================
+
 app.post('/api/register', async (req, res) => {
-  let { phone, name, password, birthdate, photo_url } = req.body;
+  let {
+    phone,
+    name,
+    password,
+    birthdate,
+    photo_url
+  } = req.body;
 
   if (!phone || !name || !password) {
-    return res.status(400).json({ error: 'Nomor telepon, nama, dan password wajib diisi!' });
+    return res.status(400).json({
+      error: 'Nomor telepon, nama, dan password wajib diisi.'
+    });
   }
 
-  name = escapeHTML(name.trim());
-  phone = phone.replace(/[^0-9]/g, '');
+  phone = normalizePhone(phone);
+  name = String(name).trim();
+
+  if (!phone) {
+    return res.status(400).json({
+      error: 'Nomor telepon tidak valid.'
+    });
+  }
+
+  if (!name || name.length > 100) {
+    return res.status(400).json({
+      error: 'Nama wajib diisi dan maksimal 100 karakter.'
+    });
+  }
+
+  if (!isValidPassword(password)) {
+    return res.status(400).json({
+      error: `Password minimal ${PASSWORD_MIN_LENGTH} karakter.`
+    });
+  }
 
   try {
-    const existingUser = await pool.query('SELECT * FROM users WHERE phone = $1', [phone]);
-    if (existingUser.rows.length > 0) {
-      return res.status(400).json({ error: 'Nomor telepon sudah terdaftar di Kitachat!' });
-    }
-
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-    const sessionToken = crypto.randomBytes(32).toString('hex');
-
-    const newUser = await pool.query(
-      `INSERT INTO users (phone, name, password, birthdate, photo_url, session_token) 
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, phone, name, birthdate, photo_url, session_token, created_at`,
-      [phone, name, hashedPassword, birthdate || null, photo_url || null, sessionToken]
+    const existingUser = await pool.query(
+      'SELECT id FROM users WHERE phone = $1',
+      [phone]
     );
 
-    res.status(201).json({
+    if (existingUser.rows.length > 0) {
+      return res.status(409).json({
+        error: 'Nomor telepon sudah terdaftar di Kitachat.'
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+    const sessionToken = crypto.randomBytes(32).toString('hex');
+
+    const result = await pool.query(
+      `
+        INSERT INTO users (
+          phone,
+          name,
+          password,
+          birthdate,
+          photo_url,
+          session_token
+        )
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING id, phone, name, birthdate, photo_url, created_at
+      `,
+      [
+        phone,
+        escapeHTML(name),
+        hashedPassword,
+        birthdate || null,
+        photo_url || null,
+        sessionToken
+      ]
+    );
+
+    return res.status(201).json({
       message: 'Registrasi berhasil! Selamat bergabung di Kitachat.',
-      user: newUser.rows[0]
+      session_token: sessionToken,
+      user: result.rows[0]
     });
-  } catch (err) {
-    console.error('Error saat register:', err);
-    res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
+  } catch (error) {
+    console.error('Error register:', error);
+
+    return res.status(500).json({
+      error: 'Terjadi kesalahan pada server.'
+    });
   }
 });
 
-// 2. API LOGIN
+// ==========================================
+// LOGIN
+// ==========================================
+
 app.post('/api/login', async (req, res) => {
   let { phone, password } = req.body;
-  if (!phone) return res.status(400).json({ error: 'Nomor telepon wajib diisi.' });
-  phone = phone.replace(/[^0-9]/g, '');
+
+  if (!phone || !password) {
+    return res.status(400).json({
+      error: 'Nomor telepon dan password wajib diisi.'
+    });
+  }
+
+  phone = normalizePhone(phone);
 
   try {
-    const userResult = await pool.query('SELECT * FROM users WHERE phone = $1', [phone]);
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Nomor telepon belum terdaftar.' });
+    const result = await pool.query(
+      `
+        SELECT
+          id,
+          phone,
+          name,
+          password,
+          birthdate,
+          photo_url
+        FROM users
+        WHERE phone = $1
+      `,
+      [phone]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        error: 'Nomor telepon belum terdaftar.'
+      });
     }
 
-    const user = userResult.rows[0];
+    const user = result.rows[0];
+    const passwordValid = await bcrypt.compare(password, user.password);
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(401).json({ error: 'Password salah!' });
+    if (!passwordValid) {
+      return res.status(401).json({
+        error: 'Password salah.'
+      });
     }
 
-    const newSessionToken = crypto.randomBytes(32).toString('hex');
-    await pool.query('UPDATE users SET session_token = $1 WHERE id = $2', [newSessionToken, user.id]);
+    const sessionToken = crypto.randomBytes(32).toString('hex');
 
-    res.status(200).json({
+    await pool.query(
+      'UPDATE users SET session_token = $1 WHERE id = $2',
+      [sessionToken, user.id]
+    );
+
+    return res.json({
       message: 'Login berhasil!',
-      session_token: newSessionToken,
+      session_token: sessionToken,
       user: {
         id: user.id,
         phone: user.phone,
@@ -308,512 +543,1022 @@ app.post('/api/login', async (req, res) => {
         photo_url: user.photo_url
       }
     });
-  } catch (err) {
-    console.error('Error saat login:', err);
-    res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
+  } catch (error) {
+    console.error('Error login:', error);
+
+    return res.status(500).json({
+      error: 'Terjadi kesalahan pada server.'
+    });
   }
 });
 
-// 3. API GET /api/users
+// ==========================================
+// USERS
+// ==========================================
+
 app.get('/api/users', checkSingleDevice, async (req, res) => {
   try {
-    const usersResult = await pool.query(
-      'SELECT id, name, phone, birthdate, photo_url, created_at FROM users ORDER BY name ASC'
-    );
-    res.status(200).json(usersResult.rows);
-  } catch (err) {
-    console.error('Error mengambil data keluarga:', err);
-    res.status(500).json({ error: 'Gagal memuat daftar keluarga.' });
+    const result = await pool.query(`
+      SELECT id, name, phone, birthdate, photo_url, created_at
+      FROM users
+      ORDER BY name ASC
+    `);
+
+    return res.json(result.rows);
+  } catch (error) {
+    console.error('Error mengambil users:', error);
+
+    return res.status(500).json({
+      error: 'Gagal memuat daftar keluarga.'
+    });
   }
 });
 
-// 4. API GET /api/albums
+// ==========================================
+// ALBUMS
+// ==========================================
+
 app.get('/api/albums', checkSingleDevice, async (req, res) => {
   try {
-    const albumsResult = await pool.query(
-      `SELECT albums.id, albums.user_id, albums.image_url, albums.caption, albums.created_at, users.name as uploader_name 
-       FROM albums 
-       JOIN users ON albums.user_id = users.id 
-       ORDER BY albums.created_at DESC`
-    );
-    res.status(200).json(albumsResult.rows);
-  } catch (err) {
-    console.error('Error mengambil data album:', err);
-    res.status(500).json({ error: 'Gagal memuat album foto.' });
-  }
-});
+    const result = await pool.query(`
+      SELECT
+        albums.id,
+        albums.user_id,
+        albums.image_url,
+        albums.caption,
+        albums.created_at,
+        users.name AS uploader_name
+      FROM albums
+      JOIN users ON albums.user_id = users.id
+      ORDER BY albums.created_at DESC
+    `);
 
-// 5. API POST /api/albums
-app.post('/api/albums', checkSingleDevice, upload.single('image'), async (req, res) => {
-  try {
-    const body = req.body || {};
-    const user_id = body.user_id;
-    const caption = body.caption || '';
+    return res.json(result.rows);
+  } catch (error) {
+    console.error('Error mengambil album:', error);
 
-    if (!req.file) {
-      return res.status(400).json({ error: 'File gambar wajib diunggah!' });
-    }
-
-    if (!user_id) {
-      return res.status(400).json({ error: 'User ID tidak ditemukan. Silakan login ulang.' });
-    }
-
-    const image_url = `/uploads/${req.file.filename}`;
-
-    const newPhoto = await pool.query(
-      `INSERT INTO albums (user_id, image_url, caption) 
-       VALUES ($1, $2, $3) RETURNING *`,
-      [user_id, image_url, caption]
-    );
-
-    res.status(201).json({
-      message: 'Foto berhasil diunggah ke album keluarga!',
-      photo: newPhoto.rows[0]
+    return res.status(500).json({
+      error: 'Gagal memuat album foto.'
     });
-  } catch (err) {
-    console.error('Error saat upload foto:', err);
-    res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
   }
 });
 
-// 6. API DELETE /api/albums/:id
-app.delete('/api/albums/:id', checkSingleDevice, async (req, res) => {
-    const { id } = req.params;
-    const userId = req.headers['x-user-id'] || req.body.user_id; 
+app.post(
+  '/api/albums',
+  checkSingleDevice,
+  imageUpload.single('image'),
+  async (req, res) => {
+    const userId = req.userId;
 
     try {
-        const result = await pool.query('DELETE FROM albums WHERE id = $1 AND user_id = $2 RETURNING id', [id, userId]);
-        
-        if (result.rowCount === 0) {
-            return res.status(403).json({ error: 'Anda tidak memiliki izin untuk menghapus foto ini!' });
-        }
+      if (!req.file) {
+        return res.status(400).json({
+          error: 'File gambar wajib diunggah.'
+        });
+      }
 
-        res.json({ message: 'Foto berhasil dihapus dari album.' });
-    } catch (err) {
-        console.error('Gagal menghapus foto:', err);
-        res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
+      const caption = String(req.body.caption || '').trim();
+      const imageUrl = getUploadUrl(req.file.filename);
+
+      const result = await pool.query(
+        `
+          INSERT INTO albums (user_id, image_url, caption)
+          VALUES ($1, $2, $3)
+          RETURNING id, user_id, image_url, caption, created_at
+        `,
+        [userId, imageUrl, escapeHTML(caption)]
+      );
+
+      return res.status(201).json({
+        message: 'Foto berhasil diunggah ke album keluarga.',
+        photo: result.rows[0]
+      });
+    } catch (error) {
+      deleteUploadedFile(req.file);
+      console.error('Error upload album:', error);
+
+      return res.status(500).json({
+        error: 'Terjadi kesalahan pada server.'
+      });
     }
+  }
+);
+
+app.delete('/api/albums/:id', checkSingleDevice, async (req, res) => {
+  const albumId = Number(req.params.id);
+  const userId = req.userId;
+
+  if (!Number.isInteger(albumId)) {
+    return res.status(400).json({
+      error: 'ID album tidak valid.'
+    });
+  }
+
+  try {
+    const result = await pool.query(
+      `
+        DELETE FROM albums
+        WHERE id = $1 AND user_id = $2
+        RETURNING image_url
+      `,
+      [albumId, userId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(403).json({
+        error: 'Anda tidak memiliki izin untuk menghapus foto ini.'
+      });
+    }
+
+    const imageUrl = result.rows[0].image_url;
+
+    if (imageUrl) {
+      deleteUploadedFile({
+        path: path.join(__dirname, imageUrl.replace(/^\//, ''))
+      });
+    }
+
+    return res.json({
+      message: 'Foto berhasil dihapus dari album.'
+    });
+  } catch (error) {
+    console.error('Error menghapus album:', error);
+
+    return res.status(500).json({
+      error: 'Terjadi kesalahan pada server.'
+    });
+  }
 });
 
-// 7. API GET /api/agendas
+// ==========================================
+// AGENDAS
+// ==========================================
+
 app.get('/api/agendas', checkSingleDevice, async (req, res) => {
   try {
-    const agendasResult = await pool.query('SELECT * FROM agendas ORDER BY event_date ASC');
-    res.status(200).json(agendasResult.rows);
-  } catch (err) {
-    console.error('Error mengambil data agenda:', err);
-    res.status(500).json({ error: 'Gagal memuat agenda keluarga.' });
+    const result = await pool.query(`
+      SELECT id, title, event_date, description, created_at
+      FROM agendas
+      ORDER BY event_date ASC, created_at ASC
+    `);
+
+    return res.json(result.rows);
+  } catch (error) {
+    console.error('Error mengambil agenda:', error);
+
+    return res.status(500).json({
+      error: 'Gagal memuat agenda keluarga.'
+    });
   }
 });
 
-// 8. API POST /api/agendas
 app.post('/api/agendas', checkSingleDevice, async (req, res) => {
-  let { title, event_date, description } = req.body;
+  let {
+    title,
+    event_date,
+    description
+  } = req.body;
 
   if (!title || !event_date) {
-    return res.status(400).json({ error: 'Judul dan tanggal acara wajib diisi!' });
-  }
-
-  title = escapeHTML(title.trim());
-  description = escapeHTML(description ? description.trim() : '');
-
-  try {
-    const newAgenda = await pool.query(
-      `INSERT INTO agendas (title, event_date, description) 
-       VALUES ($1, $2, $3) RETURNING *`,
-      [title, event_date, description]
-    );
-
-    res.status(201).json({
-      message: 'Agenda keluarga berhasil ditambahkan!',
-      agenda: newAgenda.rows[0]
+    return res.status(400).json({
+      error: 'Judul dan tanggal acara wajib diisi.'
     });
-  } catch (err) {
-    console.error('Error saat menambah agenda:', err);
-    res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
   }
-});
 
-// 9. API POST /api/update-photo
-app.post('/api/update-photo', checkSingleDevice, upload.single('image'), async (req, res) => {
-  try {
-    const { user_id } = req.body;
+  title = String(title).trim();
+  description = String(description || '').trim();
 
-    if (!req.file) {
-      return res.status(400).json({ error: 'File foto profil wajib diunggah!' });
-    }
-
-    if (!user_id) {
-      return res.status(400).json({ error: 'User ID tidak ditemukan!' });
-    }
-
-    const photo_url = `/uploads/${req.file.filename}`;
-
-    const updateResult = await pool.query(
-      `UPDATE users SET photo_url = $1 WHERE id = $2 RETURNING id, phone, name, birthdate, photo_url`,
-      [photo_url, user_id]
-    );
-
-    if (updateResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Pengguna tidak ditemukan.' });
-    }
-
-    res.status(200).json({
-      message: 'Foto profil berhasil diperbarui!',
-      user: updateResult.rows[0]
+  if (title.length > 150) {
+    return res.status(400).json({
+      error: 'Judul maksimal 150 karakter.'
     });
-  } catch (err) {
-    console.error('Error saat memperbarui foto profil:', err);
-    res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
   }
-});
 
-// 10. API POST /api/send-message
-app.post('/api/send-message', checkSingleDevice, upload.single('media'), async (req, res) => {
   try {
-    let { user_id, message, sticker_url, reply_to_id, client_time } = req.body;
-    let image_url = null;
-    let audio_url = null;
-
-    message = escapeHTML(message);
-
-    if (req.file) {
-      if (req.file.mimetype.startsWith('audio/') || req.file.originalname.endsWith('.webm')) {
-        audio_url = `/uploads/${req.file.filename}`;
-      } else {
-        image_url = `/uploads/${req.file.filename}`;
-      }
-    }
-
-    const finalStickerUrl = sticker_url || null;
-
-    if (!user_id || (!message && !image_url && !finalStickerUrl && !audio_url)) {
-      return res.status(400).json({ error: 'Pesan tidak boleh kosong!' });
-    }
-
-    const insertResult = await pool.query(
-      `INSERT INTO messages (user_id, message, image_url, sticker_url, audio_url, reply_to_id, client_time) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+    const result = await pool.query(
+      `
+        INSERT INTO agendas (title, event_date, description)
+        VALUES ($1, $2, $3)
+        RETURNING id, title, event_date, description, created_at
+      `,
       [
-        user_id, 
-        message || '', 
-        image_url, 
-        finalStickerUrl, 
-        audio_url, 
-        reply_to_id ? parseInt(reply_to_id) : null, 
-        client_time || null
+        escapeHTML(title),
+        event_date,
+        escapeHTML(description)
       ]
     );
 
-    const userResult = await pool.query('SELECT name FROM users WHERE id = $1', [user_id]);
-    const userName = userResult.rows[0] ? userResult.rows[0].name : 'Keluarga';
+    return res.status(201).json({
+      message: 'Agenda keluarga berhasil ditambahkan.',
+      agenda: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error menambah agenda:', error);
 
-    const savedMsg = insertResult.rows[0];
-
-    let replyText = null;
-    if (savedMsg.reply_to_id) {
-      const replyQuery = await pool.query('SELECT message FROM messages WHERE id = $1', [savedMsg.reply_to_id]);
-      if (replyQuery.rows.length > 0) {
-        replyText = replyQuery.rows[0].message || '(Lampiran Media)';
-      }
-    }
-
-    const displayTime = savedMsg.client_time || new Date(savedMsg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    const messagePayload = {
-      id: savedMsg.id,
-      user_id: savedMsg.user_id,
-      name: userName,
-      message: savedMsg.message,
-      image_url: savedMsg.image_url,
-      sticker_url: savedMsg.sticker_url,
-      audio_url: savedMsg.audio_url,
-      reply_to_id: savedMsg.reply_to_id,
-      reply_text: replyText,
-      time: displayTime,
-      is_deleted: savedMsg.is_deleted
-    };
-
-    io.emit('receive_message', messagePayload);
-
-    res.status(201).json({ message: 'Pesan berhasil dikirim!', data: messagePayload });
-  } catch (err) {
-    console.error('Gagal mengirim pesan:', err);
-    res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
+    return res.status(500).json({
+      error: 'Terjadi kesalahan pada server.'
+    });
   }
 });
+
+// ==========================================
+// UPDATE PHOTO
+// ==========================================
+
+app.post(
+  '/api/update-photo',
+  checkSingleDevice,
+  imageUpload.single('image'),
+  async (req, res) => {
+    const userId = req.userId;
+
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          error: 'File foto profil wajib diunggah.'
+        });
+      }
+
+      const oldUserResult = await pool.query(
+        'SELECT photo_url FROM users WHERE id = $1',
+        [userId]
+      );
+
+      if (oldUserResult.rows.length === 0) {
+        deleteUploadedFile(req.file);
+
+        return res.status(404).json({
+          error: 'Pengguna tidak ditemukan.'
+        });
+      }
+
+      const oldPhotoUrl = oldUserResult.rows[0].photo_url;
+      const photoUrl = getUploadUrl(req.file.filename);
+
+      const result = await pool.query(
+        `
+          UPDATE users
+          SET photo_url = $1
+          WHERE id = $2
+          RETURNING id, phone, name, birthdate, photo_url
+        `,
+        [photoUrl, userId]
+      );
+
+      if (oldPhotoUrl) {
+        deleteUploadedFile({
+          path: path.join(__dirname, oldPhotoUrl.replace(/^\//, ''))
+        });
+      }
+
+      return res.json({
+        message: 'Foto profil berhasil diperbarui.',
+        user: result.rows[0]
+      });
+    } catch (error) {
+      deleteUploadedFile(req.file);
+      console.error('Error update foto profil:', error);
+
+      return res.status(500).json({
+        error: 'Terjadi kesalahan pada server.'
+      });
+    }
+  }
+);
+
+// ==========================================
+// MESSAGES
+// ==========================================
+
+app.post(
+  '/api/send-message',
+  checkSingleDevice,
+  mediaUpload.single('media'),
+  async (req, res) => {
+    const userId = req.userId;
+
+    try {
+      let {
+        message,
+        sticker_url,
+        reply_to_id,
+        client_time
+      } = req.body;
+
+      message = typeof message === 'string'
+        ? escapeHTML(message.trim())
+        : '';
+
+      let imageUrl = null;
+      let audioUrl = null;
+
+      if (req.file) {
+        if (req.file.mimetype.startsWith('audio/')) {
+          audioUrl = getUploadUrl(req.file.filename);
+        } else {
+          imageUrl = getUploadUrl(req.file.filename);
+        }
+      }
+
+      const stickerUrl = sticker_url
+        ? String(sticker_url).trim()
+        : null;
+
+      const replyToId = reply_to_id
+        ? Number.parseInt(reply_to_id, 10)
+        : null;
+
+      if (
+        !message &&
+        !imageUrl &&
+        !audioUrl &&
+        !stickerUrl
+      ) {
+        deleteUploadedFile(req.file);
+
+        return res.status(400).json({
+          error: 'Pesan tidak boleh kosong.'
+        });
+      }
+
+      if (replyToId !== null && !Number.isInteger(replyToId)) {
+        deleteUploadedFile(req.file);
+
+        return res.status(400).json({
+          error: 'ID pesan balasan tidak valid.'
+        });
+      }
+
+      const result = await pool.query(
+        `
+          INSERT INTO messages (
+            user_id,
+            message,
+            image_url,
+            sticker_url,
+            audio_url,
+            reply_to_id,
+            client_time
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
+          RETURNING
+            id,
+            user_id,
+            message,
+            image_url,
+            sticker_url,
+            audio_url,
+            reply_to_id,
+            is_deleted,
+            created_at,
+            client_time
+        `,
+        [
+          userId,
+          message,
+          imageUrl,
+          stickerUrl,
+          audioUrl,
+          replyToId,
+          client_time || null
+        ]
+      );
+
+      const savedMessage = result.rows[0];
+
+      const userResult = await pool.query(
+        'SELECT name FROM users WHERE id = $1',
+        [userId]
+      );
+
+      const replyResult = savedMessage.reply_to_id
+        ? await pool.query(
+          'SELECT message FROM messages WHERE id = $1',
+          [savedMessage.reply_to_id]
+        )
+        : { rows: [] };
+
+      const replyText = replyResult.rows.length > 0
+        ? getSafeMessageText(replyResult.rows[0].message)
+        : null;
+
+      const displayTime = savedMessage.client_time ||
+        new Date(savedMessage.created_at).toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+      const messagePayload = {
+        id: savedMessage.id,
+        user_id: savedMessage.user_id,
+        name: userResult.rows[0]?.name || 'Keluarga',
+        message: savedMessage.message,
+        image_url: savedMessage.image_url,
+        sticker_url: savedMessage.sticker_url,
+        audio_url: savedMessage.audio_url,
+        reply_to_id: savedMessage.reply_to_id,
+        reply_text: replyText,
+        time: displayTime,
+        is_deleted: savedMessage.is_deleted
+      };
+
+      io.emit('receive_message', messagePayload);
+
+      return res.status(201).json({
+        message: 'Pesan berhasil dikirim.',
+        data: messagePayload
+      });
+    } catch (error) {
+      deleteUploadedFile(req.file);
+      console.error('Error mengirim pesan:', error);
+
+      return res.status(500).json({
+        error: 'Terjadi kesalahan pada server.'
+      });
+    }
+  }
+);
+
+app.delete('/api/messages/:id', checkSingleDevice, async (req, res) => {
+  const messageId = Number(req.params.id);
+  const userId = req.userId;
+
+  if (!Number.isInteger(messageId)) {
+    return res.status(400).json({
+      error: 'ID pesan tidak valid.'
+    });
+  }
+
+  try {
+    const result = await pool.query(
+      `
+        UPDATE messages
+        SET
+          is_deleted = TRUE,
+          message = $1,
+          image_url = NULL,
+          sticker_url = NULL,
+          audio_url = NULL
+        WHERE id = $2 AND user_id = $3
+        RETURNING id
+      `,
+      [
+        'Pesan telah dihapus',
+        messageId,
+        userId
+      ]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(403).json({
+        error: 'Anda tidak memiliki hak untuk menghapus pesan ini.'
+      });
+    }
+
+    io.emit('message_deleted', {
+      id: messageId
+    });
+
+    return res.json({
+      message: 'Pesan berhasil dihapus.'
+    });
+  } catch (error) {
+    console.error('Error menghapus pesan:', error);
+
+    return res.status(500).json({
+      error: 'Terjadi kesalahan pada server.'
+    });
+  }
+});
+
+app.delete('/api/messages', checkSingleDevice, async (req, res) => {
+  const userId = req.userId;
+
+  try {
+    // Hanya menghapus pesan milik user yang sedang login.
+    // Jangan menggunakan DELETE FROM messages tanpa filter user.
+    const result = await pool.query(
+      'DELETE FROM messages WHERE user_id = $1',
+      [userId]
+    );
+
+    io.emit('messages_deleted_by_user', {
+      user_id: userId
+    });
+
+    return res.json({
+      message: `${result.rowCount} pesan berhasil dihapus.`
+    });
+  } catch (error) {
+    console.error('Error membersihkan pesan:', error);
+
+    return res.status(500).json({
+      error: 'Terjadi kesalahan pada server.'
+    });
+  }
+});
+
+// ==========================================
+// EMAIL DAN PEMULIHAN PASSWORD
+// ==========================================
+
+const transporter = nodemailer.createTransport({
+  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+  port: Number(process.env.EMAIL_PORT) || 465,
+  secure: process.env.EMAIL_SECURE !== 'false',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
+
+app.put('/api/update-email', checkSingleDevice, async (req, res) => {
+  const userId = req.userId;
+  const email = String(req.body.email || '').trim().toLowerCase();
+
+  if (!email) {
+    return res.status(400).json({
+      error: 'Email wajib diisi.'
+    });
+  }
+
+  if (!isValidEmail(email)) {
+    return res.status(400).json({
+      error: 'Format email tidak valid.'
+    });
+  }
+
+  try {
+    await pool.query(
+      'UPDATE users SET email = $1 WHERE id = $2',
+      [email, userId]
+    );
+
+    return res.json({
+      message: 'Email pemulihan berhasil disimpan.'
+    });
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({
+        error: 'Email sudah digunakan oleh akun lain.'
+      });
+    }
+
+    console.error('Error update email:', error);
+
+    return res.status(500).json({
+      error: 'Terjadi kesalahan pada server.'
+    });
+  }
+});
+
+app.post('/api/forgot-password', async (req, res) => {
+  const phone = normalizePhone(req.body.phone);
+
+  if (!phone) {
+    return res.status(400).json({
+      error: 'Nomor telepon wajib diisi.'
+    });
+  }
+
+  try {
+    const result = await pool.query(
+      `
+        SELECT id, email, name
+        FROM users
+        WHERE phone = $1
+      `,
+      [phone]
+    );
+
+    if (result.rows.length === 0 || !result.rows[0].email) {
+      return res.status(200).json({
+        message: 'Jika data cocok, kode pemulihan akan dikirim ke email.'
+      });
+    }
+
+    const user = result.rows[0];
+    const otp = crypto.randomInt(100000, 1000000).toString();
+    const expiry = Date.now() + (15 * 60 * 1000);
+
+    await pool.query(
+      `
+        UPDATE users
+        SET reset_token = $1, reset_token_expiry = $2
+        WHERE id = $3
+      `,
+      [otp, expiry, user.id]
+    );
+
+    const mailOptions = {
+      from: `"Kitachat Family Hub" <${process.env.EMAIL_USER}>`,
+      to: user.email,
+      subject: 'Kode Pemulihan Password - Kitachat',
+      text: [
+        `Halo ${user.name},`,
+        '',
+        'Seseorang mencoba mereset password akun Kitachat Anda.',
+        'Gunakan kode OTP berikut untuk melanjutkan:',
+        '',
+        otp,
+        '',
+        'Kode ini berlaku selama 15 menit.',
+        'Jangan berikan kode ini kepada siapa pun.'
+      ].join('\n')
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    return res.json({
+      message: 'Kode OTP telah dikirim ke email pemulihan Anda.'
+    });
+  } catch (error) {
+    console.error('Error forgot-password:', error);
+
+    return res.status(500).json({
+      error: 'Gagal mengirim email OTP.'
+    });
+  }
+});
+
+app.post('/api/reset-password', async (req, res) => {
+  const phone = normalizePhone(req.body.phone);
+  const otp = String(req.body.otp || '').trim();
+  const newPassword = req.body.new_password;
+
+  if (!phone || !otp || !newPassword) {
+    return res.status(400).json({
+      error: 'Data reset password tidak lengkap.'
+    });
+  }
+
+  if (!isValidPassword(newPassword)) {
+    return res.status(400).json({
+      error: `Password minimal ${PASSWORD_MIN_LENGTH} karakter.`
+    });
+  }
+
+  try {
+    const result = await pool.query(
+      `
+        SELECT id, reset_token, reset_token_expiry
+        FROM users
+        WHERE phone = $1
+      `,
+      [phone]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({
+        error: 'Kode OTP salah atau tidak valid.'
+      });
+    }
+
+    const user = result.rows[0];
+
+    if (
+      !user.reset_token ||
+      user.reset_token !== otp ||
+      !user.reset_token_expiry ||
+      Date.now() > Number(user.reset_token_expiry)
+    ) {
+      return res.status(400).json({
+        error: 'Kode OTP salah atau sudah kedaluwarsa.'
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    await pool.query(
+      `
+        UPDATE users
+        SET
+          password = $1,
+          reset_token = NULL,
+          reset_token_expiry = NULL,
+          session_token = NULL
+        WHERE id = $2
+      `,
+      [hashedPassword, user.id]
+    );
+
+    return res.json({
+      message: 'Password berhasil diubah. Silakan login kembali.'
+    });
+  } catch (error) {
+    console.error('Error reset-password:', error);
+
+    return res.status(500).json({
+      error: 'Terjadi kesalahan saat memperbarui password.'
+    });
+  }
+});
+
+// ==========================================
+// SOCKET.IO AUTHENTICATION
+// ==========================================
 
 const activeUsers = new Map();
 
-// 11. API DELETE /api/messages/:id
-app.delete('/api/messages/:id', checkSingleDevice, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.headers['x-user-id'] || req.body.user_id;
+io.use(async (socket, next) => {
+  const auth = socket.handshake.auth || {};
+  const userId = auth.userId;
+  const sessionToken = auth.sessionToken;
 
+  if (!userId || !sessionToken) {
+    return next(new Error('Unauthorized'));
+  }
+
+  try {
     const result = await pool.query(
-        `UPDATE messages 
-         SET is_deleted = TRUE, 
-             message = $1, 
-             image_url = NULL, 
-             sticker_url = NULL, 
-             audio_url = NULL 
-         WHERE id = $2 AND user_id = $3 RETURNING id`, 
-        ['Pesan telah dihapus', id, userId]
+      `
+        SELECT id
+        FROM users
+        WHERE id = $1 AND session_token = $2
+      `,
+      [userId, sessionToken]
     );
-    
-    if (result.rowCount === 0) {
-        return res.status(403).json({ error: 'Anda tidak memiliki hak untuk menghapus pesan orang lain.' });
+
+    if (result.rows.length === 0) {
+      return next(new Error('Unauthorized'));
     }
 
-    io.emit('message_deleted', { id: parseInt(id) });
-    res.status(200).json({ message: 'Pesan berhasil dihapus.' });
-  } catch (err) {
-    console.error('Gagal menghapus pesan:', err);
-    res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
+    socket.userId = String(userId);
+    next();
+  } catch (error) {
+    console.error('Socket authentication error:', error);
+    next(new Error('Authentication failed'));
   }
 });
 
-// 12. API DELETE /api/messages
-app.delete('/api/messages', checkSingleDevice, async (req, res) => {
-  try {
-    await pool.query('DELETE FROM messages');
-    io.emit('chat_cleared');
-    res.status(200).json({ message: 'Semua riwayat obrolan berhasil dibersihkan!' });
-  } catch (err) {
-    console.error('Gagal membersihkan obrolan:', err);
-    res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
-  }
-});
+io.on('connection', async socket => {
+  console.log('Anggota keluarga terhubung:', socket.id);
 
-// ==========================================
-// FITUR EMAIL PEMULIHAN (LUPA PASSWORD) - DIOPTIMALKAN
-// ==========================================
-const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, 
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    }
-});
-
-// API: Simpan Email Pemulihan di Pengaturan
-app.put('/api/update-email', checkSingleDevice, async (req, res) => {
-    const userId = req.headers['x-user-id'] || req.body.user_id;
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ error: 'Email wajib diisi!' });
-
-    try {
-        await pool.query('UPDATE users SET email = $1 WHERE id = $2', [email.trim(), userId]);
-        res.status(200).json({ message: 'Email pemulihan berhasil disimpan!' });
-    } catch (err) {
-        console.error('Error update email:', err);
-        res.status(500).json({ error: 'Email mungkin sudah dipakai oleh akun lain atau terjadi kesalahan.' });
-    }
-});
-
-// API: Kirim OTP ke Email
-app.post('/api/forgot-password', async (req, res) => {
-    let { phone } = req.body;
-    if (!phone) return res.status(400).json({ error: 'Nomor telepon wajib diisi.' });
-    phone = phone.replace(/[^0-9]/g, '');
-
-    try {
-        const user = await pool.query('SELECT id, email, name FROM users WHERE phone = $1', [phone]);
-        if (user.rows.length === 0) return res.status(404).json({ error: 'Nomor telepon tidak terdaftar.' });
-
-        const userData = user.rows[0];
-        if (!userData.email) return res.status(400).json({ error: 'Akun ini belum mendaftarkan email pemulihan di menu Pengaturan!' });
-
-        const otp = Math.floor(100000 + Math.random() * 900000).toString(); // OTP 6 Digit
-        const expiry = Date.now() + 15 * 60 * 1000; // Berlaku 15 menit
-
-        await pool.query('UPDATE users SET reset_token = $1, reset_token_expiry = $2 WHERE id = $3', [otp, expiry, userData.id]);
-
-        const mailOptions = {
-            from: `"Kitachat Family Hub" <${process.env.EMAIL_USER}>`,
-            to: userData.email,
-            subject: 'Kode Pemulihan Password - Kitachat',
-            text: `Halo ${userData.name},\n\nSeseorang mencoba mereset sandi akun Kitachat Anda.\nGunakan kode OTP berikut untuk melanjutkan:\n\n${otp}\n\nKode ini berlaku selama 15 menit. JANGAN BERIKAN KODE INI KEPADA SIAPAPUN.`
-        };
-
-        transporter.sendMail(mailOptions, (error, info) => {
-            if (error) {
-                console.error('Gagal kirim email Nodemailer:', error);
-                return res.status(500).json({ error: 'Gagal mengirim email OTP. Periksa konfigurasi EMAIL_USER/EMAIL_PASS di server.' });
-            }
-            res.status(200).json({ message: 'Kode OTP telah dikirim ke email pemulihan Anda!' });
-        });
-    } catch (err) {
-        console.error('Error forgot-password:', err);
-        res.status(500).json({ error: 'Terjadi kesalahan server.' });
-    }
-});
-
-// API: Verifikasi OTP dan Ganti Password
-app.post('/api/reset-password', async (req, res) => {
-    let { phone, otp, new_password } = req.body;
-    if (!phone || !otp || !new_password) {
-        return res.status(400).json({ error: 'Data reset password tidak lengkap!' });
-    }
-    phone = phone.replace(/[^0-9]/g, '');
-
-    try {
-        const user = await pool.query('SELECT id, reset_token, reset_token_expiry FROM users WHERE phone = $1', [phone]);
-        if (user.rows.length === 0) {
-            return res.status(404).json({ error: 'Nomor telepon tidak ditemukan.' });
-        }
-
-        const userData = user.rows[0];
-
-        if (!userData.reset_token || userData.reset_token !== otp.trim()) {
-            return res.status(400).json({ error: 'Kode OTP salah atau tidak valid!' });
-        }
-        if (Date.now() > Number(userData.reset_token_expiry)) {
-            return res.status(400).json({ error: 'Kode OTP sudah kedaluwarsa!' });
-        }
-
-        const saltRounds = 10;
-        const hashedNewPassword = await bcrypt.hash(new_password, saltRounds);
-        
-        await pool.query(
-            'UPDATE users SET password = $1, reset_token = NULL, reset_token_expiry = NULL, session_token = NULL WHERE id = $2', 
-            [hashedNewPassword, userData.id]
-        );
-        
-        res.status(200).json({ message: 'Password berhasil diubah! Silakan login kembali dengan password baru.' });
-    } catch (err) {
-        console.error('Error reset-password:', err);
-        res.status(500).json({ error: 'Terjadi kesalahan server saat memperbarui password.' });
-    }
-});
-
-
-// Konfigurasi Socket.io
-io.on('connection', async (socket) => {
-  console.log('Seorang anggota keluarga terhubung:', socket.id);
+  activeUsers.set(socket.userId, socket.id);
 
   try {
-    const historyResult = await pool.query(
-      `SELECT m.id, m.user_id, m.message, m.image_url, m.sticker_url, m.audio_url, m.reply_to_id, m.is_deleted, m.created_at, m.client_time, u.name 
-       FROM messages m
-       JOIN users u ON m.user_id = u.id 
-       ORDER BY m.created_at ASC LIMIT 50`
-    );
-    
+    const result = await pool.query(`
+      SELECT *
+      FROM (
+        SELECT
+          m.id,
+          m.user_id,
+          m.message,
+          m.image_url,
+          m.sticker_url,
+          m.audio_url,
+          m.reply_to_id,
+          m.is_deleted,
+          m.created_at,
+          m.client_time,
+          u.name
+        FROM messages m
+        JOIN users u ON m.user_id = u.id
+        ORDER BY m.created_at DESC
+        LIMIT 50
+      ) recent_messages
+      ORDER BY created_at ASC
+    `);
+
     const messageMap = new Map();
-    historyResult.rows.forEach(row => messageMap.set(row.id, row.message || '(Media)'));
 
-    const formattedHistory = historyResult.rows.map(row => ({
+    result.rows.forEach(row => {
+      messageMap.set(
+        row.id,
+        row.is_deleted
+          ? 'Pesan telah dihapus'
+          : getSafeMessageText(row.message)
+      );
+    });
+
+    const history = result.rows.map(row => ({
       id: row.id,
       user_id: row.user_id,
       name: row.name,
-      message: row.is_deleted ? 'Pesan telah dihapus' : row.message,
+      message: row.is_deleted
+        ? 'Pesan telah dihapus'
+        : row.message,
       image_url: row.is_deleted ? null : row.image_url,
       sticker_url: row.is_deleted ? null : row.sticker_url,
       audio_url: row.is_deleted ? null : row.audio_url,
       reply_to_id: row.reply_to_id,
-      reply_text: row.reply_to_id ? messageMap.get(row.reply_to_id) : null,
-      time: row.client_time || new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      reply_text: row.reply_to_id
+        ? messageMap.get(row.reply_to_id) || '(Pesan tidak tersedia)'
+        : null,
+      time: row.client_time || new Date(row.created_at)
+        .toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit'
+        }),
       is_deleted: row.is_deleted
     }));
 
-    socket.emit('chat_history', formattedHistory);
-  } catch (err) {
-    console.error('Gagal memuat riwayat chat:', err);
+    socket.emit('chat_history', history);
+  } catch (error) {
+    console.error('Gagal memuat histori chat:', error);
   }
 
-  socket.on('register_call_user', (userId) => {
-    if (userId) {
-      socket.userId = String(userId);
-      activeUsers.set(socket.userId, socket.id);
+  socket.on('call_user', data => {
+    if (!data || !data.toUserId || !data.offer) {
+      return;
     }
-  });
 
-  socket.on('call_user', (data) => {
     const targetSocketId = activeUsers.get(String(data.toUserId));
-    if (targetSocketId) {
-      io.to(targetSocketId).emit('incoming_call', {
-        fromSocketId: socket.id,
-        fromUserId: socket.userId,
-        callerName: data.callerName,
-        offer: data.offer,
-        toUserId: data.toUserId
-      });
+
+    if (!targetSocketId) {
+      return;
     }
+
+    io.to(targetSocketId).emit('incoming_call', {
+      fromSocketId: socket.id,
+      fromUserId: socket.userId,
+      callerName: data.callerName,
+      offer: data.offer,
+      toUserId: String(data.toUserId)
+    });
   });
 
-  socket.on('make_answer', (data) => {
+  socket.on('make_answer', data => {
+    if (!data || !data.toSocketId || !data.answer) {
+      return;
+    }
+
     io.to(data.toSocketId).emit('call_answered', {
       answer: data.answer
     });
   });
 
-  socket.on('ice_candidate', (data) => {
+  socket.on('ice_candidate', data => {
+    if (!data || !data.targetSocketId || !data.candidate) {
+      return;
+    }
+
     io.to(data.targetSocketId).emit('ice_candidate', {
       candidate: data.candidate
     });
   });
 
-  socket.on('end_call', (data) => {
+  socket.on('end_call', data => {
     if (data && data.toUserId) {
       const targetSocketId = activeUsers.get(String(data.toUserId));
+
       if (targetSocketId) {
         io.to(targetSocketId).emit('call_ended');
       }
     }
+
     socket.emit('call_ended');
   });
 
   socket.on('disconnect', () => {
-    if (socket.userId && activeUsers.get(socket.userId) === socket.id) {
+    if (
+      socket.userId &&
+      activeUsers.get(socket.userId) === socket.id
+    ) {
       activeUsers.delete(socket.userId);
     }
+
     console.log('Anggota keluarga terputus:', socket.id);
   });
 });
 
+// ==========================================
+// UPDATE PASSWORD
+// ==========================================
 
-// API: UPDATE PASSWORD
 app.put('/api/update-password', checkSingleDevice, async (req, res) => {
-    const userId = req.headers['x-user-id'] || req.body.user_id;
-    const { old_password, new_password } = req.body;
+  const userId = req.userId;
+  const {
+    old_password,
+    new_password
+  } = req.body;
 
-    if (!old_password || !new_password) {
-        return res.status(400).json({ error: 'Password lama dan password baru wajib diisi!' });
+  if (!old_password || !new_password) {
+    return res.status(400).json({
+      error: 'Password lama dan password baru wajib diisi.'
+    });
+  }
+
+  if (!isValidPassword(new_password)) {
+    return res.status(400).json({
+      error: `Password baru minimal ${PASSWORD_MIN_LENGTH} karakter.`
+    });
+  }
+
+  try {
+    const result = await pool.query(
+      'SELECT password FROM users WHERE id = $1',
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        error: 'Pengguna tidak ditemukan.'
+      });
     }
 
+    const passwordValid = await bcrypt.compare(
+      old_password,
+      result.rows[0].password
+    );
+
+    if (!passwordValid) {
+      return res.status(401).json({
+        error: 'Password lama salah.'
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(new_password, 12);
+
+    await pool.query(
+      'UPDATE users SET password = $1 WHERE id = $2',
+      [hashedPassword, userId]
+    );
+
+    return res.json({
+      message: 'Password berhasil diperbarui.'
+    });
+  } catch (error) {
+    console.error('Error update password:', error);
+
+    return res.status(500).json({
+      error: 'Terjadi kesalahan pada server.'
+    });
+  }
+});
+
+// ==========================================
+// ERROR HANDLER
+// ==========================================
+
+app.use((error, req, res, next) => {
+  if (res.headersSent) {
+    return next(error);
+  }
+
+  if (error instanceof multer.MulterError) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({
+        error: 'Ukuran file terlalu besar. Maksimal 10MB.'
+      });
+    }
+
+    return res.status(400).json({
+      error: `Upload gagal: ${error.message}`
+    });
+  }
+
+  if (error) {
+    console.error('Unhandled server error:', error);
+
+    return res.status(400).json({
+      error: error.message || 'Permintaan tidak valid.'
+    });
+  }
+
+  next();
+});
+
+// ==========================================
+// GRACEFUL SHUTDOWN
+// ==========================================
+
+async function shutdown(signal) {
+  console.log(`${signal} diterima. Menutup server...`);
+
+  server.close(async () => {
     try {
-        const userResult = await pool.query('SELECT password FROM users WHERE id = $1', [userId]);
-        if (userResult.rows.length === 0) {
-            return res.status(404).json({ error: 'Pengguna tidak ditemukan.' });
-        }
-
-        const hashedOldPassword = userResult.rows[0].password;
-
-        const isMatch = await bcrypt.compare(old_password, hashedOldPassword);
-        if (!isMatch) {
-            return res.status(401).json({ error: 'Password lama salah!' });
-        }
-
-        const saltRounds = 10;
-        const hashedNewPassword = await bcrypt.hash(new_password, saltRounds);
-
-        await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashedNewPassword, userId]);
-
-        res.status(200).json({ message: 'Password berhasil diperbarui!' });
-    } catch (err) {
-        console.error('Error update password:', err);
-        res.status(500).json({ error: 'Terjadi kesalahan pada server saat memperbarui password.' });
+      await pool.end();
+      console.log('Database pool berhasil ditutup.');
+      process.exit(0);
+    } catch (error) {
+      console.error('Gagal menutup database pool:', error);
+      process.exit(1);
     }
-});
-
-// Jalankan Inisialisasi DB lalu Nyalakan Server
-const PORT = process.env.PORT || 3000;
-initDB().then(() => {
-  server.listen(PORT, () => {
-    console.log(`Server Kitachat aktif di port ${PORT} dan siap digunakan di Volume!`);
   });
-});
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
+// ==========================================
+// START SERVER
+// ==========================================
+
+async function startServer() {
+  try {
+    await initDB();
+
+    server.listen(PORT, () => {
+      console.log(
+        `Server Kitachat aktif di port ${PORT}.`
+      );
+    });
+  } catch (error) {
+    console.error('Server gagal dijalankan:', error);
+    await pool.end();
+    process.exit(1);
+  }
+}
+
+startServer();
