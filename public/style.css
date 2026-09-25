@@ -171,12 +171,12 @@ form {
   gap: 12px;
 }
 
-form input {
+fform input {
   width: 100%;
   padding: 12px 14px;
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  background: var(--card-bg);
+  background: var(--card-bg); /* Pastikan input selalu bersih putih/gelap konsisten */
   color: var(--text-light);
   font-size: 0.95rem;
   outline: none;
@@ -590,7 +590,7 @@ form input:focus {
   gap: 12px;
   padding: 20px;
   border-top: 1px solid var(--border-color);
-  background: var(--bg-soft);
+  background: var(--card-bg); /* Diubah dari bg-soft agar bersih tanpa kotak warna berbeda */
 }
 
 #photo-preview {
