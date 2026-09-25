@@ -491,7 +491,7 @@ socket.on('receive_message', (data) => {
 
 socket.on('message_deleted', (data) => {
     const bubble = document.getElementById(`msg-bubble-${data.id}`);
-    if (bubble) bubble.innerHTML = `<div style="font-style: italic; color: gray; font-size: 13px;">Pesan telah dihapus</div>`;
+    if (bubble) bubble.innerHTML = `<div style="font-style: italic; color: gray; font-size: 13px;"><i class="fa-solid fa-ban"></i> Pesan telah dihapus</div>`;
 });
 
 function appendChatMessage(data) {
@@ -504,22 +504,47 @@ function appendChatMessage(data) {
     msgDiv.className = isSelf ? 'chat-bubble chat-outgoing' : 'chat-bubble chat-incoming';
 
     if (data.is_deleted) {
-        msgDiv.innerHTML = `<div style="font-style: italic; color: gray; font-size: 13px;">Pesan telah dihapus</div>`;
+        msgDiv.innerHTML = `<div style="font-style: italic; color: gray; font-size: 13px;"><i class="fa-solid fa-ban"></i> Pesan telah dihapus</div>`;
         container.appendChild(msgDiv);
         container.scrollTop = container.scrollHeight;
         return;
     }
 
     let contentHtml = '';
+    
     if (data.reply_text) {
         contentHtml += `<div style="border-left: 3px solid var(--primary-color); background: rgba(0,0,0,0.05); padding: 4px 8px; margin-bottom: 6px; border-radius: 4px; font-size: 11px; opacity: 0.8;"><b>Membalas:</b> ${data.reply_text}</div>`;
     }
-    if (data.message) contentHtml += `<div>${data.message}</div>`;
+    
+    // --- FITUR PARAGRAF & KLIK LINK ---
+    if (data.message) {
+        let formattedMsg = data.message.replace(
+            /(https?:\/\/[^\s]+)/g, 
+            '<a href="$1" target="_blank" rel="noopener noreferrer" style="color: #3498db; text-decoration: underline; word-break: break-all;">$1</a>'
+        );
+        formattedMsg = formattedMsg.replace(/\n/g, '<br>');
+        
+        contentHtml += `<div style="line-height: 1.4;">${formattedMsg}</div>`;
+    }
+    
     if (data.image_url) contentHtml += `<img src="${data.image_url}" style="max-width: 220px; border-radius: 8px; display: block; margin-top: 5px; cursor: pointer;" onclick="openZoomModal('${data.image_url}')">`;
     if (data.audio_url) contentHtml += `<audio controls preload="metadata" src="${data.audio_url}" style="max-width: 200px; height: 35px; margin-top: 5px;"></audio>`;
 
     const displayTime = data.time || '';
-    msgDiv.innerHTML = `${!isSelf ? `<div class="chat-sender-name">${data.name}</div>` : ''}${contentHtml}<div class="chat-time">${displayTime}</div>`;
+    
+    // --- FITUR HAPUS CHAT SATU-SATU (ICON TONG SAMPAH) ---
+    let deleteBtnHtml = '';
+    if (isSelf) {
+        deleteBtnHtml = `<span onclick="deleteMessage('${data.id}')" style="margin-left: 10px; color: #e74c3c; cursor: pointer; font-size: 13px;" title="Hapus Pesan"><i class="fa-solid fa-trash-can"></i></span>`;
+    }
+
+    msgDiv.innerHTML = `
+        ${!isSelf ? `<div class="chat-sender-name">${data.name}</div>` : ''}
+        ${contentHtml}
+        <div class="chat-time" style="display: flex; justify-content: ${isSelf ? 'flex-end' : 'flex-start'}; align-items: center; margin-top: 4px;">
+            ${displayTime} ${deleteBtnHtml}
+        </div>
+    `;
 
     setupMessageInteraction(msgDiv, data.id, data.message);
     container.appendChild(msgDiv);
