@@ -186,70 +186,70 @@
                     <img id="zoomed-img-element" src="" style="max-width: 90%; max-height: 90%; border-radius: 8px; object-fit: contain; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
                 </div>
 
-               <!-- Tab Agenda -->
+<!-- Tab Agenda (Gaya Kartu Terpadu / Unified Card Style) -->
 <div id="content-agenda" class="tab-content hidden" style="display: flex; flex-direction: column; height: 100%;">
     <div class="chat-header">
         <h3><i class="fa-solid fa-calendar-days"></i> Agenda & Ulang Tahun</h3>
     </div>
-    
-    <!-- Area Konten Agenda dengan Scroll -->
-    <div style="padding: 15px; overflow-y: auto; flex: 1;">
+
+    <!-- Area Konten dengan Scroll -->
+    <div style="padding: 20px; overflow-y: auto; flex: 1;">
         
-        <!-- Kontainer Kartu Terpadu (Unified Card Container) -->
-        <div style="background: var(--card-bg); border-radius: 14px; border: 1px solid var(--border-color); box-shadow: 0 1px 4px rgba(0,0,0,0.04); overflow: hidden; max-width: 600px; margin: 0 auto; width: 100%; display: flex; flex-direction: column;">
+        <!-- Kontainer Utama Polos (Meniru Gaya Kartu Pengaturan Luar) -->
+        <div style="background: var(--card-bg); border-radius: 14px; border: 1px solid var(--border-color); box-shadow: 0 1px 4px rgba(0,0,0,0.04); overflow: hidden; max-width: 600px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; padding: 8px 0;">
             
-            <!-- 1. Daftar Ulang Tahun Anggota -->
-            <div style="padding: 20px; border-bottom: 1px solid var(--border-color);">
+            <!-- Bagian 1: Daftar Ulang Tahun Anggota -->
+            <div style="padding: 16px 24px;">
                 <h4 style="margin: 0 0 12px 0; color: var(--primary-color); font-size: 15px; display: flex; align-items: center; gap: 8px;">
                     <i class="fa-solid fa-cake-candles"></i> Daftar Ulang Tahun Anggota
                 </h4>
                 <div id="birthday-list-container" style="display: flex; flex-direction: column; gap: 10px;">
-                    <!-- Data ulang tahun dimuat otomatis oleh app.js -->
+                    <!-- Data ulang tahun akan dimuat otomatis di sini oleh app.js -->
                 </div>
             </div>
 
-            <!-- 2. Tambah Agenda Keluarga (Model Kartu Interaktif Sederhana) -->
-            <div style="padding: 20px; border-bottom: 1px solid var(--border-color);">
-                
-                <!-- Tombol Pemicu Utama (Diketuk untuk membuka form) -->
+            <!-- Bagian 2: Tambah Agenda Keluarga (Interaktif Sederhana) -->
+            <div style="padding: 16px 24px;">
                 <div onclick="toggleAgendaForm()" style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
                     <div style="display: flex; align-items: center; gap: 12px;">
-                        <div style="width: 38px; height: 38px; border-radius: 50%; background: var(--primary-light); display: flex; align-items: center; justify-content: center; color: var(--primary-color); font-size: 16px;">
+                        <div style="width: 38px; height: 38px; border-radius: 50%; background: var(--primary-light); display: flex; align-items: center; justify-content: center; color: var(--primary-color);">
                             <i class="fa-solid fa-calendar-plus"></i>
                         </div>
                         <div>
                             <h4 style="margin: 0; color: var(--text-light); font-size: 14px; font-weight: 600;">Tambah Agenda Keluarga</h4>
-                            <p style="margin: 2px 0 0 0; font-size: 12px; color: gray;" id="agenda-toggle-label">Ketuk untuk membuat jadwal acara baru</p>
+                            <p style="margin: 2px 0 0 0; font-size: 12px; color: gray;" id="agenda-toggle-label">Ketuk untuk membuat jadwal baru</p>
                         </div>
                     </div>
                     <i class="fa-solid fa-chevron-right" id="agenda-chevron-icon" style="color: gray; font-size: 13px; transition: transform 0.2s;"></i>
                 </div>
 
-                <!-- Form Pengisian (Tersembunyi secara default, muncul saat diketuk) -->
+                <!-- Form Tambah Agenda (Terhubung dengan handleCreateAgenda di app.js) -->
                 <form id="agenda-form-container" onsubmit="handleCreateAgenda(event)" class="hidden" style="display: none; flex-direction: column; gap: 12px; margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
-                    <input type="text" id="agenda-title" placeholder="Nama Acara / Kegiatan (Cth: Arisan Keluarga)" required style="padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-light); color: var(--text-light); font-size: 14px; outline: none;">
+                    <input type="text" id="agenda-title" placeholder="Nama Acara / Kegiatan (Cth: Arisan)" required style="padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-light); color: var(--text-light); font-size: 14px; outline: none;">
                     <input type="date" id="agenda-date" required style="padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-light); color: var(--text-light); font-size: 14px; outline: none;">
                     <input type="text" id="agenda-desc" placeholder="Keterangan / Lokasi (Opsional)" style="padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-light); color: var(--text-light); font-size: 14px; outline: none;">
+                    
                     <div style="display: flex; gap: 8px;">
-                        <button type="submit" class="btn-primary" style="flex: 1; border-radius: 8px; padding: 12px; font-weight: bold;">Simpan Agenda</button>
-                        <button type="button" onclick="toggleAgendaForm()" style="background: none; border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; cursor: pointer; color: var(--text-light); font-size: 14px;">Batal</button>
+                        <button type="submit" class="btn-primary" style="flex: 1; border-radius: 8px; padding: 10px; font-weight: bold;">Simpan</button>
+                        <button type="button" onclick="toggleAgendaForm()" style="background: none; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; cursor: pointer; color: var(--text-light);">Batal</button>
                     </div>
                 </form>
             </div>
 
-            <!-- 3. Daftar Kegiatan Mendatang -->
-            <div style="padding: 20px;">
+            <!-- Bagian 3: Daftar Kegiatan Mendatang -->
+            <div style="padding: 16px 24px;">
                 <h4 style="margin: 0 0 12px 0; color: var(--primary-color); font-size: 15px; display: flex; align-items: center; gap: 8px;">
                     <i class="fa-solid fa-list-check"></i> Daftar Kegiatan Mendatang
                 </h4>
                 <div id="agenda-list-container" style="display: flex; flex-direction: column; gap: 10px;">
-                    <!-- Data agenda dimuat otomatis oleh app.js -->
+                    <!-- Data agenda akan dimuat otomatis di sini oleh app.js -->
                 </div>
             </div>
 
         </div>
     </div>
 </div>
+
 
                 <!-- Tab Daftar Keluarga -->
                 <div id="content-family" class="tab-content hidden" style="display: flex; flex-direction: column; height: 100%;">
