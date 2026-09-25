@@ -711,11 +711,50 @@ function getAlbumElements() {
   };
 }
 
+// Tambahan fungsi saat file dipilih agar form & preview muncul otomatis
+function onAlbumFileChange(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  const { fileNameLabel, formCard } = getAlbumElements();
+  if (fileNameLabel) {
+    fileNameLabel.textContent = file.name;
+  }
+
+  const preview = document.getElementById('photo-preview');
+  if (preview && formCard) {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      preview.src = e.target.result;
+      preview.hidden = false;
+      preview.classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+    formCard.classList.remove('hidden'); // Menampilkan form unggah
+  }
+}
+
 function cancelAlbumUpload() {
-  const { fileInput, captionInput } = getAlbumElements();
+  const { fileInput, captionInput, formCard } = getAlbumElements();
 
   if (fileInput) fileInput.value = '';
   if (captionInput) captionInput.value = '';
+
+  const preview = document.getElementById('photo-preview');
+  if (preview) {
+    preview.src = '';
+    preview.hidden = true;
+    preview.classList.add('hidden');
+  }
+
+  if (formCard) {
+    formCard.classList.add('hidden'); // Menyembunyikan kembali form saat dibatalkan
+  }
+
+  const label = document.getElementById('selected-file-label');
+  if (label) {
+    label.textContent = 'Ketuk untuk pilih dari galeri atau kamera';
+  }
 }
 
 function renderAlbumGrid(photos) {
