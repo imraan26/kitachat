@@ -638,7 +638,6 @@ function removeMessageFromUI(id) {
   if (message) message.remove();
 }
 
-// jika ada fungsi lain di HTML, pakai fallback aman
 function cancelReply() {
   window.replyingToMessageId = null;
   const replyBox = document.getElementById('reply-preview');
@@ -757,7 +756,7 @@ function renderAlbumGrid(photos) {
     const menuId = `album-menu-${item.id || index}`;
     const menuBtn = document.createElement('button');
     menuBtn.className = 'photo-menu-btn';
-    menuBtn.innerHTML = '<i class=\"fa-solid fa-ellipsis-vertical\"></i>';
+    menuBtn.innerHTML = '<i class="fa-solid fa-ellipsis-vertical"></i>';
     menuBtn.style.position = 'absolute';
     menuBtn.style.right = '8px';
     menuBtn.style.bottom = '8px';
@@ -1073,14 +1072,16 @@ async function loadAgendaAndBirthdays() {
             });
 
             const row = document.createElement('div');
+            // Disesuaikan menjadi latar belakang var(--card-bg) tanpa garis hijau (clean)
             row.style.cssText =
-              'display: flex; justify-content: space-between; padding: 8px 10px; background: var(--bg-light); border-radius: 6px; font-size: 14px;';
+              'display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; font-size: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);';
 
             const name = document.createElement('span');
             name.innerHTML = `<b>${user.name}</b>`;
 
             const birthday = document.createElement('span');
             birthday.style.color = 'var(--primary-color)';
+            birthday.style.fontWeight = '600';
             birthday.innerHTML = `<i class="fa-solid fa-gift"></i> ${bdate}`;
 
             row.appendChild(name);
@@ -1115,8 +1116,9 @@ async function loadAgendaAndBirthdays() {
             });
 
             const card = document.createElement('div');
+            // Garis hijau pinggir dihapus dan diganti kartu bersih standar
             card.style.cssText =
-              'padding: 14px; background: var(--bg-light); border: 1px solid var(--border-color); border-left: 4px solid var(--primary-color); border-radius: 8px; display: grid; gap: 6px;';
+              'padding: 14px 16px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; display: grid; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);';
 
             const header = document.createElement('div');
             header.style.display = 'flex';
@@ -1146,7 +1148,7 @@ async function loadAgendaAndBirthdays() {
             desc.textContent = item.description || '';
             desc.style.margin = '0';
             desc.style.fontSize = '13px';
-            desc.style.color = 'gray';
+            desc.style.color = 'var(--text-muted)';
 
             card.appendChild(header);
             if (item.description) card.appendChild(desc);
@@ -1368,7 +1370,7 @@ async function handleResetPassword(event) {
 
 // ==========================================================
 // CLEAR CHAT (DELETE ALL)
- // ==========================================================
+// ==========================================================
 function clearChat() {
   if (!confirm('Yakin ingin menghapus semua riwayat obrolan Anda?')) return;
 
