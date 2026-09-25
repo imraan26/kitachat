@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kitachat-pwa-v10.1'; // Versi dinaikkan
+const CACHE_NAME = 'kitachat-pwa-v10.2'; // Versi dinaikkan
 const urlsToCache = [
   '/',
   '/index.html',
@@ -18,17 +18,17 @@ self.addEventListener('install', event => {
   self.skipWaiting();
 });
 
-// Aktivasi dan Bersihkan Cache Lama
+// Aktivasi dan Bersihkan Cache Lama (Logika dioptimalkan agar Linter/Editor tidak merah)
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheName !== CACHE_NAME) {
+        cacheNames
+          .filter(cacheName => cacheName !== CACHE_NAME)
+          .map(cacheName => {
             console.log('Menghapus cache versi lama:', cacheName);
             return caches.delete(cacheName);
-          }
-        })
+          })
       );
     })
   );
