@@ -1,675 +1,817 @@
 :root {
-    --primary-color: #00a884; /* Hijau khas WhatsApp */
-    --primary-light: #d9fdd3;
-    --bg-light: #efeae2;     /* Latar belakang chat WhatsApp */
-    --text-light: #111b21;
-    --card-bg: #FFFFFF;
-    --border-color: #d1d7db;
+  --primary-color: #00a884;
+  --primary-dark: #008f72;
+  --primary-light: #d9fdd3;
+
+  --bg-light: #efeae2;
+  --bg-soft: #f8f9fa;
+  --card-bg: #ffffff;
+  --text-light: #111b21;
+  --text-muted: #667781;
+  --border-color: #d1d7db;
+
+  --danger: #e74c3c;
+  --success: #27ae60;
+  --shadow-soft: 0 4px 18px rgba(0, 0, 0, 0.08);
+  --shadow-strong: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
 body.dark-mode {
-    --primary-color: #00a884;
-    --primary-light: #005c4b;
-    --bg-light: #0b141a;
-    --text-light: #e9edef;
-    --card-bg: #111b21;
-    --border-color: #222d34;
+  --primary-color: #00a884;
+  --primary-dark: #00c89d;
+  --primary-light: #005c4b;
+
+  --bg-light: #0b141a;
+  --bg-soft: #111b21;
+  --card-bg: #111b21;
+  --text-light: #e9edef;
+  --text-muted: #9ca7b1;
+  --border-color: #2a3942;
+
+  --danger: #ff6b6b;
+  --success: #34d399;
+  --shadow-soft: 0 4px 18px rgba(0, 0, 0, 0.28);
+  --shadow-strong: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
 * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
 }
 
 body {
-    background-color: var(--bg-light);
-    color: var(--text-light);
-    height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    overflow: hidden;
+  background: var(--bg-light);
+  color: var(--text-light);
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+button, input, textarea {
+  font: inherit;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
 }
 
 #app-container {
-    width: 100vw;
-    height: 100vh;
-    display: flex;
-    background: var(--card-bg);
-    position: relative;
-}
-
-/* Bingkai profesional ala WhatsApp Web di layar besar */
-@media (min-width: 768px) {
-    #app-container {
-        max-width: 1350px;
-        height: 92vh;
-        border-radius: 8px;
-        box-shadow: 0 4px 25px rgba(0,0,0,0.15);
-        overflow: hidden;
-    }
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  background: var(--card-bg);
 }
 
 .screen {
-    display: none;
-    width: 100%;
-    height: 100%;
+  display: none;
+  width: 100%;
+  height: 100%;
 }
 
 .screen.active {
-    display: flex;
-}
-
-/* Halaman Auth (Login / Register) */
-#auth-screen {
-    justify-content: center;
-    align-items: center;
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
-    padding: 20px;
-    width: 100vw;
-    height: 100vh;
-    position: absolute;
-    top: 0;
-    left: 0;
-    z-index: 100;
-}
-
-.auth-card {
-    background: var(--card-bg);
-    padding: 25px;
-    border-radius: 12px;
-    width: 100%;
-    max-width: 380px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-    text-align: center;
-}
-
-.auth-card h2 {
-    color: var(--primary-color);
-    margin-bottom: 5px;
-}
-
-.tab-buttons {
-    display: flex;
-    margin: 20px 0;
-    border-bottom: 2px solid var(--border-color);
-}
-
-.tab-buttons button {
-    flex: 1;
-    padding: 10px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-weight: bold;
-    color: var(--text-light);
-}
-
-.tab-buttons button.active {
-    border-bottom: 3px solid var(--primary-color);
-    color: var(--primary-color);
-}
-
-form {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-form input {
-    padding: 12px;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    background: var(--card-bg);
-    color: var(--text-light);
-    font-size: 14px;
-}
-
-.btn-primary {
-    padding: 12px;
-    background-color: var(--primary-color);
-    color: white;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: bold;
-    transition: background 0.2s;
-}
-
-.btn-primary:hover {
-    opacity: 0.9;
+  display: flex;
 }
 
 .hidden {
-    display: none !important;
+  display: none !important;
 }
 
-/* --- LAYOUT UTAMA (MOBILE-FIRST DEFAULT) --- */
+/* =========================
+   AUTH SCREEN
+========================= */
+#auth-screen {
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+  padding: 20px;
+  width: 100vw;
+  height: 100vh;
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+}
+
+.auth-card {
+  background: var(--card-bg);
+  padding: 25px;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: var(--shadow-strong);
+  text-align: center;
+}
+
+.auth-card h2 {
+  color: var(--primary-color);
+  margin-bottom: 6px;
+  font-size: clamp(1.8rem, 2vw, 2.2rem);
+}
+
+.auth-card p {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.tab-buttons {
+  display: flex;
+  margin: 22px 0 18px;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.tab-buttons button {
+  flex: 1;
+  padding: 10px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--text-light);
+  transition: 0.2s ease;
+}
+
+.tab-buttons button.active {
+  border-bottom: 3px solid var(--primary-color);
+  color: var(--primary-color);
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+form input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--text-light);
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+form input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(0, 168, 132, 0.12);
+}
+
+.btn-primary {
+  padding: 12px;
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+  transition: background 0.2s ease, opacity 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: var(--primary-dark);
+}
+
+.btn-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* =========================
+   MAIN SCREEN
+========================= */
 #main-screen {
-    display: none;
-    flex-direction: column;
-    width: 100%;
-    height: 100vh;
-    position: relative;
-    padding-top: env(safe-area-inset-top, 0px);
+  display: none;
+  flex-direction: column;
+  width: 100%;
+  height: 100vh;
+  position: relative;
+  padding-top: env(safe-area-inset-top, 0px);
+  background: var(--bg-light);
 }
 
-/* Header Atas Khusus Mobile */
+#main-screen.active {
+  display: flex;
+}
+
+/* Header mobile */
 .mobile-header-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: var(--primary-color);
-    padding: 10px 15px;
-    width: 100%;
-    z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--primary-color);
+  padding: 10px 15px;
+  width: 100%;
+  z-index: 10;
+  min-height: 60px;
 }
 
-/* Sidebar Desktop disembunyikan di mode mobile */
-.desktop-sidebar {
-    display: none !important;
-}
-
-/* Menu Navigasi Bawah Khusus Mobile */
-.sidebar-menu.mobile-bottom-nav {
-    display: flex;
-    flex-direction: row;
-    background: var(--card-bg);
-    border-top: 1px solid var(--border-color);
-    width: 100%;
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    z-index: 10;
-}
-
-.sidebar-header {
-    padding: 12px 15px;
-    background: var(--primary-color);
-    color: white;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.user-profile {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.user-profile img {
-    width: 35px;
-    height: 35px;
-    border-radius: 50%;
-    object-fit: cover;
+.sidebar-icons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .sidebar-icons button {
-    background: none;
-    border: none;
-    color: white;
-    font-size: 18px;
-    cursor: pointer;
-    margin-left: 12px;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 1.05rem;
+  cursor: pointer;
+  min-width: 28px;
+  min-height: 28px;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.user-profile img {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.user-profile span {
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.desktop-sidebar {
+  display: none !important;
+}
+
+/* Bottom nav mobile */
+.sidebar-menu.mobile-bottom-nav {
+  display: flex;
+  flex-direction: row;
+  background: var(--card-bg);
+  border-top: 1px solid var(--border-color);
+  width: 100%;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  z-index: 20;
+}
+
+.mobile-bottom-nav .menu-item {
+  flex: 1;
+  min-height: 58px;
+  padding: 8px 4px;
+  border-right: 1px solid var(--border-color);
 }
 
 .menu-item {
-    flex: 1;
-    padding: 10px 5px;
-    background: none;
-    border: none;
-    text-align: center;
-    cursor: pointer;
-    color: var(--text-light);
-    font-size: 11px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    align-items: center;
-    justify-content: center;
-    border-right: 1px solid var(--border-color);
+  background: transparent;
+  border: none;
+  color: var(--text-light);
+  cursor: pointer;
+  font-size: 0.7rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  text-align: center;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .menu-item i {
-    font-size: 18px;
+  font-size: 1.1rem;
 }
 
-.menu-item.active, .menu-item:hover {
-    background-color: var(--primary-light);
-    color: var(--primary-color);
+.menu-item.active,
+.menu-item:hover {
+  background: var(--primary-light);
+  color: var(--primary-color);
 }
 
 .chat-area {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    background: var(--bg-light);
-    height: 100%;
-    overflow: hidden;
-    padding-bottom: 60px; /* Ruang untuk navigasi bawah di mobile */
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-light);
+  height: 100%;
+  overflow: hidden;
+  padding-bottom: 60px;
 }
 
 .chat-header {
-    padding: 12px 15px;
-    background: var(--card-bg);
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 15px;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border-color);
 }
 
-.status-online {
-    font-size: 12px;
-    color: #00a884;
+.chat-header h3 {
+  font-size: 1rem;
+  color: var(--text-light);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .chat-messages {
-    flex: 1;
-    padding: 15px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+  flex: 1;
+  overflow-y: auto;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg-light);
 }
 
-/* Gelembung Pesan Ala WhatsApp */
 .chat-bubble {
-    max-width: 80%;
-    padding: 8px 12px;
-    border-radius: 8px;
-    position: relative;
-    font-size: 14px;
-    line-height: 1.4;
-    box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.13);
-    word-break: break-word;
-    /* Optimasi agar sentuhan long-press di HP tidak terhalang sistem scroll */
-    user-select: none;
-    -webkit-user-select: none;
-    touch-action: pan-y; 
+  max-width: 80%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  position: relative;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.08);
+  word-break: break-word;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: pan-y;
 }
 
 .chat-incoming {
-    align-self: flex-start;
-    background: var(--card-bg);
-    color: var(--text-light);
-    border-top-left-radius: 0;
+  align-self: flex-start;
+  background: var(--card-bg);
+  color: var(--text-light);
+  border-top-left-radius: 0;
 }
 
 .chat-outgoing {
-    align-self: flex-end;
-    background: var(--primary-light);
-    color: var(--text-light);
-    border-top-right-radius: 0;
+  align-self: flex-end;
+  background: var(--primary-light);
+  color: var(--text-light);
+  border-top-right-radius: 0;
 }
 
-.chat-sender-name {
-    font-size: 11px;
-    font-weight: bold;
-    color: var(--primary-color);
-    margin-bottom: 2px;
+.chat-sender {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin-bottom: 4px;
+}
+
+.chat-text {
+  line-height: 1.45;
 }
 
 .chat-time {
-    font-size: 10px;
-    color: #667781;
-    text-align: right;
-    margin-top: 4px;
-    float: right;
-    margin-left: 8px;
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  text-align: right;
+  margin-top: 4px;
 }
 
-/* --- Area Input Chat & Textarea WhatsApp Style --- */
+.chat-reply {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  background: rgba(0, 0, 0, 0.04);
+  border-left: 3px solid var(--primary-color);
+  padding: 4px 8px;
+  border-radius: 6px;
+  margin-top: 4px;
+}
+
 .chat-input-area {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    padding: 10px 15px;
-    background-color: var(--card-bg);
-    width: 100%;
-    box-sizing: border-box;
-    border-top: 1px solid var(--border-color);
-    flex-shrink: 0; /* Mencegah area input ikut tertekan atau tersembunyi */
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 10px 15px;
+  background: var(--card-bg);
+  border-top: 1px solid var(--border-color);
+  width: 100%;
+  flex-shrink: 0;
+}
+
+#reply-preview-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  background: rgba(0, 168, 132, 0.08);
+  border-left: 3px solid var(--primary-color);
+  border-radius: 6px;
+}
+
+#reply-preview-sender {
+  color: var(--primary-color);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+#reply-preview-text {
+  color: var(--text-light);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 260px;
+  margin: 0;
+  font-size: 0.75rem;
 }
 
 #message-input {
-    flex: 1;
-    border: 1px solid var(--border-color);
-    border-radius: 20px;
-    padding: 10px 14px;
-    font-size: 15px;
-    line-height: 20px;
-    max-height: 120px;
-    min-height: 40px;
-    background-color: var(--bg-light);
-    color: var(--text-light);
-    outline: none;
-    resize: none;
-    box-sizing: border-box;
-    font-family: inherit;
+  flex: 1;
+  border: 1px solid var(--border-color);
+  border-radius: 22px;
+  padding: 10px 14px;
+  font-size: 1rem;
+  line-height: 1.3;
+  max-height: 120px;
+  min-height: 42px;
+  background: var(--bg-light);
+  color: var(--text-light);
+  outline: none;
+  resize: none;
 }
 
-.chat-input-area button.send-button,
-.chat-input-area button {
-    background-color: #00a884;
-    color: white;
-    border: none;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    min-width: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    flex-shrink: 0;
-    box-shadow: 0 1px 2px rgba(11,20,26,.08);
-    transition: background-color 0.2s;
+.send-button {
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: 0 1px 2px rgba(17, 27, 33, 0.12);
 }
 
-.chat-input-area button:hover {
-    background-color: #008f72;
+.send-button:hover {
+  background: var(--primary-dark);
 }
 
-/* --- TAMPILAN DESKTOP (Layar >= 768px) --- */
-@media (min-width: 768px) {
-    #main-screen {
-        flex-direction: row; /* Sidebar kiri, area chat/konten kanan */
-        padding-top: 0;
-        height: 100%;
-    }
-    
-    .mobile-header-top {
-        display: none !important; /* Sembunyikan header mobile */
-    }
-    
-    .desktop-sidebar {
-        display: flex !important;
-        width: 340px;
-        height: 100%;
-        background: var(--card-bg);
-        border-right: 1px solid var(--border-color);
-        flex-direction: column;
-        order: 1;
-        flex-shrink: 0;
-    }
-
-    /* Perataan kiri & penataan foto profil di sidebar desktop */
-    .desktop-sidebar .sidebar-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 15px;
-        background: var(--primary-color);
-        color: white;
-        text-align: left;
-    }
-
-    .desktop-sidebar .user-profile {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        text-align: left;
-        cursor: pointer;
-    }
-
-    .desktop-sidebar .user-profile img {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        object-fit: cover;
-    }
-
-    .desktop-sidebar .user-profile span {
-        font-size: 15px;
-        font-weight: 600;
-        color: white;
-        text-align: left;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 170px;
-    }
-    
-    /* Sembunyikan navigasi bawah mobile secara mutlak */
-    .sidebar-menu.mobile-bottom-nav {
-        display: none !important;
-    }
-    
-    .desktop-sidebar .sidebar-menu {
-        display: flex;
-        flex-direction: column;
-        flex: 1;
-        border-top: none;
-    }
-    
-    .desktop-sidebar .menu-item {
-        flex-direction: row;
-        text-align: left;
-        justify-content: flex-start;
-        font-size: 15px;
-        padding: 15px 20px;
-        border-right: none;
-        border-bottom: 1px solid var(--border-color);
-        gap: 15px;
-        flex: unset;
-    }
-
-    .desktop-sidebar .menu-item span {
-        text-align: left;
-    }
-
-    .chat-area {
-        flex: 1;
-        height: 100%;
-        max-height: 100%;
-        padding-bottom: 0 !important; /* Pastikan tidak ada padding bawah berlebih */
-        order: 2;
-        overflow: hidden; /* Mencegah area chat meluber keluar batas bingkai */
-    }
-
-    /* Pastikan tab content di dalam chat-area mengisi penuh dan bersifat fleksibel vertikal */
-    .chat-area .tab-content {
-        height: 100%;
-        max-height: 100%;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-    }
+.send-button svg {
+  display: block;
 }
 
-/* Styling untuk Foto, Tombol Titik Tiga, dan Dropdown */
-.media-wrapper {
-    position: relative;
-    display: inline-block;
-    max-width: 100%;
-    margin-top: 5px;
-    border-radius: 8px;
-    overflow: hidden;
+#mic-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
 }
 
-.media-wrapper img {
-    width: 100%;
-    max-height: 250px;
-    object-fit: cover;
-    cursor: pointer;
-    display: block;
-    border-radius: 8px;
-    transition: transform 0.2s;
+#mic-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.media-wrapper img:hover {
-    transform: scale(1.01);
+/* =========================
+   ALBUM / HOME UI
+========================= */
+#album-grid-container {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.photo-card {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #dcdcdc;
+  cursor: pointer;
+}
+
+.photo-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .photo-menu-btn {
-    position: absolute;
-    bottom: 8px;
-    right: 8px;
-    background: rgba(0, 0, 0, 0.6);
-    color: white;
-    border: none;
-    border-radius: 50%;
-    width: 32px;
-    height: 32px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    transition: background 0.2s;
-    z-index: 5;
-}
-
-.photo-menu-btn:hover {
-    background: rgba(0, 0, 0, 0.8);
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
 }
 
 .photo-dropdown {
-    display: none;
-    position: absolute;
-    bottom: 45px;
-    right: 8px;
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    z-index: 10;
-    overflow: hidden;
-    min-width: 130px;
+  display: none;
+  position: absolute;
+  bottom: 42px;
+  right: 8px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: var(--shadow-soft);
+  min-width: 150px;
+  z-index: 20;
+  overflow: hidden;
 }
 
 .photo-dropdown.active {
-    display: block;
+  display: block;
 }
 
 .photo-dropdown button {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    padding: 10px 14px;
-    background: none;
-    border: none;
-    text-align: left;
-    cursor: pointer;
-    color: var(--text-light);
-    font-size: 13px;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-light);
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.82rem;
 }
 
 .photo-dropdown button:hover {
-    background: var(--primary-light);
-    color: var(--primary-color);
+  background: var(--primary-light);
+  color: var(--primary-color);
 }
 
-/* Styling tambahan untuk mobile & pencegah auto-zoom iOS */
-@media (max-width: 768px) {
-    #content-chat {
-        height: calc(100vh - 120px) !important;
-        padding-bottom: 70px;
-    }
-
-    .chat-input-area {
-        position: fixed;
-        bottom: 60px;
-        left: 0;
-        right: 0;
-        background: var(--card-bg);
-        z-index: 100;
-        padding: 8px 12px;
-        box-shadow: 0 -2px 6px rgba(0,0,0,0.05);
-        border-top: 1px solid var(--border-color);
-    }
-
-    .sidebar-menu.mobile-bottom-nav {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 60px;
-        background: var(--card-bg);
-        display: flex;
-        justify-content: space-around;
-        align-items: center;
-        z-index: 101;
-        border-top: 1px solid var(--border-color);
-    }
-
-    .chat-messages {
-        flex: 1;
-        overflow-y: auto;
-        padding-bottom: 80px;
-    }
-    
-    #message-input {
-        font-size: 16px; /* Mencegah auto-zoom di iOS */
-    }
+/* =========================
+   FAMILY LIST
+========================= */
+.family-directory {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
 }
 
-/* --- TAMBAHAN STYLE: POP-UP MENU ALA WHATSAPP (Dioptimalkan z-index & kliknya) --- */
-.chat-popup-overlay {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100vw !important;
-    height: 100vh !important;
-    background: rgba(0, 0, 0, 0.45) !important;
-    z-index: 999999 !important; /* Dipaksa berada di lapisan paling atas melampaui elemen lain */
-    display: flex !important;
-    justify-content: center !important;
-    align-items: center !important;
-    animation: fadeIn 0.2s ease-out;
+.family-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 14px 10px;
+  box-shadow: var(--shadow-soft);
 }
 
-.chat-popup-menu {
-    background: var(--card-bg);
-    width: 240px;
-    border-radius: 14px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+.family-card img {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--primary-color);
+}
+
+.family-card h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.family-card p {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+/* =========================
+   MODALS
+========================= */
+#photo-zoom-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+#photo-zoom-modal.active {
+  display: flex;
+}
+
+#call-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+#call-modal.active {
+  display: flex;
+}
+
+/* =========================
+   DESKTOP LAYOUT
+========================= */
+@media (min-width: 768px) {
+  #app-container {
+    max-width: 1350px;
+    height: 92vh;
+    border-radius: 12px;
     overflow: hidden;
-    border: 1px solid var(--border-color);
-    animation: scaleUp 0.2s ease-out;
-    z-index: 1000000 !important;
-}
+    box-shadow: var(--shadow-strong);
+  }
 
-.chat-popup-item {
-    padding: 14px 18px;
+  #main-screen {
+    flex-direction: row;
+    padding-top: 0;
+    height: 100%;
+  }
+
+  .mobile-header-top {
+    display: none !important;
+  }
+
+  .desktop-sidebar {
+    display: flex !important;
+    width: 300px;
+    height: 100%;
+    background: var(--card-bg);
+    border-right: 1px solid var(--border-color);
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+
+  .desktop-sidebar .sidebar-header {
     display: flex;
+    justify-content: space-between;
     align-items: center;
+    padding: 15px;
+    background: var(--primary-color);
+    color: white;
+    min-height: 72px;
+  }
+
+  .desktop-sidebar .user-profile {
     gap: 12px;
-    font-size: 14px;
-    color: var(--text-light);
-    cursor: pointer;
+    min-width: 0;
+  }
+
+  .desktop-sidebar .user-profile img {
+    width: 40px;
+    height: 40px;
+  }
+
+  .desktop-sidebar .user-profile span {
+    color: white;
+    font-size: 0.96rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 170px;
+  }
+
+  .desktop-sidebar .sidebar-icons button {
+    color: white;
+  }
+
+  .desktop-sidebar .sidebar-menu {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    width: 100%;
+  }
+
+  .desktop-sidebar .menu-item {
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    width: 100%;
+    padding: 15px 18px;
+    border-right: none;
     border-bottom: 1px solid var(--border-color);
-    transition: background 0.15s;
+    font-size: 0.96rem;
+    gap: 12px;
+    text-align: left;
+  }
+
+  .desktop-sidebar .menu-item i {
+    width: 18px;
+  }
+
+  .sidebar-menu.mobile-bottom-nav {
+    display: none !important;
+  }
+
+  .chat-area {
+    flex: 1;
+    height: 100%;
+    padding-bottom: 0;
+  }
+
+  .chat-area .tab-content {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
 }
 
-.chat-popup-item:last-child {
-    border-bottom: none;
+/* =========================
+   MOBILE ADJUSTMENTS
+========================= */
+@media (max-width: 767px) {
+  body {
+    background: var(--bg-light);
+  }
+
+  #main-screen {
+    position: relative;
+    padding-bottom: 58px;
+  }
+
+  .chat-area {
+    height: calc(100vh - 60px);
+    padding-bottom: 70px;
+  }
+
+  .chat-input-area {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 58px;
+    z-index: 50;
+    padding: 8px 12px;
+    background: var(--card-bg);
+    border-top: 1px solid var(--border-color);
+    box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.04);
+  }
+
+  .chat-messages {
+    padding-bottom: 90px;
+  }
+
+  #message-input {
+    font-size: 1rem;
+  }
+
+  #album-grid-container {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
-.chat-popup-item:hover {
-    background: var(--primary-light);
-    color: var(--primary-color);
+/* =========================
+   UTILS
+========================= */
+.text-muted {
+  color: var(--text-muted);
 }
 
-.chat-popup-item.danger {
-    color: #e74c3c;
+.danger {
+  color: var(--danger);
 }
 
-.chat-popup-item.danger:hover {
-    background: rgba(231, 76, 60, 0.1);
-    color: #e74c3c;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-@keyframes scaleUp {
-    from { transform: scale(0.9); opacity: 0; }
-    to { transform: scale(1); opacity: 1; }
+.success {
+  color: var(--success);
 }
