@@ -4,6 +4,7 @@ const { Server } = require('socket.io');
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const multer = require('multer');
+const nodemailer = require('nodemailer');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
@@ -120,11 +121,18 @@ async function initDB() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         client_time VARCHAR(50)
       );
+      
     `);
     console.log('Berhasil terhubung ke database PostgreSQL dan memverifikasi tabel!');
   } catch (err) {
     console.error('Gagal menginisialisasi skema database:', err);
   }
+  // Menambahkan kolom pemulihan tanpa merusak tabel yang ada
+   try {
+       await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255) UNIQUE;`);
+       await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(10);`);
+       await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expiry BIGINT;`);
+   } catch(e) { console.log('Kolom email pemulihan sudah tersedia.'); }
 }
 
 // ==========================================
@@ -526,6 +534,86 @@ app.delete('/api/messages', checkSingleDevice, async (req, res) => {
     res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
   }
 });
+
+// ==========================================
+// FITUR EMAIL PEMULIHAN (LUPA PASSWORD)
+// ==========================================
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    }
+});
+
+// API: Simpan Email Pemulihan di Pengaturan
+app.put('/api/update-email', checkSingleDevice, async (req, res) => {
+    const userId = req.headers['x-user-id'] || req.body.user_id;
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email wajib diisi!' });
+
+    try {
+        await pool.query('UPDATE users SET email = $1 WHERE id = $2', [email, userId]);
+        res.status(200).json({ message: 'Email pemulihan berhasil disimpan!' });
+    } catch (err) {
+        res.status(500).json({ error: 'Email mungkin sudah dipakai atau terjadi kesalahan.' });
+    }
+});
+
+// API: Kirim OTP ke Email
+app.post('/api/forgot-password', async (req, res) => {
+    const { phone } = req.body;
+    try {
+        const user = await pool.query('SELECT id, email, name FROM users WHERE phone = $1', [phone]);
+        if (user.rows.length === 0) return res.status(404).json({ error: 'Nomor telepon tidak terdaftar.' });
+
+        const userData = user.rows[0];
+        if (!userData.email) return res.status(400).json({ error: 'Akun ini belum mendaftarkan email pemulihan!' });
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString(); // OTP 6 Digit
+        const expiry = Date.now() + 15 * 60 * 1000; // Berlaku 15 menit
+
+        await pool.query('UPDATE users SET reset_token = $1, reset_token_expiry = $2 WHERE id = $3', [otp, expiry, userData.id]);
+
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: userData.email,
+            subject: 'Kode Pemulihan Password - Kitachat',
+            text: `Halo ${userData.name},\n\nSeseorang mencoba masuk ke akun Kitachat Anda namun gagal.\nJika ini Anda, gunakan kode OTP berikut untuk mereset kata sandi:\n\n${otp}\n\nKode ini berlaku selama 15 menit. JANGAN BERIKAN KODE INI KEPADA SIAPAPUN.`
+        };
+
+        transporter.sendMail(mailOptions, (error, info) => {
+            if (error) return res.status(500).json({ error: 'Gagal mengirim email. Hubungi admin keluarga.' });
+            res.status(200).json({ message: 'Kode OTP telah dikirim ke email pemulihan Anda!' });
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Terjadi kesalahan server.' });
+    }
+});
+
+// API: Verifikasi OTP dan Ganti Password
+app.post('/api/reset-password', async (req, res) => {
+    const { phone, otp, new_password } = req.body;
+    try {
+        const user = await pool.query('SELECT id, reset_token, reset_token_expiry FROM users WHERE phone = $1', [phone]);
+        const userData = user.rows[0];
+
+        if (!userData || !userData.reset_token || userData.reset_token !== otp) {
+            return res.status(400).json({ error: 'Kode OTP salah atau tidak valid!' });
+        }
+        if (Date.now() > userData.reset_token_expiry) {
+            return res.status(400).json({ error: 'Kode OTP sudah kedaluwarsa!' });
+        }
+
+        const hashedNewPassword = await bcrypt.hash(new_password, 10);
+        await pool.query('UPDATE users SET password = $1, reset_token = NULL, reset_token_expiry = NULL WHERE id = $2', [hashedNewPassword, userData.id]);
+        
+        res.status(200).json({ message: 'Password berhasil diubah! Silakan login.' });
+    } catch (err) {
+        res.status(500).json({ error: 'Terjadi kesalahan server.' });
+    }
+});
+
 
 // Konfigurasi Socket.io
 io.on('connection', async (socket) => {
