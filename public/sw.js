@@ -1,7 +1,6 @@
-const CACHE_NAME = 'kitachat-pwa-v10.6';
-const RUNTIME_CACHE = 'kitachat-runtime-v10.6';
-
-const urlsToCache = [
+const CACHE_VERSION = 'kitachat-pwa-v11';
+const RUNTIME_CACHE = 'kitachat-runtime-v11';
+const APP_SHELL = [
   '/',
   '/index.html',
   '/style.css',
@@ -13,25 +12,24 @@ const urlsToCache = [
 
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(urlsToCache))
+    caches.open(CACHE_VERSION)
+      .then(cache => cache.addAll(APP_SHELL))
       .then(() => self.skipWaiting())
+      .catch(error => {
+        console.warn('PWA install failed, continuing anyway:', error);
+      })
   );
 });
 
 self.addEventListener('activate', event => {
-  const cachePrefixes = ['kitachat-pwa-', 'kitachat-runtime-'];
-  
+  const allowedCaches = [CACHE_VERSION, RUNTIME_CACHE];
+
   event.waitUntil(
     caches.keys()
       .then(cacheNames => {
         return Promise.all(
           cacheNames
-            .filter(cacheName => 
-              cachePrefixes.some(prefix => cacheName.startsWith(prefix)) &&
-              cacheName !== CACHE_NAME &&
-              cacheName !== RUNTIME_CACHE
-            )
+            .filter(cacheName => !allowedCaches.includes(cacheName))
             .map(cacheName => caches.delete(cacheName))
         );
       })
@@ -39,64 +37,118 @@ self.addEventListener('activate', event => {
   );
 });
 
+function isCacheableResponse(response) {
+  return !!response &&
+    response.ok &&
+    response.type === 'basic' &&
+    !response.headers.get('Cache-Control')?.includes('no-store') &&
+    !response.headers.get('Cache-Control')?.includes('private');
+}
+
+function isBypassRequest(url) {
+  return (
+    url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/socket.io/') ||
+    url.pathname.startsWith('/uploads/')
+  );
+}
+
+function offlineFallbackResponse() {
+  return new Response(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="120" viewBox="0 0 320 120">' +
+      '<rect width="100%" height="100%" fill="#f4f4f4"/>' +
+      '<text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" ' +
+      'font-family="Arial, sans-serif" font-size="18" fill="#666">Offline mode</text>' +
+      '</svg>',
+    {
+      headers: { 'Content-Type': 'image/svg+xml' }
+    }
+  );
+}
+
 self.addEventListener('fetch', event => {
   const request = event.request;
   const url = new URL(request.url);
 
+  if (request.method !== 'GET') return;
   if (url.origin !== self.location.origin) return;
+  if (isBypassRequest(url)) return;
 
-  const isBypassRoute = url.pathname.startsWith('/api/') || 
-                        url.pathname.startsWith('/socket.io/') || 
-                        url.pathname.startsWith('/uploads/');
+  const isNavigation = request.mode === 'navigate';
+  const isImageRequest = request.destination === 'image';
+  const isScriptOrStyle = ['script', 'style', 'font'].includes(request.destination);
 
-  if (request.method !== 'GET' || isBypassRoute) return;
+  if (isNavigation) {
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          if (response && response.ok) {
+            const clone = response.clone();
+            event.waitUntil(
+              caches.open(CACHE_VERSION).then(cache => cache.put(request, clone))
+            );
+          }
+          return response;
+        })
+        .catch(async () => {
+          const cachedHtml = await caches.match('/index.html');
+          return cachedHtml || Response.redirect('/');
+        })
+    );
+    return;
+  }
 
-  const cacheableDestinations = ['style', 'script', 'font', 'image'];
-  const shouldCache = cacheableDestinations.includes(request.destination) || request.mode === 'navigate';
-
-  event.respondWith(
-    caches.match(request).then(cachedResponse => {
-      if (request.mode === 'navigate') {
-        return fetch(request)
-          .then(networkResponse => {
-            if (networkResponse && networkResponse.ok) {
-              const responseClone = networkResponse.clone();
+  // Cache-first for static assets
+  if (isScriptOrStyle || isImageRequest) {
+    event.respondWith(
+      caches.match(request).then(cached => {
+        const networkFetch = fetch(request)
+          .then(response => {
+            if (isCacheableResponse(response)) {
+              const clone = response.clone();
               event.waitUntil(
-                caches.open(CACHE_NAME).then(cache => cache.put(request, responseClone))
+                caches.open(RUNTIME_CACHE).then(cache => cache.put(request, clone))
               );
             }
-            return networkResponse;
+            return response;
           })
-          .catch(() => cachedResponse || caches.match('/index.html'));
-      }
+          .catch(() => {
+            if (cached) return cached;
+            if (isImageRequest) return offlineFallbackResponse();
+            return new Response('Service Unavailable', {
+              status: 503,
+              headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+            });
+          });
 
-      const fetchPromise = fetch(request).then(networkResponse => {
-        const cacheControl = networkResponse.headers.get('Cache-Control') || '';
-        const isCacheable = networkResponse &&
-                            networkResponse.ok &&
-                            networkResponse.type === 'basic' &&
-                            !cacheControl.includes('no-store') &&
-                            !cacheControl.includes('private');
+        return cached || networkFetch;
+      })
+    );
+    return;
+  }
 
-        if (isCacheable && shouldCache) {
-          const responseToCache = networkResponse.clone();
-          event.waitUntil(
-            caches.open(RUNTIME_CACHE).then(cache => cache.put(request, responseToCache))
-          );
-        }
-        return networkResponse;
-      }).catch(() => {
-        if (cachedResponse) return cachedResponse;
-        if (request.destination === 'image') {
-          return new Response(
-            '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><rect width="100%" height="100%" fill="#e0e0e0"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#666666">Offline</text></svg>',
-            { headers: { 'Content-Type': 'image/svg+xml' } }
-          );
-        }
-        return new Response('Service Unavailable', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
-      });
+  // Default: stale-while-revalidate
+  event.respondWith(
+    caches.match(request).then(cached => {
+      const networkFetch = fetch(request)
+        .then(response => {
+          if (isCacheableResponse(response)) {
+            const clone = response.clone();
+            event.waitUntil(
+              caches.open(RUNTIME_CACHE).then(cache => cache.put(request, clone))
+            );
+          }
+          return response;
+        })
+        .catch(() => {
+          if (cached) return cached;
+          return new Response('Service Unavailable', {
+            status: 503,
+            headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+          });
+        });
 
-      return cachedResponse || fetchPromise;
+      return cached || networkFetch;
     })
   );
 });
