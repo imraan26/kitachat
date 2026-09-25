@@ -307,7 +307,10 @@ function toggleAgendaForm() {
     const label = document.getElementById('agenda-toggle-label');
     const chevron = document.getElementById('agenda-chevron-icon');
     
-    if (form.style.display === 'none' || !form.style.display) {
+    // Buka paksa gembok class 'hidden' dari HTML
+    form.classList.remove('hidden');
+    
+    if (form.style.display === 'none' || form.style.display === '') {
         form.style.display = 'flex';
         if (label) label.innerText = 'Isi detail jadwal kegiatan keluarga';
         if (chevron) chevron.style.transform = 'rotate(90deg)';
