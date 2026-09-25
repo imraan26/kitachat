@@ -371,14 +371,15 @@ async function sendMessage() {
     }
 }
 
-// --- HELPER INTERAKSI KARTU ALBUM BARU ---
+// --- HELPER SAAT FILE FOTO DIPILIH DARI GALERI/KAMERA ---
 function onAlbumFileChange(event) {
     const file = event.target.files[0];
     if (file) {
         const formCard = document.getElementById('photo-upload-form');
         const fileNameEl = document.getElementById('selected-file-label');
+        
         if (fileNameEl) fileNameEl.innerText = `Terpilih: ${file.name}`;
-        if (formCard) formCard.style.display = 'flex';
+        if (formCard) formCard.style.display = 'flex'; // Langsung memunculkan form input caption & tombol kirim
     }
 }
 
@@ -386,13 +387,51 @@ function cancelAlbumUpload() {
     const fileInput = document.getElementById('photo-file-input');
     const labelEl = document.getElementById('selected-file-label');
     const formEl = document.getElementById('photo-upload-form');
+    
     if (fileInput) fileInput.value = '';
     if (labelEl) labelEl.innerText = 'Ketuk untuk pilih dari galeri atau kamera';
     if (formEl) formEl.style.display = 'none';
 }
 
-function cancelPhotoUpload() {
-    cancelAlbumUpload();
+// --- FUNGSI MENGIRIM FOTO KE SERVER SECARA ASINKRON (TANPA REFRESH) ---
+async function handleUploadPhoto(event) {
+    event.preventDefault();
+    if (!currentUser) {
+        alert('Silakan login terlebih dahulu!');
+        return;
+    }
+
+    const fileInput = document.getElementById('photo-file-input');
+    const captionInput = document.getElementById('photo-caption-input');
+    
+    if (!fileInput || fileInput.files.length === 0) {
+        alert('Pilih file gambar terlebih dahulu!');
+        return;
+    }
+
+    const caption = captionInput ? captionInput.value : '';
+    const formData = new FormData();
+    formData.append('user_id', currentUser.id);
+    formData.append('image', fileInput.files[0]);
+    formData.append('caption', caption);
+
+    try {
+        // Menggunakan apiFetch agar token keamanan sesi tidak hilang
+        const response = await apiFetch('/api/albums', { method: 'POST', body: formData });
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert(data.message);
+            cancelAlbumUpload();
+            if (captionInput) captionInput.value = '';
+            loadAlbumPhotos(); // Memuat ulang grid album secara otomatis tanpa reload halaman!
+        } else {
+            alert(data.error || 'Gagal mengunggah foto.');
+        }
+    } catch (err) {
+        console.error('Error upload foto:', err);
+        alert('Terjadi kesalahan jaringan.');
+    }
 }
 
 // --- FITUR PERBARUI APLIKASI MANUAL ---
