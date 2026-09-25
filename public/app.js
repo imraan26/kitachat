@@ -60,14 +60,13 @@ if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').then((reg) => {
             console.log('Service Worker terdaftar:', reg.scope);
 
-            // Deteksi jika ada pembaruan Service Worker di server
             reg.addEventListener('updatefound', () => {
                 const newWorker = reg.installing;
                 if (newWorker) {
                     newWorker.addEventListener('statechange', () => {
                         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                             if (confirm('Versi baru Kitachat telah tersedia! Ketuk OK untuk memperbarui aplikasi.')) {
-                                window.location.reload(); // Diperbaiki: Dihapus parameter true yang sudah deprecated
+                                window.location.reload();
                             }
                         }
                     });
@@ -118,7 +117,6 @@ function switchTab(tab) {
     }
 }
 
-// --- REFACTOR: PENANGANAN FORM AMAN DENGAN NULL-CHECK ---
 async function handleRegister(event) {
     event.preventDefault();
     const nameInput = document.getElementById('reg-name');
@@ -244,7 +242,8 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-function switchTabNav(tabName, element) {
+// Perbaikan Navigasi Tab Agar Sinkron Tanpa Bergantung pada Urutan DOM
+function switchTabNav(tabName) {
     const contents = document.querySelectorAll('.tab-content');
     contents.forEach(el => {
         if (el.id !== 'call-modal') {
@@ -254,7 +253,12 @@ function switchTabNav(tabName, element) {
     });
 
     const menuItems = document.querySelectorAll('.menu-item');
-    menuItems.forEach(el => el.classList.remove('active'));
+    menuItems.forEach(el => {
+        el.classList.remove('active');
+        if (el.getAttribute('onclick')?.includes(`'${tabName}'`)) {
+            el.classList.add('active');
+        }
+    });
 
     const target = document.getElementById(`content-${tabName}`);
     if (target) {
@@ -265,8 +269,6 @@ function switchTabNav(tabName, element) {
     if (tabName === 'album') loadAlbumPhotos();
     else if (tabName === 'agenda') loadAgendaAndBirthdays();
     else if (tabName === 'family') loadFamilyMembers();
-
-    if (element) element.classList.add('active');
 }
 
 function toggleTheme() {
@@ -310,7 +312,6 @@ function logout() {
     }
 }
 
-// --- FUNGSI BUKA/TUTUP FORM TAMBAH AGENDA ---
 function toggleAgendaForm() {
     const form = document.getElementById('agenda-form-container');
     const label = document.getElementById('agenda-toggle-label');
@@ -331,7 +332,6 @@ function toggleAgendaForm() {
     }
 }
 
-// --- FITUR KIRIM PESAN ---
 async function sendMessage() {
     const input = document.getElementById('message-input');
     if (!input) return;
@@ -346,7 +346,6 @@ async function sendMessage() {
 
     const localTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
     const formData = new FormData();
-    formData.append('user_id', currentUser.id);
     formData.append('message', messageText);
     formData.append('client_time', localTime);
 
@@ -371,474 +370,137 @@ async function sendMessage() {
     }
 }
 
-// --- HELPER SAAT FILE FOTO DIPILIH DARI GALERI/KAMERA ---
+// --- OPTIMASI FITUR ALBUM (Pencegahan XSS, Validasi Client, & Manajemen Memori) ---
+let currentAlbumFilter = 'semua';
+let globalAlbumData = [];
+let albumRequestId = 0;
+const ALBUM_MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+let currentObjectUrl = null;
+
+function getAlbumElements() {
+    return {
+        grid: document.getElementById('album-grid-container'),
+        fileInput: document.getElementById('photo-file-input'),
+        fileNameLabel: document.getElementById('selected-file-label'),
+        formCard: document.getElementById('photo-upload-form'),
+        captionInput: document.getElementById('photo-caption-input'),
+        submitBtn: document.querySelector('#photo-upload-form button[type="submit"]')
+    };
+}
+
 function onAlbumFileChange(event) {
     const file = event.target.files[0];
-    if (file) {
-        const formCard = document.getElementById('photo-upload-form');
-        const fileNameEl = document.getElementById('selected-file-label');
-        
-        if (fileNameEl) fileNameEl.innerText = `Terpilih: ${file.name}`;
-        if (formCard) formCard.style.display = 'flex'; // Langsung memunculkan form input caption & tombol kirim
+    const { fileNameLabel, formCard, fileInput } = getAlbumElements();
 
-        // Opsional: Jika Anda ingin menampilkan pratinjau gambar sebelum dikirim
-        const previewEl = document.getElementById('photo-preview');
-        if (previewEl) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                previewEl.src = e.target.result;
-                previewEl.style.display = 'block';
-            };
-            reader.readAsDataURL(file);
+    if (file) {
+        if (!file.type.startsWith('image/')) {
+            alert('File harus berupa gambar yang valid.');
+            fileInput.value = '';
+            return;
         }
+
+        if (file.size > ALBUM_MAX_FILE_SIZE) {
+            alert('Ukuran file maksimal adalah 10MB.');
+            fileInput.value = '';
+            return;
+        }
+
+        if (fileNameLabel) fileNameLabel.textContent = `Terpilih: ${file.name}`;
+        if (formCard) formCard.style.display = 'flex';
+
+        if (currentObjectUrl) {
+            URL.revokeObjectURL(currentObjectUrl);
+        }
+        currentObjectUrl = URL.createObjectURL(file);
     }
 }
 
 function cancelAlbumUpload() {
-    const fileInput = document.getElementById('photo-file-input');
-    const labelEl = document.getElementById('selected-file-label');
-    const formEl = document.getElementById('photo-upload-form');
+    const { fileInput, fileNameLabel, formCard, captionInput } = getAlbumElements();
     
     if (fileInput) fileInput.value = '';
-    if (labelEl) labelEl.innerText = 'Ketuk untuk pilih dari galeri atau kamera';
-    if (formEl) formEl.style.display = 'none';
+    if (fileNameLabel) fileNameLabel.textContent = 'Ketuk untuk pilih dari galeri atau kamera';
+    if (formCard) formCard.style.display = 'none';
+    if (captionInput) captionInput.value = '';
 
-    const previewEl = document.getElementById('photo-preview');
-    if (previewEl) {
-        previewEl.src = '';
-        previewEl.style.display = 'none';
+    if (currentObjectUrl) {
+        URL.revokeObjectURL(currentObjectUrl);
+        currentObjectUrl = null;
     }
 }
-
-// --- REFACTOR: PENANGANAN UPLOAD FOTO & MEMUAT OTOMATIS KE ALBUM ---
-async function handleUploadPhoto(event) {
-    event.preventDefault();
-    if (!currentUser) {
-        alert('Silakan login terlebih dahulu!');
-        return;
-    }
-
-    const fileInput = document.getElementById('photo-file-input');
-    const captionInput = document.getElementById('photo-caption-input');
-    
-    if (!fileInput || fileInput.files.length === 0) {
-        alert('Pilih file gambar terlebih dahulu!');
-        return;
-    }
-
-    const caption = captionInput ? captionInput.value : '';
-
-    const formData = new FormData();
-    formData.append('user_id', currentUser.id);
-    formData.append('image', fileInput.files[0]);
-    formData.append('caption', caption);
-
-    try {
-        const response = await apiFetch('/api/albums', { method: 'POST', body: formData });
-        const data = await response.json();
-        
-        if (response.ok) {
-            // Reset form dan batalkan tampilan unggah sementara
-            cancelAlbumUpload();
-            if (captionInput) captionInput.value = '';
-            
-            // Langsung muat ulang data foto album terbaru dari server
-            await loadAlbumPhotos(); 
-
-            // Pastikan pengguna langsung melihat hasil foto di tab album
-            const albumMenuBtn = document.querySelector('.sidebar-menu button:nth-child(2)') || document.querySelector('.mobile-bottom-nav button:nth-child(2)');
-            switchTabNav('album', albumMenuBtn);
-
-            alert(data.message || 'Foto berhasil diunggah ke album keluarga!');
-        } else {
-            alert(data.error || 'Gagal mengunggah foto.');
-        }
-    } catch (err) {
-        console.error('Error upload foto:', err);
-        alert('Terjadi kesalahan jaringan saat mengunggah foto.');
-    }
-}
-
-
-// --- FITUR PERBARUI APLIKASI MANUAL ---
-async function forceUpdateApp() {
-    if (confirm('Cek dan perbarui aplikasi ke versi server terbaru?')) {
-        if ('serviceWorker' in navigator) {
-            try {
-                const registrations = await navigator.serviceWorker.getRegistrations();
-                for (let reg of registrations) {
-                    await reg.update();
-                }
-                const cacheNames = await caches.keys();
-                await Promise.all(cacheNames.map(cache => caches.delete(cache)));
-                alert('Pembaruan berhasil ditarik! Aplikasi akan dimuat ulang.');
-                window.location.reload();
-            } catch (err) {
-                console.error('Gagal memperbarui aplikasi:', err);
-                alert('Gagal menarik pembaruan. Pastikan koneksi internet stabil.');
-            }
-        } else {
-            window.location.reload();
-        }
-    }
-}
-
-// --- FUNGSI PEMBUKA TAUTAN EKSTERNAL / DEEP LINK ---
-function openExternalLink(url) {
-    const a = document.createElement('a');
-    a.href = url;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-}
-
-// --- FITUR VOICE NOTE ---
-let mediaRecorder;
-let audioChunks = [];
-let isRecording = false;
-
-async function toggleVoiceRecording() {
-    const micBtn = document.getElementById('mic-btn');
-
-    if (!isRecording) {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            let options = { mimeType: 'audio/webm' };
-            if (MediaRecorder.isTypeSupported('audio/mp4')) options = { mimeType: 'audio/mp4' };
-            else if (!MediaRecorder.isTypeSupported('audio/webm')) options = {};
-
-            mediaRecorder = new MediaRecorder(stream, options);
-            audioChunks = [];
-
-            mediaRecorder.ondataavailable = event => {
-                if (event.data.size > 0) audioChunks.push(event.data);
-            };
-
-            mediaRecorder.onstop = async () => {
-                stream.getTracks().forEach(track => track.stop());
-                const blobType = options.mimeType || 'audio/webm';
-                const audioBlob = new Blob(audioChunks, { type: blobType });
-                const localTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-                
-                const formData = new FormData();
-                formData.append('user_id', currentUser.id);
-                formData.append('media', audioBlob, blobType.includes('mp4') ? 'voicenote.mp4' : 'voicenote.webm');
-                formData.append('client_time', localTime);
-
-                try {
-                    const response = await apiFetch('/api/send-message', { method: 'POST', body: formData });
-                    if (!response.ok) alert('Gagal mengirim pesan suara.');
-                } catch (err) {
-                    console.error('Gagal upload voice note:', err);
-                }
-
-                isRecording = false;
-                if (micBtn) micBtn.style.color = 'var(--text-light)';
-            };
-
-            mediaRecorder.start();
-            isRecording = true;
-            if (micBtn) micBtn.style.color = '#e74c3c';
-            
-        } catch (err) {
-            alert('Izin mikrofon ditolak atau tidak didukung perangkat.');
-            isRecording = false;
-            if (micBtn) micBtn.style.color = 'var(--text-light)';
-        }
-    } else {
-        if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
-    }
-}
-
-// --- FITUR POP-UP MENU ALA WHATSAPP & REPLY/DELETE ---
-function setupMessageInteraction(msgDiv, messageId, messageText, isSelf) {
-    let pressTimer;
-    
-    const startTimer = (e) => {
-        clearTimeout(pressTimer);
-        pressTimer = setTimeout(() => {
-            showWhatsAppStyleMenu(messageId, messageText, isSelf);
-        }, 500);
-    };
-
-    const cancelTimer = () => {
-        clearTimeout(pressTimer);
-    };
-
-    msgDiv.addEventListener('mousedown', startTimer);
-    msgDiv.addEventListener('mouseup', cancelTimer);
-    msgDiv.addEventListener('mouseleave', cancelTimer);
-    
-    msgDiv.addEventListener('touchstart', startTimer, { passive: true });
-    msgDiv.addEventListener('touchend', cancelTimer);
-    msgDiv.addEventListener('touchmove', cancelTimer, { passive: true });
-}
-
-function showWhatsAppStyleMenu(messageId, messageText, isSelf) {
-    const existingOverlay = document.getElementById('chat-action-overlay');
-    if (existingOverlay) existingOverlay.remove();
-
-    const overlay = document.createElement('div');
-    overlay.id = 'chat-action-overlay';
-    overlay.className = 'chat-popup-overlay';
-
-    const menu = document.createElement('div');
-    menu.className = 'chat-popup-menu';
-
-    const replyItem = document.createElement('div');
-    replyItem.className = 'chat-popup-item';
-    replyItem.innerHTML = `<i class="fa-solid fa-reply" style="color: var(--primary-color);"></i> Balas`;
-    replyItem.onclick = () => {
-        overlay.remove();
-        selectReplyActionDirect(messageId, messageText || 'Lampiran');
-    };
-    menu.appendChild(replyItem);
-
-    if (isSelf) {
-        const deleteItem = document.createElement('div');
-        deleteItem.className = 'chat-popup-item danger';
-        deleteItem.innerHTML = `<i class="fa-solid fa-trash-can"></i> Hapus Pesan`;
-        deleteItem.onclick = () => {
-            overlay.remove();
-            deleteMessage(messageId);
-        };
-        menu.appendChild(deleteItem);
-    }
-
-    overlay.appendChild(menu);
-
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) overlay.remove();
-    });
-
-    document.body.appendChild(overlay);
-}
-
-function selectReplyActionDirect(messageId, messageText) {
-    window.replyingToMessageId = messageId;
-    
-    const chatInputArea = document.getElementById('chat-input-area');
-    if (!chatInputArea) return; 
-
-    let banner = document.getElementById('reply-banner');
-    
-    if (!banner) {
-        banner = document.createElement('div');
-        banner.id = 'reply-banner';
-        banner.style.cssText = 'background: var(--bg-light); padding: 6px 12px; font-size: 12px; border-left: 3px solid var(--primary-color); display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; border-radius: 4px; color: var(--text-light);';
-        chatInputArea.parentNode.insertBefore(banner, chatInputArea);
-    }
-    
-    banner.innerHTML = `<span>Membalas: <b>${messageText}</b></span> <button onclick="cancelReply()" style="background:none; border:none; color:red; cursor:pointer; font-weight:bold;">&times;</button>`;
-}
-
-function cancelReply() {
-    window.replyingToMessageId = null;
-    const banner = document.getElementById('reply-banner');
-    if (banner) banner.remove();
-}
-
-async function deleteMessage(messageId) {
-    try {
-        const response = await apiFetch(`/api/messages/${messageId}`, { method: 'DELETE' });
-        if (!response.ok) alert('Gagal menghapus pesan.');
-    } catch (err) {
-        console.error('Error hapus pesan:', err);
-    }
-}
-
-// Socket event listeners
-socket.on('chat_history', (history) => {
-    const container = document.getElementById('chat-messages-container');
-    if (container) {
-        container.innerHTML = ''; 
-        history.forEach(data => appendChatMessage(data));
-    }
-});
-
-socket.on('receive_message', (data) => {
-    appendChatMessage(data);
-    if (currentUser && data.user_id !== currentUser.id) {
-        chatBeepAudio.play().catch(() => {});
-        if (Notification.permission === 'granted') {
-            new Notification(`Pesan Baru dari ${data.name}`, {
-                body: data.message || 'Mengirim sebuah lampiran',
-                icon: '/logo-kitachat.png'
-            });
-        }
-    }
-});
-
-socket.on('message_deleted', (data) => {
-    const bubble = document.getElementById(`msg-bubble-${data.id}`);
-    if (bubble) bubble.innerHTML = `<div style="font-style: italic; color: gray; font-size: 13px;"><i class="fa-solid fa-ban"></i> Pesan telah dihapus</div>`;
-});
-
-function appendChatMessage(data) {
-    const container = document.getElementById('chat-messages-container');
-    if (!container) return;
-    
-    const msgDiv = document.createElement('div');
-    msgDiv.id = `msg-bubble-${data.id}`;
-    const isSelf = currentUser && data.user_id === currentUser.id;
-    msgDiv.className = isSelf ? 'chat-bubble chat-outgoing' : 'chat-bubble chat-incoming';
-
-    if (data.is_deleted) {
-        msgDiv.innerHTML = `<div style="font-style: italic; color: gray; font-size: 13px;"><i class="fa-solid fa-ban"></i> Pesan telah dihapus</div>`;
-        container.appendChild(msgDiv);
-        container.scrollTop = container.scrollHeight;
-        return;
-    }
-
-    let contentHtml = '';
-    
-    if (data.reply_text) {
-        contentHtml += `<div style="border-left: 3px solid var(--primary-color); background: rgba(0,0,0,0.05); padding: 4px 8px; margin-bottom: 6px; border-radius: 4px; font-size: 11px; opacity: 0.8;"><b>Membalas:</b> ${data.reply_text}</div>`;
-    }
-
-    if (data.message) {
-        let formattedMsg = data.message.replace(
-            /(https?:\/\/[^\s]+)/g, 
-            '<span onclick="openExternalLink(\'$1\')" style="color: #3498db; text-decoration: underline; word-break: break-all; cursor: pointer;">$1</span>'
-        );
-        formattedMsg = formattedMsg.replace(/\n/g, '<br>');
-        
-        contentHtml += `<div style="line-height: 1.4;">${formattedMsg}</div>`;
-    }
-    
-    if (data.image_url) contentHtml += `<img src="${data.image_url}" style="max-width: 220px; border-radius: 8px; display: block; margin-top: 5px; cursor: pointer;" onclick="openZoomModal('${data.image_url}')">`;
-    if (data.audio_url) contentHtml += `<audio controls preload="metadata" src="${data.audio_url}" style="max-width: 200px; height: 35px; margin-top: 5px;"></audio>`;
-
-    const displayTime = data.time || '';
-    
-    msgDiv.innerHTML = `
-        ${!isSelf ? `<div class="chat-sender-name">${data.name}</div>` : ''}
-        ${contentHtml}
-        <div class="chat-time" style="margin-top: 4px; text-align: ${isSelf ? 'right' : 'left'};">
-            ${displayTime}
-        </div>
-    `;
-
-    setupMessageInteraction(msgDiv, data.id, data.message, isSelf);
-    
-    container.appendChild(msgDiv);
-    container.scrollTop = container.scrollHeight;
-}
-
-const msgInput = document.getElementById('message-input');
-if (msgInput) {
-    msgInput.addEventListener('input', function() {
-        this.style.height = 'auto';
-        this.style.height = (this.scrollHeight) + 'px';
-    });
-    msgInput.addEventListener('keydown', function(event) {
-        if (event.key === 'Enter' && !event.shiftKey) {
-            event.preventDefault();
-            sendMessage();
-            this.style.height = 'auto';
-        }
-    });
-}
-
-// --- FITUR KELUARGA ---
-async function loadFamilyMembers() {
-    try {
-        const response = await apiFetch('/api/users');
-        if (response.ok) {
-            const users = await response.json();
-            const container = document.getElementById('family-list-container');
-            if (!container) return; 
-            container.innerHTML = '';
-            container.style.display = 'flex';
-            container.style.flexDirection = 'column';
-            container.style.gap = '10px';
-            container.style.maxWidth = '600px';
-            container.style.margin = '0 auto';
-            container.style.width = '100%';
-
-            users.forEach(user => {
-                const card = document.createElement('div');
-                card.style.background = 'var(--card-bg)';
-                card.style.border = '1px solid var(--border-color)';
-                card.style.padding = '14px 18px';
-                card.style.borderRadius = '14px';
-                card.style.display = 'flex';
-                card.style.alignItems = 'center';
-                card.style.justifyContent = 'space-between';
-                card.style.boxShadow = '0 1px 4px rgba(0,0,0,0.04)';
-                
-                const isOtherUser = currentUser && currentUser.id !== user.id;
-                if (isOtherUser) {
-                    card.style.cursor = 'pointer';
-                    card.style.transition = 'background 0.2s';
-                    card.onmouseover = () => card.style.background = 'rgba(0,0,0,0.02)';
-                    card.onmouseout = () => card.style.background = 'var(--card-bg)';
-                    card.onclick = () => startCall(user.id, user.name);
-                }
-
-                const bdate = user.birthdate ? new Date(user.birthdate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Tidak diisi';
-                const avatarSrc = user.photo_url || 'https://via.placeholder.com/50';
-
-                card.innerHTML = `
-                    <div style="display: flex; align-items: center; gap: 15px;">
-                        <img src="${avatarSrc}" alt="Avatar" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-color);">
-                        <div>
-                            <h4 style="margin: 0; color: var(--text-light); font-size: 16px; font-weight: bold;">${user.name} ${!isOtherUser ? '(Anda)' : ''}</h4>
-                            <p style="margin: 2px 0 0 0; font-size: 12px; color: gray;"><i class="fa-solid fa-phone"></i> ${user.phone} &bull; <i class="fa-solid fa-cake-candles"></i> ${bdate}</p>
-                        </div>
-                    </div>
-                    ${isOtherUser ? `<div style="color: var(--primary-color); font-size: 18px; padding-right: 5px;"><i class="fa-solid fa-phone-volume" title="Ketuk untuk menelepon"></i></div>` : ''}
-                `;
-                container.appendChild(card);
-            });
-        }
-    } catch (err) {
-        console.error('Gagal memuat direktori keluarga:', err);
-    }
-}
-
-// --- FITUR ALBUM ---
-let currentAlbumFilter = 'semua';
-let globalAlbumData = [];
 
 async function loadAlbumPhotos() {
+    const currentReqId = ++albumRequestId;
     try {
         const response = await apiFetch('/api/albums');
+        if (currentReqId !== albumRequestId) return;
+
         if (response.ok) {
-            globalAlbumData = await response.json();
-            renderAlbumGrid(globalAlbumData);
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                globalAlbumData = await response.json();
+                renderAlbumGrid(globalAlbumData);
+            }
         }
     } catch (err) {
         console.error('Gagal memuat album:', err);
     }
 }
 
+// Perenderan Aman Menggunakan DOM API (Mencegah XSS)
 function renderAlbumGrid(photos) {
-    const container = document.getElementById('album-grid-container');
+    const { grid: container } = getAlbumElements();
     if (!container) return;
-    container.innerHTML = '';
+
+    container.replaceChildren();
 
     if (photos.length === 0) {
-        container.innerHTML = '<p style="color: gray; grid-column: span 3; text-align: center; padding: 20px;">Belum ada foto di album.</p>';
+        const p = document.createElement('p');
+        p.style.cssText = 'color: gray; grid-column: span 3; text-align: center; padding: 20px;';
+        p.textContent = 'Belum ada foto di album.';
+        container.appendChild(p);
         return;
     }
 
     photos.forEach((item, index) => {
         const card = document.createElement('div');
         card.style.cssText = 'position: relative; width: 100%; aspect-ratio: 1 / 1; border-radius: 4px; overflow: hidden; background: #ddd; cursor: pointer;';
-        const menuId = `album-menu-${item.id || index}`;
-        const isOwner = currentUser && String(currentUser.id) === String(item.user_id);
+        
+        const img = document.createElement('img');
+        img.src = item.image_url;
+        img.alt = item.caption || 'Foto';
+        img.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
+        img.onclick = () => openZoomModal(item.image_url);
+        img.onerror = () => { img.src = 'https://via.placeholder.com/150?text=Gagal'; };
 
-        card.innerHTML = `
-            <img src="${item.image_url}" alt="Foto" style="width: 100%; height: 100%; object-fit: cover;" onclick="openZoomModal('${item.image_url}')" onerror="this.src='https://via.placeholder.com/150?text=Gagal'">
-            <button class="photo-menu-btn" onclick="togglePhotoMenu(event, '${menuId}')" style="width: 26px; height: 26px; font-size: 11px; bottom: 4px; right: 4px;"><i class="fa-solid fa-ellipsis-vertical"></i></button>
-            <div id="${menuId}" class="photo-dropdown">
-                <button onclick="downloadPhoto('${item.image_url}')"><i class="fa-solid fa-download"></i> Simpan</button>
-                ${isOwner ? `<button onclick="deleteAlbumPhoto('${item.id}')" style="color: #e74c3c;"><i class="fa-solid fa-trash"></i> Hapus</button>` : ''}
-            </div>
-        `;
+        const menuId = `album-menu-${item.id || index}`;
+        const menuBtn = document.createElement('button');
+        menuBtn.className = 'photo-menu-btn';
+        menuBtn.style.cssText = 'width: 26px; height: 26px; font-size: 11px; bottom: 4px; right: 4px; position: absolute; border-radius: 50%; border: none; background: rgba(0,0,0,0.6); color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;';
+        menuBtn.innerHTML = '<i class="fa-solid fa-ellipsis-vertical"></i>';
+        menuBtn.onclick = (e) => togglePhotoMenu(e, menuId);
+
+        const dropdown = document.createElement('div');
+        dropdown.id = menuId;
+        dropdown.className = 'photo-dropdown';
+
+        const downloadBtn = document.createElement('button');
+        downloadBtn.innerHTML = '<i class="fa-solid fa-download"></i> Simpan';
+        downloadBtn.onclick = () => downloadPhoto(item.image_url);
+        dropdown.appendChild(downloadBtn);
+
+        const isOwner = currentUser && String(currentUser.id) === String(item.user_id);
+        if (isOwner) {
+            const deleteBtn = document.createElement('button');
+            deleteBtn.style.color = '#e74c3c';
+            deleteBtn.innerHTML = '<i class="fa-solid fa-trash"></i> Hapus';
+            deleteBtn.onclick = () => deleteAlbumPhoto(item.id);
+            dropdown.appendChild(deleteBtn);
+        }
+
+        card.appendChild(img);
+        card.appendChild(menuBtn);
+        card.appendChild(dropdown);
         container.appendChild(card);
     });
 }
@@ -870,7 +532,7 @@ function filterAlbum(type) {
     renderAlbumGrid(filtered);
 }
 
-// --- REFACTOR: PENANGANAN UPLOAD FOTO ---
+// Fungsi Tunggal handleUploadPhoto (Tanpa Duplikasi)
 async function handleUploadPhoto(event) {
     event.preventDefault();
     if (!currentUser) {
@@ -878,38 +540,56 @@ async function handleUploadPhoto(event) {
         return;
     }
 
-    const fileInput = document.getElementById('photo-file-input');
-    const captionInput = document.getElementById('photo-caption-input');
+    const { fileInput, captionInput, submitBtn } = getAlbumElements();
     
     if (!fileInput || fileInput.files.length === 0) {
         alert('Pilih file gambar terlebih dahulu!');
         return;
     }
 
-    const caption = captionInput ? captionInput.value : '';
+    const file = fileInput.files[0];
+    if (!file.type.startsWith('image/')) {
+        alert('File harus berupa gambar.');
+        return;
+    }
+    if (file.size > ALBUM_MAX_FILE_SIZE) {
+        alert('Ukuran file maksimal 10MB.');
+        return;
+    }
 
+    const caption = captionInput ? captionInput.value : '';
     const formData = new FormData();
-    formData.append('user_id', currentUser.id);
-    formData.append('image', fileInput.files[0]);
+    formData.append('image', file);
     formData.append('caption', caption);
+
+    if (submitBtn) submitBtn.disabled = true;
 
     try {
         const response = await apiFetch('/api/albums', { method: 'POST', body: formData });
-        const data = await response.json();
-        if (response.ok) {
-            alert(data.message);
-            cancelAlbumUpload();
-            if (captionInput) captionInput.value = '';
-            loadAlbumPhotos();
+        const contentType = response.headers.get('content-type');
+        
+        let data = {};
+        if (contentType && contentType.includes('application/json')) {
+            data = await response.json();
         } else {
-            alert(data.error);
+            throw new Error('Respons server tidak valid.');
+        }
+
+        if (response.ok) {
+            cancelAlbumUpload();
+            switchTabNav('album'); // Cukup panggil switchTabNav yang otomatis memuat ulang album
+        } else {
+            alert(data.error || 'Gagal mengunggah foto.');
         }
     } catch (err) {
         console.error('Error upload foto:', err);
+        alert('Terjadi kesalahan jaringan.');
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
     }
 }
 
-// --- REFACTOR: FITUR AGENDA ---
+// --- FITUR AGENDA ---
 async function handleCreateAgenda(event) {
     event.preventDefault();
     if (!currentUser) {
@@ -936,7 +616,6 @@ async function handleCreateAgenda(event) {
         if (response.ok) {
             alert(data.message);
             
-            // Reset input form secara aman
             if (titleInput) titleInput.value = '';
             if (dateInput) dateInput.value = '';
             if (descInput) descInput.value = '';
@@ -1016,7 +695,6 @@ async function triggerUploadProfile(inputElement) {
         }
 
         const formData = new FormData();
-        formData.append('user_id', currentUser.id);
         formData.append('image', inputElement.files[0]);
 
         try {
@@ -1037,7 +715,6 @@ async function triggerUploadProfile(inputElement) {
     }
 }
 
-// --- FITUR GANTI PASSWORD ---
 function openChangePasswordModal() {
     const modal = document.getElementById('password-modal');
     if (modal) modal.classList.remove('hidden');
@@ -1098,7 +775,6 @@ let localStream = null;
 let peerConnection = null;
 let targetSocketId = null;
 let targetUserId = null;
-
 let iceCandidateQueue = []; 
 
 socket.on('connect', () => {
@@ -1287,7 +963,6 @@ function hangUpCall() {
     iceCandidateQueue = [];
 }
 
-// --- FITUR LAINNYA ---
 function openZoomModal(imageUrl) {
     const modal = document.getElementById('photo-zoom-modal');
     const img = document.getElementById('zoomed-img-element');
@@ -1355,7 +1030,6 @@ if (chatFileInput) {
 
             const formData = new FormData();
             formData.append('media', this.files[0]);
-            formData.append('user_id', currentUser.id);
             formData.append('client_time', new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
 
             try {
@@ -1369,7 +1043,6 @@ if (chatFileInput) {
     });
 }
 
-// --- FITUR EMAIL PEMULIHAN & LUPA PASSWORD ---
 async function handleUpdateEmail(event) {
     event.preventDefault();
     if (!currentUser) {
