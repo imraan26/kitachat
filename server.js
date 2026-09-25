@@ -127,19 +127,22 @@ async function initDB() {
   } catch (err) {
     console.error('Gagal menginisialisasi skema database:', err);
   }
+  
   // Menambahkan kolom pemulihan tanpa merusak tabel yang ada
-   try {
+  try {
        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255) UNIQUE;`);
        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(10);`);
        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expiry BIGINT;`);
-   } catch(e) { console.log('Kolom email pemulihan sudah tersedia.'); }
+       console.log('Kolom pemulihan email berhasil diverifikasi.');
+  } catch(e) { 
+       console.log('Catatan kolom pemulihan:', e.message); 
+  }
 }
 
 // ==========================================
 // MIDDLEWARE: KEAMANAN SINGLE DEVICE LOGIN
 // ==========================================
 async function checkSingleDevice(req, res, next) {
-  // BACA TOKEN DARI 3 SUMBER: Header (Desktop/iOS), Body (Android POST), Query (Android GET)
   const userId = req.headers['x-user-id'] || (req.body && req.body.user_id) || (req.query && req.query.user_id) || null;
   const clientToken = req.headers['x-session-token'] || (req.body && req.body.session_token) || (req.query && req.query.session_token) || null;
 
@@ -228,7 +231,9 @@ app.post('/api/register', async (req, res) => {
 
 // 2. API LOGIN
 app.post('/api/login', async (req, res) => {
-  const { phone, password } = req.body;
+  let { phone, password } = req.body;
+  if (!phone) return res.status(400).json({ error: 'Nomor telepon wajib diisi.' });
+  phone = phone.replace(/[^0-9]/g, '');
 
   try {
     const userResult = await pool.query('SELECT * FROM users WHERE phone = $1', [phone]);
@@ -536,10 +541,12 @@ app.delete('/api/messages', checkSingleDevice, async (req, res) => {
 });
 
 // ==========================================
-// FITUR EMAIL PEMULIHAN (LUPA PASSWORD)
+// FITUR EMAIL PEMULIHAN (LUPA PASSWORD) - DIOPTIMALKAN
 // ==========================================
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true, // Menggunakan SSL murni untuk port 465 agar tembus firewall & tidak masuk spam
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
@@ -553,22 +560,26 @@ app.put('/api/update-email', checkSingleDevice, async (req, res) => {
     if (!email) return res.status(400).json({ error: 'Email wajib diisi!' });
 
     try {
-        await pool.query('UPDATE users SET email = $1 WHERE id = $2', [email, userId]);
+        await pool.query('UPDATE users SET email = $1 WHERE id = $2', [email.trim(), userId]);
         res.status(200).json({ message: 'Email pemulihan berhasil disimpan!' });
     } catch (err) {
-        res.status(500).json({ error: 'Email mungkin sudah dipakai atau terjadi kesalahan.' });
+        console.error('Error update email:', err);
+        res.status(500).json({ error: 'Email mungkin sudah dipakai oleh akun lain atau terjadi kesalahan.' });
     }
 });
 
 // API: Kirim OTP ke Email
 app.post('/api/forgot-password', async (req, res) => {
-    const { phone } = req.body;
+    let { phone } = req.body;
+    if (!phone) return res.status(400).json({ error: 'Nomor telepon wajib diisi.' });
+    phone = phone.replace(/[^0-9]/g, '');
+
     try {
         const user = await pool.query('SELECT id, email, name FROM users WHERE phone = $1', [phone]);
         if (user.rows.length === 0) return res.status(404).json({ error: 'Nomor telepon tidak terdaftar.' });
 
         const userData = user.rows[0];
-        if (!userData.email) return res.status(400).json({ error: 'Akun ini belum mendaftarkan email pemulihan!' });
+        if (!userData.email) return res.status(400).json({ error: 'Akun ini belum mendaftarkan email pemulihan di menu Pengaturan!' });
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString(); // OTP 6 Digit
         const expiry = Date.now() + 15 * 60 * 1000; // Berlaku 15 menit
@@ -576,41 +587,61 @@ app.post('/api/forgot-password', async (req, res) => {
         await pool.query('UPDATE users SET reset_token = $1, reset_token_expiry = $2 WHERE id = $3', [otp, expiry, userData.id]);
 
         const mailOptions = {
-            from: process.env.EMAIL_USER,
+            from: `"Kitachat Family Hub" <${process.env.EMAIL_USER}>`,
             to: userData.email,
             subject: 'Kode Pemulihan Password - Kitachat',
-            text: `Halo ${userData.name},\n\nSeseorang mencoba masuk ke akun Kitachat Anda namun gagal.\nJika ini Anda, gunakan kode OTP berikut untuk mereset kata sandi:\n\n${otp}\n\nKode ini berlaku selama 15 menit. JANGAN BERIKAN KODE INI KEPADA SIAPAPUN.`
+            text: `Halo ${userData.name},\n\nSeseorang mencoba mereset sandi akun Kitachat Anda.\nGunakan kode OTP berikut untuk melanjutkan:\n\n${otp}\n\nKode ini berlaku selama 15 menit. JANGAN BERIKAN KODE INI KEPADA SIAPAPUN.`
         };
 
         transporter.sendMail(mailOptions, (error, info) => {
-            if (error) return res.status(500).json({ error: 'Gagal mengirim email. Hubungi admin keluarga.' });
+            if (error) {
+                console.error('Gagal kirim email Nodemailer:', error);
+                return res.status(500).json({ error: 'Gagal mengirim email OTP. Periksa konfigurasi EMAIL_USER/EMAIL_PASS di server.' });
+            }
             res.status(200).json({ message: 'Kode OTP telah dikirim ke email pemulihan Anda!' });
         });
     } catch (err) {
+        console.error('Error forgot-password:', err);
         res.status(500).json({ error: 'Terjadi kesalahan server.' });
     }
 });
 
-// API: Verifikasi OTP dan Ganti Password
+// API: Verifikasi OTP dan Ganti Password (Dioptimalkan agar langsung mengganti data)
 app.post('/api/reset-password', async (req, res) => {
-    const { phone, otp, new_password } = req.body;
+    let { phone, otp, new_password } = req.body;
+    if (!phone || !otp || !new_password) {
+        return res.status(400).json({ error: 'Data reset password tidak lengkap!' });
+    }
+    phone = phone.replace(/[^0-9]/g, '');
+
     try {
         const user = await pool.query('SELECT id, reset_token, reset_token_expiry FROM users WHERE phone = $1', [phone]);
+        if (user.rows.length === 0) {
+            return res.status(404).json({ error: 'Nomor telepon tidak ditemukan.' });
+        }
+
         const userData = user.rows[0];
 
-        if (!userData || !userData.reset_token || userData.reset_token !== otp) {
+        if (!userData.reset_token || userData.reset_token !== otp.trim()) {
             return res.status(400).json({ error: 'Kode OTP salah atau tidak valid!' });
         }
-        if (Date.now() > userData.reset_token_expiry) {
+        if (Date.now() > Number(userData.reset_token_expiry)) {
             return res.status(400).json({ error: 'Kode OTP sudah kedaluwarsa!' });
         }
 
-        const hashedNewPassword = await bcrypt.hash(new_password, 10);
-        await pool.query('UPDATE users SET password = $1, reset_token = NULL, reset_token_expiry = NULL WHERE id = $2', [hashedNewPassword, userData.id]);
+        const saltRounds = 10;
+        const hashedNewPassword = await bcrypt.hash(new_password, saltRounds);
         
-        res.status(200).json({ message: 'Password berhasil diubah! Silakan login.' });
+        // Update password baru DAN hapus token reset agar tidak bisa dipakai ulang, sekaligus mereset session_token agar perangkat lain tertendang
+        await pool.query(
+            'UPDATE users SET password = $1, reset_token = NULL, reset_token_expiry = NULL, session_token = NULL WHERE id = $2', 
+            [hashedNewPassword, userData.id]
+        );
+        
+        res.status(200).json({ message: 'Password berhasil diubah! Silakan login kembali dengan password baru.' });
     } catch (err) {
-        res.status(500).json({ error: 'Terjadi kesalahan server.' });
+        console.error('Error reset-password:', err);
+        res.status(500).json({ error: 'Terjadi kesalahan server saat memperbarui password.' });
     }
 });
 
@@ -710,7 +741,6 @@ app.put('/api/update-password', checkSingleDevice, async (req, res) => {
     }
 
     try {
-        // Ambil password lama dari database
         const userResult = await pool.query('SELECT password FROM users WHERE id = $1', [userId]);
         if (userResult.rows.length === 0) {
             return res.status(404).json({ error: 'Pengguna tidak ditemukan.' });
@@ -718,17 +748,14 @@ app.put('/api/update-password', checkSingleDevice, async (req, res) => {
 
         const hashedOldPassword = userResult.rows[0].password;
 
-        // Verifikasi password lama
         const isMatch = await bcrypt.compare(old_password, hashedOldPassword);
         if (!isMatch) {
             return res.status(401).json({ error: 'Password lama salah!' });
         }
 
-        // Enkripsi (Hash) password baru
         const saltRounds = 10;
         const hashedNewPassword = await bcrypt.hash(new_password, saltRounds);
 
-        // Update password ke dalam database
         await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashedNewPassword, userId]);
 
         res.status(200).json({ message: 'Password berhasil diperbarui!' });
@@ -737,8 +764,6 @@ app.put('/api/update-password', checkSingleDevice, async (req, res) => {
         res.status(500).json({ error: 'Terjadi kesalahan pada server saat memperbarui password.' });
     }
 });
-
-
 
 // Jalankan Inisialisasi DB lalu Nyalakan Server
 const PORT = process.env.PORT || 3000;
