@@ -205,20 +205,36 @@
                             <div id="birthday-list-container" style="display: flex; flex-direction: column; gap: 8px;"></div>
                         </div>
 
-                        <!-- 2. Tambah Agenda Keluarga -->
+                        <!-- 2. Tambah Agenda Keluarga (Model Kartu Interaktif Sederhana) -->
                         <div style="background: var(--card-bg); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                            <h4 style="margin-bottom: 12px; color: var(--primary-color); font-size: 15px; display: flex; align-items: center; gap: 8px;">
-                                <i class="fa-solid fa-plus-circle"></i> Tambah Agenda Keluarga
-                            </h4>
-                            <form onsubmit="handleCreateAgenda(event)" style="display: flex; gap: 12px; flex-direction: column;">
+                            
+                            <!-- Tombol Pemicu Utama (Hanya Ikon & Teks, diketuk untuk membuka form) -->
+                            <div onclick="toggleAgendaForm()" style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 4px 0;">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <div style="width: 38px; height: 38px; border-radius: 50%; background: var(--primary-light); display: flex; align-items: center; justify-content: center; color: var(--primary-color); font-size: 16px;">
+                                        <i class="fa-solid fa-calendar-plus"></i>
+                                    </div>
+                                    <div>
+                                        <h4 style="margin: 0; color: var(--text-light); font-size: 14px; font-weight: 600;">Tambah Agenda Keluarga</h4>
+                                        <p style="margin: 2px 0 0 0; font-size: 12px; color: gray;" id="agenda-toggle-label">Ketuk untuk membuat jadwal acara baru</p>
+                                    </div>
+                                </div>
+                                <i class="fa-solid fa-chevron-right" id="agenda-chevron-icon" style="color: gray; font-size: 13px; transition: transform 0.2s;"></i>
+                            </div>
+
+                            <!-- Form Pengisian (Tersembunyi secara default, muncul saat diketuk) -->
+                            <form id="agenda-form-container" onsubmit="handleCreateAgenda(event)" class="hidden" style="display: none; flex-direction: column; gap: 12px; margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
                                 <input type="text" id="agenda-title" placeholder="Nama Acara / Kegiatan (Cth: Arisan Keluarga)" required style="padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-light); color: var(--text-light); font-size: 14px; outline: none;">
                                 <input type="date" id="agenda-date" required style="padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-light); color: var(--text-light); font-size: 14px; outline: none;">
                                 <input type="text" id="agenda-desc" placeholder="Keterangan / Lokasi (Opsional)" style="padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-light); color: var(--text-light); font-size: 14px; outline: none;">
-                                <button type="submit" class="btn-primary" style="border-radius: 8px; padding: 12px; font-weight: bold; width: 100%;">Simpan Agenda</button>
+                                <div style="display: flex; gap: 8px;">
+                                    <button type="submit" class="btn-primary" style="flex: 1; border-radius: 8px; padding: 12px; font-weight: bold;">Simpan Agenda</button>
+                                    <button type="button" onclick="toggleAgendaForm()" style="background: none; border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; cursor: pointer; color: var(--text-light); font-size: 14px;">Batal</button>
+                                </div>
                             </form>
                         </div>
 
-                        <!-- 3. Daftar Kegiatan Mendatang -->
+                        <!-- 3. Daftar Kegiatan Mendatang (Model Kartu Agenda) -->
                         <div style="background: var(--card-bg); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                             <h4 style="margin-bottom: 12px; color: var(--primary-color); font-size: 15px; display: flex; align-items: center; gap: 8px;">
                                 <i class="fa-solid fa-list-check"></i> Daftar Kegiatan Mendatang
