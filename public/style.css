@@ -312,6 +312,7 @@ form input:focus {
   flex-direction: column;
   background: var(--bg-light);
   height: 100%;
+  min-height: 0; /* Kunci agar flex item bisa dibatasi tingginya */
   overflow: hidden;
   position: relative;
 }
@@ -320,18 +321,19 @@ form input:focus {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0; /* Kunci agar flex item bisa dibatasi tingginya */
   width: 100%;
   overflow: hidden;
 }
 
 .tab-scroll-content {
   flex: 1;
-  overflow-y: auto; /* Kunci utama untuk mengaktifkan scroll atas-bawah */
+  min-height: 0; /* Kunci agar area scroll aktif */
+  overflow-y: auto;
   padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  min-height: 0; /* Sangat penting dalam Flexbox agar kontainer tahu batas tinggi dan bisa memicu scroll */
 }
 
 .chat-header {
