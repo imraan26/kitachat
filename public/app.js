@@ -1,5 +1,6 @@
 const socket = io();
 let currentUser = null;
+let failedLoginAttempts = 0;
 
 // --- PEMULIHAN SESI AMAN SEBELUM APAPUN BERJALAN ---
 (function() {
@@ -147,28 +148,30 @@ async function handleLogin(event) {
         const data = await response.json();
 
         if (response.ok) {
+            failedLoginAttempts = 0; 
+            document.getElementById('forgot-password-btn').classList.add('hidden');
+            
             currentUser = data.user;
             localStorage.setItem('kitachat_user', JSON.stringify(currentUser));
-            if (data.session_token) {
-                localStorage.setItem('kitachat_session_token', data.session_token);
-            }
+            if (data.session_token) localStorage.setItem('kitachat_session_token', data.session_token);
 
             chatBeepAudio.play().catch(() => {});
             chatBeepAudio.pause();
             chatBeepAudio.currentTime = 0;
 
-            if ('Notification' in window && Notification.permission === 'default') {
-                Notification.requestPermission();
-            }
-
+            if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
             updateUserInterface();
             socket.emit('register_call_user', currentUser.id);
         } else {
             alert(data.error);
+            if (data.error === 'Password salah!') {
+                failedLoginAttempts++;
+                if (failedLoginAttempts >= 3) {
+                    document.getElementById('forgot-password-btn').classList.remove('hidden');
+                }
+            }
         }
-    } catch (err) {
-        console.error('Error login:', err);
-    }
+    } catch (err) { console.error('Error login:', err); }
 }
 
 function updateUserInterface() {
@@ -1062,6 +1065,70 @@ if (chatFileInput) {
         }
     });
 }
+
+// --- FITUR EMAIL PEMULIHAN & LUPA PASSWORD ---
+async function handleUpdateEmail(event) {
+    event.preventDefault();
+    const email = document.getElementById('recovery-email').value;
+    if (!currentUser) return alert('Silakan login terlebih dahulu!');
+
+    try {
+        const response = await apiFetch('/api/update-email', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
+        const data = await response.json();
+        if (response.ok) {
+            alert(data.message);
+            document.getElementById('email-modal').classList.add('hidden');
+        } else alert(data.error);
+    } catch (err) { alert('Kesalahan jaringan.'); }
+}
+
+async function requestOTP() {
+    const phone = document.getElementById('login-phone').value;
+    if (!phone) return alert('Masukkan nomor telepon Anda di atas terlebih dahulu.');
+
+    try {
+        const response = await fetch('/api/forgot-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone })
+        });
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert(data.message);
+            document.getElementById('otp-modal').classList.remove('hidden');
+        } else alert(data.error);
+    } catch (err) { alert('Terjadi kesalahan jaringan.'); }
+}
+
+async function handleResetPassword(event) {
+    event.preventDefault();
+    const phone = document.getElementById('login-phone').value;
+    const otp = document.getElementById('reset-otp').value;
+    const new_password = document.getElementById('reset-new-password').value;
+
+    try {
+        const response = await fetch('/api/reset-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone, otp, new_password })
+        });
+        const data = await response.json();
+
+        if (response.ok) {
+            alert(data.message);
+            document.getElementById('otp-modal').classList.add('hidden');
+            document.getElementById('forgot-password-btn').classList.add('hidden');
+            document.getElementById('login-password').value = '';
+            failedLoginAttempts = 0;
+        } else alert(data.error);
+    } catch (err) { alert('Kesalahan jaringan.'); }
+}
+
 
 function clearChat() {
     if (confirm('Yakin ingin menghapus semua riwayat obrolan?')) {
