@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kitachat-pwa-v4'; // Versi dinaikkan ke v4 untuk memicu auto-update manifest & aset baru
+const CACHE_NAME = 'kitachat-pwa-v5'; // Versi dinaikkan
 const urlsToCache = [
   '/',
   '/index.html',
