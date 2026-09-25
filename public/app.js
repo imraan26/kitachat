@@ -16,7 +16,7 @@ let failedLoginAttempts = 0;
 })();
 
 // ==========================================================
-// FUNGSI API AMAN (DUAL-LAYER TOKEN DELIVERY UNTUK ANDROID & IOS)
+// FUNGSI API AMAN (HEADER-BASED TOKEN DELIVERY UNTUK KEAMANAN)
 // ==========================================================
 async function apiFetch(url, options = {}) {
     const token = localStorage.getItem('kitachat_session_token') || '';
@@ -28,13 +28,12 @@ async function apiFetch(url, options = {}) {
     if (token) headers['x-session-token'] = token;
     options.headers = headers;
 
+    // Untuk FormData, tambahkan field cadangan jika diperlukan oleh backend
     if (options.body instanceof FormData) {
         if (userId && !options.body.has('user_id')) options.body.append('user_id', userId);
         if (token && !options.body.has('session_token')) options.body.append('session_token', token);
-    } else if (!options.body && options.method !== 'POST' && options.method !== 'PUT') {
-        const char = url.includes('?') ? '&' : '?';
-        url += `${char}user_id=${userId}&session_token=${token}`;
     }
+    // Catatan: Pengiriman token melalui query string URL telah dihapus untuk mencegah kebocoran log
 
     const response = await fetch(url, options);
 
@@ -54,7 +53,7 @@ async function apiFetch(url, options = {}) {
 }
 // ==========================================================
 
-// --- REGISTRASI SERVICE WORKER (DIPERBARUI UNTUK AUTO-UPDATE PWA) ---
+// --- REGISTRASI SERVICE WORKER (AUTO-UPDATE PWA) ---
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js').then((reg) => {
@@ -242,26 +241,6 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-
-    const menuItems = document.querySelectorAll('.menu-item');
-    menuItems.forEach(el => {
-        el.classList.remove('active');
-        if (el.getAttribute('onclick')?.includes(`'${tabName}'`)) {
-            el.classList.add('active');
-        }
-    });
-
-    const target = document.getElementById(`content-${tabName}`);
-    if (target) {
-        target.classList.remove('hidden');
-        target.style.display = 'flex';
-    }
-
-    if (tabName === 'album') loadAlbumPhotos();
-    else if (tabName === 'agenda') loadAgendaAndBirthdays();
-    else if (tabName === 'family') loadFamilyMembers();
-}
-
 function toggleTheme() {
     if (document.body.classList.contains('dark-mode')) {
         document.body.classList.remove('dark-mode');
@@ -361,12 +340,11 @@ async function sendMessage() {
     }
 }
 
-// --- OPTIMASI FITUR ALBUM (Pencegahan XSS, Validasi Client, & Manajemen Memori) ---
+// --- MANAJEMEN ALBUM ---
 let currentAlbumFilter = 'semua';
 let globalAlbumData = [];
 let albumRequestId = 0;
 const ALBUM_MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-let currentObjectUrl = null;
 
 function getAlbumElements() {
     return {
@@ -378,9 +356,6 @@ function getAlbumElements() {
         submitBtn: document.querySelector('#photo-upload-form button[type="submit"]')
     };
 }
-
-
-
 
 async function loadAlbumPhotos() {
     const currentReqId = ++albumRequestId;
@@ -485,7 +460,6 @@ function filterAlbum(type) {
     renderAlbumGrid(filtered);
 }
 
-// Fungsi Tunggal handleUploadPhoto (Tanpa Duplikasi)
 async function handleUploadPhoto(event) {
     event.preventDefault();
     if (!currentUser) {
@@ -530,7 +504,7 @@ async function handleUploadPhoto(event) {
 
         if (response.ok) {
             cancelAlbumUpload();
-            switchTabNav('album'); // Cukup panggil switchTabNav yang otomatis memuat ulang album
+            switchTabNav('album');
         } else {
             alert(data.error || 'Gagal mengunggah foto.');
         }
