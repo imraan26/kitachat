@@ -380,6 +380,18 @@ function onAlbumFileChange(event) {
         
         if (fileNameEl) fileNameEl.innerText = `Terpilih: ${file.name}`;
         if (formCard) formCard.style.display = 'flex'; // Langsung memunculkan form input caption & tombol kirim
+
+        // --- TAMBAHAN UNTUK PRATINJAU GAMBAR OTOMATIS ---
+        // Pastikan Anda memiliki elemen <img> dengan id="photo-preview" di HTML Anda
+        const previewEl = document.getElementById('photo-preview');
+        if (previewEl) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewEl.src = e.target.result;
+                previewEl.style.display = 'block'; // Menampilkan elemen gambar
+            };
+            reader.readAsDataURL(file);
+        }
     }
 }
 
@@ -391,6 +403,13 @@ function cancelAlbumUpload() {
     if (fileInput) fileInput.value = '';
     if (labelEl) labelEl.innerText = 'Ketuk untuk pilih dari galeri atau kamera';
     if (formEl) formEl.style.display = 'none';
+
+    // --- TAMBAHAN UNTUK ME-RESET PRATINJAU SAAT BATAL ---
+    const previewEl = document.getElementById('photo-preview');
+    if (previewEl) {
+        previewEl.src = '';
+        previewEl.style.display = 'none'; // Menyembunyikan kembali elemen gambar
+    }
 }
 
 // --- FUNGSI MENGIRIM FOTO KE SERVER SECARA ASINKRON (TANPA REFRESH) ---
@@ -433,6 +452,7 @@ async function handleUploadPhoto(event) {
         alert('Terjadi kesalahan jaringan.');
     }
 }
+
 
 // --- FITUR PERBARUI APLIKASI MANUAL ---
 async function forceUpdateApp() {
