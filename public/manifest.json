@@ -1,23 +1,55 @@
 {
+  "id": "/kitachat-app",
   "name": "Kitachat - Hub Keluarga",
   "short_name": "Kitachat",
   "description": "Aplikasi hub keluarga tercinta bergaya WhatsApp.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "portrait",
   "theme_color": "#8fbc8f",
+  "background_color": "#ffffff",
+  "lang": "id-ID",
+  "dir": "ltr",
+  "categories": ["social", "lifestyle"],
   "icons": [
     {
-      "src": "logo-kitachat.png",
+      "src": "/logo-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "logo-kitachat.png",
+      "src": "/logo-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-mobile.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Tampilan Chat Keluarga"
+    },
+    {
+      "src": "/screenshot-desktop.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Tampilan Dashboard Desktop"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Lihat Album",
+      "short_name": "Album",
+      "description": "Buka galeri foto keluarga",
+      "url": "/",
+      "icons": [{ "src": "/logo-192.png", "sizes": "192x192" }]
     }
   ]
 }
