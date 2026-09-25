@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kitachat-pwa-v10.3'; // Versi dinaikkan untuk memastikan cache bersih total
+const CACHE_NAME = 'kitachat-pwa-v10.4'; // Versi dinaikkan untuk memastikan cache bersih total
 const urlsToCache = [
   '/',
   '/index.html',
@@ -48,27 +48,39 @@ self.addEventListener('fetch', event => {
   // 2. JIKA BUKAN rute bypass, tangani lewat Service Worker / Cache
   if (!isBypassRoute) {
     event.respondWith(
-      caches.match(event.request)
-        .then(response => {
-          // Gunakan cache jika ada, jika tidak ambil dari jaringan
-          return response || fetch(event.request);
+      fetch(event.request)
+        .then(networkResponse => {
+          // STRATEGI OPTIMASI: Network-First untuk Aset Statis agar PWA Selalu Terupdate
+          // Jika berhasil mengambil dari jaringan dan statusnya OK, update cache secara background
+          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return networkResponse;
         })
         .catch(() => {
-          // Fallback jika jaringan gagal (Offline) agar tidak memicu uncaught error
-          if (event.request.mode === 'navigate') {
-            return caches.match('/index.html');
-          }
-          
-          // Jika gambar luar gagal dimuat saat offline
-          if (event.request.destination === 'image') {
-            return new Response(
-              '<svg xmlns="http://w3.org" width="40" height="40" viewBox="0 0 40 40"><rect width="100%" height="100%" fill="#e0e0e0"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#666666">Offline</text></svg>',
-              { headers: { 'Content-Type': 'image/svg+xml' } }
-            );
-          }
+          // Fallback ke Cache jika Jaringan Gagal/Offline
+          return caches.match(event.request).then(cachedResponse => {
+            if (cachedResponse) return cachedResponse;
 
-          // Kirim respons error HTTP yang valid alih-alih membiarkannya crash
-          return new Response('Service Unavailable', { status: 503 });
+            // Jika rute navigasi utama gagal total dan tidak ada di cache
+            if (event.request.mode === 'navigate') {
+              return caches.match('/index.html');
+            }
+            
+            // PERBAIKAN: Validasi URL Namespace SVG W3C agar gambar offline berhasil merender sempurna
+            if (event.request.destination === 'image') {
+              return new Response(
+                '<svg xmlns="http://w3.org" width="40" height="40" viewBox="0 0 40 40"><rect width="100%" height="100%" fill="#e0e0e0"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#666666">Offline</text></svg>',
+                { headers: { 'Content-Type': 'image/svg+xml' } }
+              );
+            }
+
+            // Kirim respons error HTTP yang valid alih-alih membiarkannya crash
+            return new Response('Service Unavailable', { status: 503 });
+          });
         })
     );
   }
