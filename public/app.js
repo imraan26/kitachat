@@ -336,6 +336,24 @@ async function sendMessage() {
     }
 }
 
+// --- HELPER INTERAKSI KARTU ALBUM BARU ---
+function onAlbumFileSelected(event) {
+    const file = event.target.files[0];
+    if (file) {
+        const formCard = document.getElementById('photo-upload-form');
+        const fileNameEl = document.getElementById('selected-file-name');
+        if (fileNameEl) fileNameEl.innerText = `File terpilih: ${file.name}`;
+        if (formCard) formCard.style.display = 'flex';
+    }
+}
+
+function cancelPhotoUpload() {
+    const fileInput = document.getElementById('photo-file-input');
+    const formCard = document.getElementById('photo-upload-form');
+    if (fileInput) fileInput.value = '';
+    if (formCard) formCard.style.display = 'none';
+}
+
 // --- FITUR PERBARUI APLIKASI MANUAL ---
 async function forceUpdateApp() {
     if (confirm('Cek dan perbarui aplikasi ke versi server terbaru?')) {
@@ -782,7 +800,7 @@ async function handleUploadPhoto(event) {
         const data = await response.json();
         if (response.ok) {
             alert(data.message);
-            fileInput.value = '';
+            cancelPhotoUpload();
             document.getElementById('photo-caption-input').value = '';
             loadAlbumPhotos();
         } else alert(data.error);
