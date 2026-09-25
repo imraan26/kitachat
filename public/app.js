@@ -755,14 +755,16 @@ let peerConnection = null;
 let targetSocketId = null;
 let targetUserId = null;
 
-// OPTIMASI: Pendaftaran ulang otomatis saat berpindah jaringan (WiFi <-> Seluler)
+// TAMBAHAN: Antrean untuk mencegah masalah suara hilang (Safari iOS vs Android)
+let iceCandidateQueue = []; 
+
+// Pendaftaran ulang otomatis saat berpindah jaringan
 socket.on('connect', () => {
     if (currentUser && currentUser.id) {
         socket.emit('register_call_user', currentUser.id);
     }
 });
 
-// OPTIMASI: STUN Server diperluas untuk menembus Firewall/Data Seluler vs WiFi
 const rtcConfig = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
@@ -784,6 +786,8 @@ function monitorPeerConnection() {
 
 async function startCall(peerUserId, peerName) {
     targetUserId = peerUserId;
+    iceCandidateQueue = []; // Kosongkan antrean setiap mulai telepon baru
+    
     const modal = document.getElementById('call-modal');
     modal.classList.remove('hidden');
     document.getElementById('call-status-title').innerText = 'Memanggil...';
@@ -800,7 +804,6 @@ async function startCall(peerUserId, peerName) {
             if (event.candidate && targetSocketId) socket.emit('ice_candidate', { targetSocketId, candidate: event.candidate });
         };
         
-        // OPTIMASI: Paksa pemutaran suara untuk iOS & Safari
         peerConnection.ontrack = (event) => { 
             const remoteAudio = document.getElementById('remote-audio');
             remoteAudio.srcObject = event.streams[0]; 
@@ -821,6 +824,7 @@ socket.on('incoming_call', async (data) => {
     if (currentUser && data.toUserId == currentUser.id) {
         targetSocketId = data.fromSocketId;
         targetUserId = data.fromUserId;
+        iceCandidateQueue = []; // Kosongkan antrean
         
         const modal = document.getElementById('call-modal');
         modal.classList.remove('hidden');
@@ -850,7 +854,6 @@ async function acceptCall() {
             if (event.candidate && targetSocketId) socket.emit('ice_candidate', { targetSocketId, candidate: event.candidate });
         };
         
-        // OPTIMASI: Paksa pemutaran suara untuk iOS & Safari
         peerConnection.ontrack = (event) => { 
             const remoteAudio = document.getElementById('remote-audio');
             remoteAudio.srcObject = event.streams[0]; 
@@ -858,6 +861,13 @@ async function acceptCall() {
         };
 
         await peerConnection.setRemoteDescription(new RTCSessionDescription(window.incomingOffer));
+        
+        // Eksekusi antrean ICE yang datang lebih cepat (Solusi untuk Android)
+        while (iceCandidateQueue.length) {
+            const candidate = iceCandidateQueue.shift();
+            await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+        }
+
         const answer = await peerConnection.createAnswer();
         await peerConnection.setLocalDescription(answer);
 
@@ -870,18 +880,35 @@ async function acceptCall() {
 socket.on('call_answered', async (data) => {
     if (data.targetSocketId) targetSocketId = data.targetSocketId;
     document.getElementById('call-status-title').innerText = 'Terhubung';
-    try { await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer)); } catch (err) {}
+    try { 
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer)); 
+        
+        // Eksekusi antrean ICE yang datang lebih cepat (Solusi untuk iOS Safari)
+        while (iceCandidateQueue.length) {
+            const candidate = iceCandidateQueue.shift();
+            await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+        }
+    } catch (err) {}
 });
 
 socket.on('ice_candidate', async (data) => {
-    try { if (peerConnection) await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate)); } catch (err) {}
+    try { 
+        if (peerConnection) {
+            // Safari sangat ketat: Hanya izinkan ICE masuk jika RemoteDescription sudah terpasang
+            if (peerConnection.remoteDescription) {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+            } else {
+                // Jika RemoteDescription belum siap, antrekan dulu
+                iceCandidateQueue.push(data.candidate);
+            }
+        }
+    } catch (err) {}
 });
 
 function hangUpCall() {
     callRingtone.pause();
     callRingtone.currentTime = 0;
     
-    // OPTIMASI: Hapus bersih aliran media agar indikator mikrofon mati sempurna
     const remoteAudio = document.getElementById('remote-audio');
     if (remoteAudio) remoteAudio.srcObject = null;
 
@@ -900,6 +927,7 @@ function hangUpCall() {
     targetSocketId = null;
     targetUserId = null;
     window.incomingOffer = null;
+    iceCandidateQueue = [];
 }
 
 // --- FITUR LAINNYA ---
