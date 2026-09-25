@@ -145,35 +145,35 @@
                     <!-- Area Konten Album dengan Scroll -->
                     <div style="padding: 15px; overflow-y: auto; flex: 1;">
                         
-                        <!-- Kotak Unggah Momen Keluarga (Gaya Kartu Pengaturan & Pemicu Kamera/Galeri) -->
-                        <div style="background: var(--card-bg); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                            
-                            <!-- Kartu Pemicu Utama (Bisa diketuk untuk buka galeri/kamera HP) -->
-                            <div onclick="document.getElementById('photo-file-input').click()" style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 4px 0;">
-                                <div style="display: flex; align-items: center; gap: 12px;">
-                                    <div style="width: 38px; height: 38px; border-radius: 50%; background: var(--primary-light); display: flex; align-items: center; justify-content: center; color: var(--primary-color); font-size: 16px;">
-                                        <i class="fa-solid fa-camera-retro"></i>
-                                    </div>
-                                    <div>
-                                        <h4 style="margin: 0; color: var(--text-light); font-size: 14px; font-weight: 600;">Unggah Momen Keluarga</h4>
-                                        <p style="margin: 2px 0 0 0; font-size: 12px; color: gray;" id="selected-file-label">Ketuk untuk pilih dari galeri atau kamera</p>
-                                    </div>
-                                </div>
-                                <i class="fa-solid fa-chevron-right" style="color: gray; font-size: 13px;"></i>
-                            </div>
+<!-- Kotak Unggah Momen Keluarga -->
+<div style="background: var(--card-bg); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    
+    <!-- Kartu Pemicu Utama (Diketuk untuk buka galeri atau kamera HP) -->
+    <div onclick="document.getElementById('photo-file-input').click()" style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 4px 0;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 38px; height: 38px; border-radius: 50%; background: var(--primary-light); display: flex; align-items: center; justify-content: center; color: var(--primary-color); font-size: 16px;">
+                <i class="fa-solid fa-camera-retro"></i>
+            </div>
+            <div>
+                <h4 style="margin: 0; color: var(--text-light); font-size: 14px; font-weight: 600;">Unggah Momen Keluarga</h4>
+                <p style="margin: 2px 0 0 0; font-size: 12px; color: gray;" id="selected-file-label">Ketuk untuk pilih dari galeri atau kamera</p>
+            </div>
+        </div>
+        <i class="fa-solid fa-chevron-right" style="color: gray; font-size: 13px;"></i>
+    </div>
 
-                            <!-- Form Unggah Tersembunyi yang akan muncul setelah foto dipilih -->
-                            <form id="photo-upload-form" onsubmit="handleUploadPhoto(event)" class="hidden" style="display: none; flex-direction: column; gap: 10px; margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
-                                <input type="text" id="photo-caption-input" placeholder="Keterangan / Caption Foto (Opsional)" style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-light); color: var(--text-light); font-size: 13px;">
-                                <div style="display: flex; gap: 8px;">
-                                    <button type="submit" class="btn-primary" style="flex: 1; border-radius: 6px; padding: 10px; font-weight: bold;">Kirim Foto</button>
-                                    <button type="button" onclick="cancelAlbumUpload()" style="background: none; border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; cursor: pointer; color: var(--text-light); font-size: 13px;">Batal</button>
-                                </div>
-                            </form>
+    <!-- Form Unggah Tersembunyi (Muncul otomatis setelah foto dipilih) -->
+    <form id="photo-upload-form" onsubmit="handleUploadPhoto(event)" class="hidden" style="display: none; flex-direction: column; gap: 10px; margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+        <input type="text" id="photo-caption-input" placeholder="Keterangan / Caption Foto (Opsional)" style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-light); color: var(--text-light); font-size: 13px;">
+        <div style="display: flex; gap: 8px;">
+            <button type="submit" class="btn-primary" style="flex: 1; border-radius: 6px; padding: 10px; font-weight: bold;">Kirim Foto</button>
+            <button type="button" onclick="cancelAlbumUpload()" style="background: none; border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; cursor: pointer; color: var(--text-light); font-size: 13px;">Batal</button>
+        </div>
+    </form>
 
-                            <!-- Input File Asli (Atribut capture dihapus agar galeri & kamera HP bisa dipilih) -->
-                            <input type="file" id="photo-file-input" accept="image/*" style="display: none;" onchange="onAlbumFileChange(event)">
-                        </div> <!-- PERBAIKAN: Tag penutup div kartu unggah yang sebelumnya kurang -->
+    <!-- Input File Asli (Tanpa atribut capture agar HP memberi kebebasan pilih Galeri atau Kamera) -->
+    <input type="file" id="photo-file-input" accept="image/*" style="display: none;" onchange="onAlbumFileChange(event)">
+</div> 
 
                         <!-- Grid Galeri Foto -->
                         <div id="album-grid-container" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;"></div>
