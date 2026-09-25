@@ -1,13 +1,13 @@
 /*
  * Album upload helpers.
  *
- * This module is intentionally dependency-free so it can be used by the
- * existing inline handlers in index.html without changing the current UI.
+ * Kept separate from app.js so the album form can be maintained without
+ * touching the rest of the application. Load this file after app.js.
  */
 (() => {
     'use strict';
 
-    const MAX_FILE_SIZE = 5 * 1024 * 1024;
+    const MAX_FILE_SIZE = 10 * 1024 * 1024;
     const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
     const DEFAULT_LABEL = 'Ketuk untuk pilih dari galeri atau kamera';
 
@@ -35,7 +35,7 @@
             return 'Format foto tidak didukung. Gunakan JPG, PNG, WEBP, atau GIF.';
         }
         if (file.size > MAX_FILE_SIZE) {
-            return 'Ukuran foto maksimal 5 MB.';
+            return 'Ukuran foto maksimal adalah 10MB.';
         }
         return '';
     }
@@ -51,11 +51,12 @@
     }
 
     window.onAlbumFileChange = function onAlbumFileChange(event) {
-        const file = event?.target?.files?.[0];
+        const input = event?.target;
+        const file = input?.files?.[0];
         const error = validateImage(file);
 
         if (error) {
-            if (event?.target) event.target.value = '';
+            if (input) input.value = '';
             resetPreview();
             setUploadVisibility(false);
             alert(error);
@@ -82,7 +83,6 @@
         setUploadVisibility(false);
     };
 
-    // Expose the shared validation for the upload handler in app.js.
     window.validateAlbumImage = validateImage;
     window.ALBUM_MAX_FILE_SIZE = MAX_FILE_SIZE;
 })();
