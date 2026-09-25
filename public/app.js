@@ -63,13 +63,15 @@ if ('serviceWorker' in navigator) {
             // Deteksi jika ada pembaruan Service Worker di server
             reg.addEventListener('updatefound', () => {
                 const newWorker = reg.installing;
-                newWorker.addEventListener('statechange', () => {
-                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                        if (confirm('Versi baru Kitachat telah tersedia! Ketuk OK untuk memperbarui aplikasi.')) {
-                            window.location.reload(true);
+                if (newWorker) {
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            if (confirm('Versi baru Kitachat telah tersedia! Ketuk OK untuk memperbarui aplikasi.')) {
+                                window.location.reload(); // Diperbaiki: Dihapus parameter true yang sudah deprecated
+                            }
                         }
-                    }
-                });
+                    });
+                }
             });
         }).catch(err => console.log('Gagal mendaftarkan Service Worker:', err));
     });
@@ -116,12 +118,18 @@ function switchTab(tab) {
     }
 }
 
+// --- REFACTOR: PENANGANAN FORM AMAN DENGAN NULL-CHECK ---
 async function handleRegister(event) {
     event.preventDefault();
-    const name = document.getElementById('reg-name').value;
-    const phone = document.getElementById('reg-phone').value;
-    const password = document.getElementById('reg-password').value;
-    const birthdate = document.getElementById('reg-birthdate').value;
+    const nameInput = document.getElementById('reg-name');
+    const phoneInput = document.getElementById('reg-phone');
+    const passwordInput = document.getElementById('reg-password');
+    const birthdateInput = document.getElementById('reg-birthdate');
+
+    const name = nameInput ? nameInput.value : '';
+    const phone = phoneInput ? phoneInput.value : '';
+    const password = passwordInput ? passwordInput.value : '';
+    const birthdate = birthdateInput ? birthdateInput.value : '';
 
     try {
         const response = await fetch('/api/register', {
@@ -144,9 +152,12 @@ async function handleRegister(event) {
 
 async function handleLogin(event) {
     event.preventDefault();
-    const phone = document.getElementById('login-phone').value;
-    const password = document.getElementById('login-password').value;
+    const phoneInput = document.getElementById('login-phone');
+    const passwordInput = document.getElementById('login-password');
     const forgotBtn = document.getElementById('forgot-password-btn');
+
+    const phone = phoneInput ? phoneInput.value : '';
+    const password = passwordInput ? passwordInput.value : '';
 
     try {
         const response = await fetch('/api/login', {
@@ -305,7 +316,7 @@ function toggleAgendaForm() {
     const label = document.getElementById('agenda-toggle-label');
     const chevron = document.getElementById('agenda-chevron-icon');
     
-    if (!form) return; // Mencegah peringatan error di code editor
+    if (!form) return; 
 
     form.classList.remove('hidden');
     
@@ -323,10 +334,15 @@ function toggleAgendaForm() {
 // --- FITUR KIRIM PESAN ---
 async function sendMessage() {
     const input = document.getElementById('message-input');
-    const messageText = input.value.trim();
+    if (!input) return;
     
+    const messageText = input.value.trim();
     if (!messageText) return;
-    if (!currentUser) return alert('Silakan login terlebih dahulu!');
+    
+    if (!currentUser) {
+        alert('Silakan login terlebih dahulu!');
+        return;
+    }
 
     const localTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
     const formData = new FormData();
@@ -376,7 +392,6 @@ function cancelAlbumUpload() {
 }
 
 function cancelPhotoUpload() {
-    // Fungsi fallback untuk dukungan kompatibilitas nama
     cancelAlbumUpload();
 }
 
@@ -392,13 +407,13 @@ async function forceUpdateApp() {
                 const cacheNames = await caches.keys();
                 await Promise.all(cacheNames.map(cache => caches.delete(cache)));
                 alert('Pembaruan berhasil ditarik! Aplikasi akan dimuat ulang.');
-                window.location.reload(true);
+                window.location.reload();
             } catch (err) {
                 console.error('Gagal memperbarui aplikasi:', err);
                 alert('Gagal menarik pembaruan. Pastikan koneksi internet stabil.');
             }
         } else {
-            window.location.reload(true);
+            window.location.reload();
         }
     }
 }
@@ -540,7 +555,7 @@ function selectReplyActionDirect(messageId, messageText) {
     window.replyingToMessageId = messageId;
     
     const chatInputArea = document.getElementById('chat-input-area');
-    if (!chatInputArea) return; // Mencegah editor menampilkan peringatan error
+    if (!chatInputArea) return; 
 
     let banner = document.getElementById('reply-banner');
     
@@ -669,7 +684,7 @@ async function loadFamilyMembers() {
         if (response.ok) {
             const users = await response.json();
             const container = document.getElementById('family-list-container');
-            if (!container) return; // Mencegah error jika elemen tidak ada
+            if (!container) return; 
             container.innerHTML = '';
             container.style.display = 'flex';
             container.style.flexDirection = 'column';
@@ -790,13 +805,23 @@ function filterAlbum(type) {
     renderAlbumGrid(filtered);
 }
 
+// --- REFACTOR: PENANGANAN UPLOAD FOTO ---
 async function handleUploadPhoto(event) {
     event.preventDefault();
-    const fileInput = document.getElementById('photo-file-input');
-    const caption = document.getElementById('photo-caption-input').value;
+    if (!currentUser) {
+        alert('Silakan login terlebih dahulu!');
+        return;
+    }
 
-    if (!currentUser) return alert('Silakan login terlebih dahulu!');
-    if (!fileInput || fileInput.files.length === 0) return alert('Pilih file gambar terlebih dahulu!');
+    const fileInput = document.getElementById('photo-file-input');
+    const captionInput = document.getElementById('photo-caption-input');
+    
+    if (!fileInput || fileInput.files.length === 0) {
+        alert('Pilih file gambar terlebih dahulu!');
+        return;
+    }
+
+    const caption = captionInput ? captionInput.value : '';
 
     const formData = new FormData();
     formData.append('user_id', currentUser.id);
@@ -809,24 +834,31 @@ async function handleUploadPhoto(event) {
         if (response.ok) {
             alert(data.message);
             cancelAlbumUpload();
-            if (document.getElementById('photo-caption-input')) {
-                document.getElementById('photo-caption-input').value = '';
-            }
+            if (captionInput) captionInput.value = '';
             loadAlbumPhotos();
-        } else alert(data.error);
+        } else {
+            alert(data.error);
+        }
     } catch (err) {
         console.error('Error upload foto:', err);
     }
 }
 
-// --- FITUR AGENDA ---
+// --- REFACTOR: FITUR AGENDA ---
 async function handleCreateAgenda(event) {
     event.preventDefault();
-    const title = document.getElementById('agenda-title').value;
-    const event_date = document.getElementById('agenda-date').value;
-    const description = document.getElementById('agenda-desc').value;
+    if (!currentUser) {
+        alert('Silakan login terlebih dahulu!');
+        return;
+    }
 
-    if (!currentUser) return alert('Silakan login terlebih dahulu!');
+    const titleInput = document.getElementById('agenda-title');
+    const dateInput = document.getElementById('agenda-date');
+    const descInput = document.getElementById('agenda-desc');
+
+    const title = titleInput ? titleInput.value : '';
+    const event_date = dateInput ? dateInput.value : '';
+    const description = descInput ? descInput.value : '';
 
     try {
         const response = await apiFetch('/api/agendas', {
@@ -839,9 +871,10 @@ async function handleCreateAgenda(event) {
         if (response.ok) {
             alert(data.message);
             
-            document.getElementById('agenda-title').value = '';
-            document.getElementById('agenda-date').value = '';
-            document.getElementById('agenda-desc').value = '';
+            // Reset input form secara aman
+            if (titleInput) titleInput.value = '';
+            if (dateInput) dateInput.value = '';
+            if (descInput) descInput.value = '';
             
             const form = document.getElementById('agenda-form-container');
             const label = document.getElementById('agenda-toggle-label');
@@ -912,7 +945,10 @@ async function loadAgendaAndBirthdays() {
 
 async function triggerUploadProfile(inputElement) {
     if (inputElement.files && inputElement.files[0]) {
-        if (!currentUser) return alert('Silakan login terlebih dahulu!');
+        if (!currentUser) {
+            alert('Silakan login terlebih dahulu!');
+            return;
+        }
 
         const formData = new FormData();
         formData.append('user_id', currentUser.id);
@@ -926,7 +962,9 @@ async function triggerUploadProfile(inputElement) {
                 currentUser = data.user;
                 localStorage.setItem('kitachat_user', JSON.stringify(currentUser));
                 updateUserInterface();
-            } else alert(data.error || 'Gagal memperbarui foto profil.');
+            } else {
+                alert(data.error || 'Gagal memperbarui foto profil.');
+            }
         } catch (err) {
             alert('Terjadi kesalahan jaringan.');
         }
@@ -952,10 +990,16 @@ function closeChangePasswordModal() {
 
 async function handleChangePassword(event) {
     event.preventDefault();
-    const oldPassword = document.getElementById('old-password').value;
-    const newPassword = document.getElementById('new-password').value;
+    if (!currentUser) {
+        alert('Silakan login terlebih dahulu!');
+        return;
+    }
 
-    if (!currentUser) return alert('Silakan login terlebih dahulu!');
+    const oldPwInput = document.getElementById('old-password');
+    const newPwInput = document.getElementById('new-password');
+
+    const oldPassword = oldPwInput ? oldPwInput.value : '';
+    const newPassword = newPwInput ? newPwInput.value : '';
 
     try {
         const response = await apiFetch('/api/update-password', {
@@ -972,10 +1016,8 @@ async function handleChangePassword(event) {
             closeChangePasswordModal();
             setTimeout(() => {
                 alert(data.message || 'Status: Password berhasil diubah!');
-                const oldPw = document.getElementById('old-password');
-                const newPw = document.getElementById('new-password');
-                if (oldPw) oldPw.value = '';
-                if (newPw) newPw.value = '';
+                if (oldPwInput) oldPwInput.value = '';
+                if (newPwInput) newPwInput.value = '';
             }, 300);
         } else {
             alert(data.error || 'Gagal mengganti password.');
@@ -1241,7 +1283,10 @@ const chatFileInput = document.getElementById('chat-file-input');
 if (chatFileInput) {
     chatFileInput.addEventListener('change', async function() {
         if (this.files && this.files[0]) {
-            if (!currentUser) return alert('Silakan login terlebih dahulu!');
+            if (!currentUser) {
+                alert('Silakan login terlebih dahulu!');
+                return;
+            }
 
             const formData = new FormData();
             formData.append('media', this.files[0]);
@@ -1262,11 +1307,13 @@ if (chatFileInput) {
 // --- FITUR EMAIL PEMULIHAN & LUPA PASSWORD ---
 async function handleUpdateEmail(event) {
     event.preventDefault();
+    if (!currentUser) {
+        alert('Silakan login terlebih dahulu!');
+        return;
+    }
+
     const emailInput = document.getElementById('recovery-email');
-    if (!emailInput) return;
-    
-    const email = emailInput.value;
-    if (!currentUser) return alert('Silakan login terlebih dahulu!');
+    const email = emailInput ? emailInput.value : '';
 
     try {
         const response = await apiFetch('/api/update-email', {
@@ -1279,16 +1326,22 @@ async function handleUpdateEmail(event) {
             alert(data.message);
             const modal = document.getElementById('email-modal');
             if (modal) modal.classList.add('hidden');
-        } else alert(data.error);
-    } catch (err) { alert('Kesalahan jaringan.'); }
+        } else {
+            alert(data.error);
+        }
+    } catch (err) { 
+        alert('Kesalahan jaringan.'); 
+    }
 }
 
 async function requestOTP() {
     const phoneInput = document.getElementById('login-phone');
-    if (!phoneInput) return;
+    const phone = phoneInput ? phoneInput.value : '';
     
-    const phone = phoneInput.value;
-    if (!phone) return alert('Masukkan nomor telepon Anda di form login terlebih dahulu.');
+    if (!phone) {
+        alert('Masukkan nomor telepon Anda di form login terlebih dahulu.');
+        return;
+    }
 
     try {
         const response = await fetch('/api/forgot-password', {
@@ -1302,15 +1355,23 @@ async function requestOTP() {
             alert(data.message);
             const otpModal = document.getElementById('otp-modal');
             if (otpModal) otpModal.classList.remove('hidden');
-        } else alert(data.error);
-    } catch (err) { alert('Terjadi kesalahan jaringan.'); }
+        } else {
+            alert(data.error);
+        }
+    } catch (err) { 
+        alert('Terjadi kesalahan jaringan.'); 
+    }
 }
 
 async function handleResetPassword(event) {
     event.preventDefault();
-    const phone = document.getElementById('login-phone').value;
-    const otp = document.getElementById('reset-otp').value;
-    const new_password = document.getElementById('reset-new-password').value;
+    const phoneInput = document.getElementById('login-phone');
+    const otpInput = document.getElementById('reset-otp');
+    const newPwInput = document.getElementById('reset-new-password');
+
+    const phone = phoneInput ? phoneInput.value : '';
+    const otp = otpInput ? otpInput.value : '';
+    const new_password = newPwInput ? newPwInput.value : '';
 
     try {
         const response = await fetch('/api/reset-password', {
@@ -1332,8 +1393,12 @@ async function handleResetPassword(event) {
             if (loginPw) loginPw.value = '';
             
             failedLoginAttempts = 0;
-        } else alert(data.error);
-    } catch (err) { alert('Kesalahan jaringan.'); }
+        } else {
+            alert(data.error);
+        }
+    } catch (err) { 
+        alert('Kesalahan jaringan.'); 
+    }
 }
 
 function clearChat() {
