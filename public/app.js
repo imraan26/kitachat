@@ -242,15 +242,6 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Perbaikan Navigasi Tab Agar Sinkron Tanpa Bergantung pada Urutan DOM
-function switchTabNav(tabName) {
-    const contents = document.querySelectorAll('.tab-content');
-    contents.forEach(el => {
-        if (el.id !== 'call-modal') {
-            el.classList.add('hidden');
-            el.style.display = 'none';
-        }
-    });
 
     const menuItems = document.querySelectorAll('.menu-item');
     menuItems.forEach(el => {
@@ -388,46 +379,8 @@ function getAlbumElements() {
     };
 }
 
-function onAlbumFileChange(event) {
-    const file = event.target.files[0];
-    const { fileNameLabel, formCard, fileInput } = getAlbumElements();
 
-    if (file) {
-        if (!file.type.startsWith('image/')) {
-            alert('File harus berupa gambar yang valid.');
-            fileInput.value = '';
-            return;
-        }
 
-        if (file.size > ALBUM_MAX_FILE_SIZE) {
-            alert('Ukuran file maksimal adalah 10MB.');
-            fileInput.value = '';
-            return;
-        }
-
-        if (fileNameLabel) fileNameLabel.textContent = `Terpilih: ${file.name}`;
-        if (formCard) formCard.style.display = 'flex';
-
-        if (currentObjectUrl) {
-            URL.revokeObjectURL(currentObjectUrl);
-        }
-        currentObjectUrl = URL.createObjectURL(file);
-    }
-}
-
-function cancelAlbumUpload() {
-    const { fileInput, fileNameLabel, formCard, captionInput } = getAlbumElements();
-    
-    if (fileInput) fileInput.value = '';
-    if (fileNameLabel) fileNameLabel.textContent = 'Ketuk untuk pilih dari galeri atau kamera';
-    if (formCard) formCard.style.display = 'none';
-    if (captionInput) captionInput.value = '';
-
-    if (currentObjectUrl) {
-        URL.revokeObjectURL(currentObjectUrl);
-        currentObjectUrl = null;
-    }
-}
 
 async function loadAlbumPhotos() {
     const currentReqId = ++albumRequestId;
