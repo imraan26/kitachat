@@ -1,4 +1,6 @@
-const CACHE_NAME = 'kitachat-pwa-v10.4'; // Versi dinaikkan untuk memastikan cache bersih total
+const CACHE_NAME = 'kitachat-pwa-v10.5';
+const RUNTIME_CACHE = 'kitachat-runtime-v10.5';
+
 const urlsToCache = [
   '/',
   '/index.html',
@@ -7,84 +9,130 @@ const urlsToCache = [
   '/manifest.json'
 ];
 
-// Install Service Worker dan Cache Aset Statis
+// 1. Install Service Worker dan Cache Aset Statis Utama
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => {
-        return cache.addAll(urlsToCache);
-      })
+      .then(cache => cache.addAll(urlsToCache))
+      .then(() => self.skipWaiting())
   );
-  self.skipWaiting();
 });
 
-// Aktivasi dan Bersihkan Cache Lama (Logika aman & lolos linter editor)
+// 2. Aktivasi dan Pembersihan Cache Lama secara Aman (Berdasarkan Prefix)
 self.addEventListener('activate', event => {
+  const cachePrefixes = ['kitachat-pwa-', 'kitachat-runtime-'];
+  
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames
-          .filter(cacheName => cacheName !== CACHE_NAME)
-          .map(cacheName => {
-            console.log('Menghapus cache versi lama:', cacheName);
-            return caches.delete(cacheName);
-          })
-      );
-    })
+    caches.keys()
+      .then(cacheNames => {
+        return Promise.all(
+          cacheNames
+            .filter(cacheName => 
+              cachePrefixes.some(prefix => cacheName.startsWith(prefix)) &&
+              cacheName !== CACHE_NAME &&
+              cacheName !== RUNTIME_CACHE
+            )
+            .map(cacheName => {
+              console.log('Menghapus cache versi lama:', cacheName);
+              return caches.delete(cacheName);
+            })
+        );
+      })
+      .then(() => self.clients.claim())
   );
-  // Mengambil kendali client PWA secara instan
-  self.clients.claim(); 
 });
 
-// Tangani Permintaan Fetch (Logika Bypass & Offline Fallback yang Solid)
+// 3. Tangani Permintaan Fetch dengan Strategi Cerdas & Validasi Ketat
 self.addEventListener('fetch', event => {
-  const url = new URL(event.request.url);
+  const request = event.request;
+  const url = new URL(request.url);
 
-  // 1. Cek apakah permintaan ditujukan untuk API, Socket, atau Uploads
+  // Validasi Origin: Abaikan aset pihak luar (CDN/eksternal) agar tidak mencemari cache
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+
+  // Cek apakah permintaan ditujukan untuk API, Socket, atau Uploads
   const isBypassRoute = url.pathname.startsWith('/api/') || 
                         url.pathname.startsWith('/socket.io/') || 
                         url.pathname.startsWith('/uploads/');
 
-  // 2. JIKA BUKAN rute bypass, tangani lewat Service Worker / Cache
-  if (!isBypassRoute) {
-    event.respondWith(
-      fetch(event.request)
-        .then(networkResponse => {
-          // STRATEGI OPTIMASI: Network-First untuk Aset Statis agar PWA Selalu Terupdate
-          // Jika berhasil mengambil dari jaringan dan statusnya OK, update cache secara background
-          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then(cache => {
-              cache.put(event.request, responseToCache);
-            });
-          }
-          return networkResponse;
-        })
-        .catch(() => {
-          // Fallback ke Cache jika Jaringan Gagal/Offline
-          return caches.match(event.request).then(cachedResponse => {
-            if (cachedResponse) return cachedResponse;
-
-            // Jika rute navigasi utama gagal total dan tidak ada di cache
-            if (event.request.mode === 'navigate') {
-              return caches.match('/index.html');
-            }
-            
-            // PERBAIKAN: Validasi URL Namespace SVG W3C agar gambar offline berhasil merender sempurna
-            if (event.request.destination === 'image') {
-              return new Response(
-                '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><rect width="100%" height="100%" fill="#e0e0e0"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#666666">Offline</text></svg>',
-                {
-                  headers: {
-                    'Content-Type': 'image/svg+xml'
-                  }
-                }
-              );
-
-            // Kirim respons error HTTP yang valid alih-alih membiarkannya crash
-            return new Response('Service Unavailable', { status: 503 });
-          });
-        })
-    );
+  // Abaikan request selain metode GET atau yang masuk rute bypass
+  if (request.method !== 'GET' || isBypassRoute) {
+    return;
   }
+
+  // Batasi tipe destinasi yang boleh di-cache (Statis & Navigasi)
+  const cacheableDestinations = ['style', 'script', 'font', 'image'];
+  const shouldCache = cacheableDestinations.includes(request.destination) || request.mode === 'navigate';
+
+  event.respondWith(
+    caches.match(request).then(cachedResponse => {
+      // Strategi khusus untuk Navigasi (HTML): Network-First agar selalu mendapatkan versi terbaru
+      if (request.mode === 'navigate') {
+        return fetch(request)
+          .then(networkResponse => {
+            if (networkResponse && networkResponse.ok) {
+              const responseClone = networkResponse.clone();
+              event.waitUntil(
+                caches.open(CACHE_NAME).then(cache => cache.put(request, responseClone))
+              );
+            }
+            return networkResponse;
+          })
+          .catch(() => cachedResponse || caches.match('/index.html'));
+      }
+
+      // Untuk aset statis (CSS, JS, Font, Gambar)
+      const fetchPromise = fetch(request).then(networkResponse => {
+        const cacheControl = networkResponse.headers.get('Cache-Control') || '';
+        
+        // Validasi ketat Cache-Control & tipe respons
+        const isCacheable = networkResponse &&
+                            networkResponse.ok &&
+                            networkResponse.type === 'basic' &&
+                            !cacheControl.includes('no-store') &&
+                            !cacheControl.includes('private');
+
+        if (isCacheable && shouldCache) {
+          const responseToCache = networkResponse.clone();
+          event.waitUntil(
+            caches.open(RUNTIME_CACHE).then(cache => {
+              return cache.put(request, responseToCache);
+            }).catch(error => {
+              console.warn('Gagal memperbarui runtime cache:', error);
+            })
+          );
+        }
+        return networkResponse;
+      }).catch(() => {
+        // Jika jaringan gagal, gunakan cache jika tersedia
+        if (cachedResponse) return cachedResponse;
+
+        // Fallback khusus Gambar: Render SVG Offline dengan Namespace W3C yang Valid
+        if (request.destination === 'image') {
+          return new Response(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><rect width="100%" height="100%" fill="#e0e0e0"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#666666">Offline</text></svg>',
+            {
+              headers: {
+                'Content-Type': 'image/svg+xml'
+              }
+            }
+          );
+        }
+
+        // Fallback Universal: Response 503 yang bersih dan valid jika benar-benar offline
+        return new Response('Service Unavailable', {
+          status: 503,
+          headers: {
+            'Content-Type': 'text/plain; charset=utf-8',
+            'Retry-After': '60'
+          }
+        });
+      });
+
+      // Kembalikan dari cache langsung jika ada, atau ambil dari fetchPromise
+      return cachedResponse || fetchPromise;
+    })
+  );
 });
