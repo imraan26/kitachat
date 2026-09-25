@@ -58,7 +58,7 @@
             
             <!-- Header Atas Khusus Mobile (WhatsApp Style Header) -->
             <div class="mobile-header-top">
-                <div class="user-profile" style="cursor: pointer;" onclick="switchTabNav('settings', null)" title="Klik untuk buka Pengaturan">
+                <div class="user-profile" style="cursor: pointer;" onclick="switchTabNav('settings')" title="Klik untuk buka Pengaturan">
                     <img id="user-avatar" src="https://via.placeholder.com/40" alt="Profil" style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover;">
                     <span id="user-display-name" style="color: white; font-weight: bold; font-size: 15px;">Nama Pengguna</span>
                 </div>
@@ -68,10 +68,10 @@
                 </div>
             </div>
 
-            <!-- Sidebar Desktop (Hanya tampil di layar komputer/tablet besar) -->
+            <!-- Sidebar Desktop -->
             <div class="sidebar desktop-sidebar">
                 <div class="sidebar-header">
-                    <div class="user-profile" style="cursor: pointer;" onclick="switchTabNav('settings', null)" title="Klik untuk buka Pengaturan">
+                    <div class="user-profile" style="cursor: pointer;" onclick="switchTabNav('settings')" title="Klik untuk buka Pengaturan">
                         <img id="user-avatar-desktop" src="https://via.placeholder.com/40" alt="Profil" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
                         <span id="user-display-name-desktop">Nama Pengguna</span>
                     </div>
@@ -99,9 +99,7 @@
                     </div>
                     <div class="chat-messages" id="chat-messages-container"></div>
                     
-                    <!-- Area Input Pesan dengan Dukungan Textarea & Reply Preview -->
                     <div class="chat-input-area" style="flex-direction: column; align-items: stretch;">
-                        <!-- Container Preview Balasan Pesan (Reply) -->
                         <div id="reply-preview-container" class="hidden" style="padding: 6px 10px; background: rgba(0,168,132,0.1); border-left: 3px solid var(--primary-color); border-radius: 4px; margin-bottom: 6px; font-size: 12px; display: flex; justify-content: space-between; align-items: center;">
                             <div>
                                 <strong id="reply-preview-sender" style="color: var(--primary-color);">Membalas...</strong>
@@ -110,23 +108,18 @@
                             <button onclick="cancelReply()" style="background: none; border: none; cursor: pointer; font-size: 14px; color: var(--text-light);"><i class="fa-solid fa-xmark"></i></button>
                         </div>
                         
-                        <!-- Baris Input Utama -->
                         <div style="display: flex; gap: 10px; align-items: flex-end; width: 100%;">
-                            <!-- Tombol Ikon Klip untuk Unggah Gambar di Chat -->
                             <label for="chat-file-input" style="cursor: pointer; color: #667781; font-size: 20px; padding-bottom: 8px; flex-shrink: 0;" title="Kirim Gambar">
                                 <i class="fa-solid fa-paperclip"></i>
                             </label>
                             <input type="file" id="chat-file-input" accept="image/*" style="display: none;">
                         
-                            <!-- Kolom Teks Pesan -->
                             <textarea id="message-input" placeholder="Ketik pesan..." rows="1" style="resize: none; flex: 1;"></textarea>
                             
-                            <!-- Tombol Voice Note (Mikrofon Rekam Suara) -->
-                            <button type="button" id="mic-btn" onclick="toggleVoiceRecording()" style="background: none; border: none; cursor: pointer; color: #667781; font-size: 20px; padding-bottom: 8px; flex-shrink: 0;" title="Tekan untuk Rekam Suara (Voice Note)">
+                            <button type="button" id="mic-btn" onclick="toggleVoiceRecording()" style="background: none; border: none; cursor: pointer; color: #667781; font-size: 20px; padding-bottom: 8px; flex-shrink: 0;" title="Tekan untuk Rekam Suara">
                                 <i class="fa-solid fa-microphone"></i>
                             </button>
                         
-                            <!-- Tombol Kirim Teks -->
                             <button class="send-button" onclick="sendMessage()" title="Kirim Pesan">
                                 <svg viewBox="0 0 24 24" width="20" height="20" fill="white">
                                     <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
@@ -136,125 +129,102 @@
                     </div>
                 </div>
 
-<!-- Tab Album Foto -->
-<div id="content-album" class="tab-content hidden" style="display: flex; flex-direction: column; height: 100%;">
-    <div class="chat-header">
-        <h3><i class="fa-solid fa-images"></i> Album Kenangan Keluarga</h3>
-    </div>
-    
-    <!-- Area Konten Album dengan Scroll -->
-    <div style="padding: 15px; overflow-y: auto; flex: 1;">
-        
-        <!-- Kotak Unggah Momen Keluarga -->
-        <div style="background: var(--card-bg); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            
-            <!-- Kartu Pemicu Utama (Diketuk untuk buka galeri atau kamera HP) -->
-            <div onclick="document.getElementById('photo-file-input').click()" style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 4px 0;">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <div style="width: 38px; height: 38px; border-radius: 50%; background: var(--primary-light); display: flex; align-items: center; justify-content: center; color: var(--primary-color); font-size: 16px;">
-                        <i class="fa-solid fa-camera-retro"></i>
+                <!-- Tab Album Foto -->
+                <div id="content-album" class="tab-content hidden" style="display: flex; flex-direction: column; height: 100%;">
+                    <div class="chat-header">
+                        <h3><i class="fa-solid fa-images"></i> Album Kenangan Keluarga</h3>
                     </div>
-                    <div>
-                        <h4 style="margin: 0; color: var(--text-light); font-size: 14px; font-weight: 600;">Unggah Momen Keluarga</h4>
-                        <p style="margin: 2px 0 0 0; font-size: 12px; color: gray;" id="selected-file-label">Ketuk untuk pilih dari galeri atau kamera</p>
-                    </div>
-                </div>
-                <i class="fa-solid fa-chevron-right" style="color: gray; font-size: 13px;"></i>
-            </div>
-
-            <!-- Form Unggah Tersembunyi (Muncul otomatis setelah foto dipilih) -->
-            <form id="photo-upload-form" onsubmit="handleUploadPhoto(event)" class="hidden" style="display: none; flex-direction: column; gap: 10px; margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
-                
-                <!-- ====== ELEMEN BARU: PRATINJAU GAMBAR OTOMATIS ====== -->
-                <img id="photo-preview" src="" alt="Pratinjau Foto" style="display: none; width: 100%; max-height: 250px; object-fit: cover; border-radius: 8px; margin-bottom: 4px; border: 1px solid var(--border-color);">
-                
-                <input type="text" id="photo-caption-input" placeholder="Keterangan / Caption Foto (Opsional)" style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-light); color: var(--text-light); font-size: 13px;">
-                <div style="display: flex; gap: 8px;">
-                    <button type="submit" class="btn-primary" style="flex: 1; border-radius: 6px; padding: 10px; font-weight: bold;">Kirim Foto</button>
-                    <button type="button" onclick="cancelAlbumUpload()" style="background: none; border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; cursor: pointer; color: var(--text-light); font-size: 13px;">Batal</button>
-                </div>
-            </form>
-
-            <!-- Input File Asli (Tanpa atribut capture agar HP memberi kebebasan pilih Galeri atau Kamera) -->
-            <input type="file" id="photo-file-input" accept="image/*" style="display: none;" onchange="onAlbumFileChange(event)">
-        </div> 
-
-        <!-- Grid Galeri Foto -->
-        <div id="album-grid-container" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;"></div>
-    </div>
-</div>
-
-<!-- Modal Zoom / Perbesar Foto -->
-<div id="photo-zoom-modal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 3000;">
-    <button onclick="closeZoomModal()" style="position: absolute; top: 20px; right: 25px; background: none; border: none; color: white; font-size: 32px; cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
-    <img id="zoomed-img-element" src="" style="max-width: 90%; max-height: 90%; border-radius: 8px; object-fit: contain; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
-</div>
-
-
-<!-- Tab Agenda (Gaya Kartu Terpadu / Unified Card Style) -->
-<div id="content-agenda" class="tab-content hidden" style="display: flex; flex-direction: column; height: 100%;">
-    <div class="chat-header">
-        <h3><i class="fa-solid fa-calendar-days"></i> Agenda & Ulang Tahun</h3>
-    </div>
-
-    <!-- Area Konten dengan Scroll -->
-    <div style="padding: 20px; overflow-y: auto; flex: 1;">
-        
-        <!-- Kontainer Utama Polos (Meniru Gaya Kartu Pengaturan Luar) -->
-        <div style="background: var(--card-bg); border-radius: 14px; border: 1px solid var(--border-color); box-shadow: 0 1px 4px rgba(0,0,0,0.04); overflow: hidden; max-width: 600px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; padding: 8px 0;">
-            
-            <!-- Bagian 1: Daftar Ulang Tahun Anggota -->
-            <div style="padding: 16px 24px;">
-                <h4 style="margin: 0 0 12px 0; color: var(--primary-color); font-size: 15px; display: flex; align-items: center; gap: 8px;">
-                    <i class="fa-solid fa-cake-candles"></i> Daftar Ulang Tahun Anggota
-                </h4>
-                <div id="birthday-list-container" style="display: flex; flex-direction: column; gap: 10px;">
-                    <!-- Data ulang tahun akan dimuat otomatis di sini oleh app.js -->
-                </div>
-            </div>
-
-            <!-- Bagian 2: Tambah Agenda Keluarga (Interaktif Sederhana) -->
-            <div style="padding: 16px 24px;">
-                <div onclick="toggleAgendaForm()" style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <div style="width: 38px; height: 38px; border-radius: 50%; background: var(--primary-light); display: flex; align-items: center; justify-content: center; color: var(--primary-color);">
-                            <i class="fa-solid fa-calendar-plus"></i>
-                        </div>
-                        <div>
-                            <h4 style="margin: 0; color: var(--text-light); font-size: 14px; font-weight: 600;">Tambah Agenda Keluarga</h4>
-                            <p style="margin: 2px 0 0 0; font-size: 12px; color: gray;" id="agenda-toggle-label">Ketuk untuk membuat jadwal baru</p>
-                        </div>
-                    </div>
-                    <i class="fa-solid fa-chevron-right" id="agenda-chevron-icon" style="color: gray; font-size: 13px; transition: transform 0.2s;"></i>
-                </div>
-
-                <!-- Form Tambah Agenda (Terhubung dengan handleCreateAgenda di app.js) -->
-                <form id="agenda-form-container" onsubmit="handleCreateAgenda(event)" class="hidden" style="display: none; flex-direction: column; gap: 12px; margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
-                    <input type="text" id="agenda-title" placeholder="Nama Acara / Kegiatan (Cth: Arisan)" required style="padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-light); color: var(--text-light); font-size: 14px; outline: none;">
-                    <input type="date" id="agenda-date" required style="padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-light); color: var(--text-light); font-size: 14px; outline: none;">
-                    <input type="text" id="agenda-desc" placeholder="Keterangan / Lokasi (Opsional)" style="padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-light); color: var(--text-light); font-size: 14px; outline: none;">
                     
-                    <div style="display: flex; gap: 8px;">
-                        <button type="submit" class="btn-primary" style="flex: 1; border-radius: 8px; padding: 10px; font-weight: bold;">Simpan</button>
-                        <button type="button" onclick="toggleAgendaForm()" style="background: none; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; cursor: pointer; color: var(--text-light);">Batal</button>
+                    <div style="padding: 15px; overflow-y: auto; flex: 1;">
+                        <div style="background: var(--card-bg); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                            
+                            <div onclick="document.getElementById('photo-file-input').click()" style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 4px 0;">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <div style="width: 38px; height: 38px; border-radius: 50%; background: var(--primary-light); display: flex; align-items: center; justify-content: center; color: var(--primary-color); font-size: 16px;">
+                                        <i class="fa-solid fa-camera-retro"></i>
+                                    </div>
+                                    <div>
+                                        <h4 style="margin: 0; color: var(--text-light); font-size: 14px; font-weight: 600;">Unggah Momen Keluarga</h4>
+                                        <p style="margin: 2px 0 0 0; font-size: 12px; color: gray;" id="selected-file-label">Ketuk untuk pilih dari galeri atau kamera</p>
+                                    </div>
+                                </div>
+                                <i class="fa-solid fa-chevron-right" style="color: gray; font-size: 13px;"></i>
+                            </div>
+
+                            <form id="photo-upload-form" onsubmit="handleUploadPhoto(event)" class="hidden" style="display: none; flex-direction: column; gap: 10px; margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+                                <!-- Pratinjau Gambar -->
+                                <img id="photo-preview" src="" alt="Pratinjau" style="max-width: 100%; max-height: 200px; border-radius: 8px; object-fit: cover; display: none; margin-bottom: 5px;">
+                                <input type="text" id="photo-caption-input" placeholder="Keterangan / Caption Foto (Opsional)" style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-light); color: var(--text-light); font-size: 13px;">
+                                <div style="display: flex; gap: 8px;">
+                                    <button type="submit" class="btn-primary" style="flex: 1; border-radius: 6px; padding: 10px; font-weight: bold;">Kirim Foto</button>
+                                    <button type="button" onclick="cancelAlbumUpload()" style="background: none; border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; cursor: pointer; color: var(--text-light); font-size: 13px;">Batal</button>
+                                </div>
+                            </form>
+
+                            <input type="file" id="photo-file-input" accept="image/*" style="display: none;">
+                        </div>
+
+                        <div id="album-grid-container" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;"></div>
                     </div>
-                </form>
-            </div>
-
-            <!-- Bagian 3: Daftar Kegiatan Mendatang -->
-            <div style="padding: 16px 24px;">
-                <h4 style="margin: 0 0 12px 0; color: var(--primary-color); font-size: 15px; display: flex; align-items: center; gap: 8px;">
-                    <i class="fa-solid fa-list-check"></i> Daftar Kegiatan Mendatang
-                </h4>
-                <div id="agenda-list-container" style="display: flex; flex-direction: column; gap: 10px;">
-                    <!-- Data agenda akan dimuat otomatis di sini oleh app.js -->
                 </div>
-            </div>
 
-        </div>
-    </div>
-</div>
+                <!-- Modal Zoom Foto -->
+                <div id="photo-zoom-modal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 3000;">
+                    <button onclick="closeZoomModal()" style="position: absolute; top: 20px; right: 25px; background: none; border: none; color: white; font-size: 32px; cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
+                    <img id="zoomed-img-element" src="" style="max-width: 90%; max-height: 90%; border-radius: 8px; object-fit: contain;">
+                </div>
 
+                <!-- Tab Agenda -->
+                <div id="content-agenda" class="tab-content hidden" style="display: flex; flex-direction: column; height: 100%;">
+                    <div class="chat-header">
+                        <h3><i class="fa-solid fa-calendar-days"></i> Agenda & Ulang Tahun</h3>
+                    </div>
+                    
+                    <div style="padding: 15px; overflow-y: auto; flex: 1;">
+                        <div style="background: var(--card-bg); border-radius: 14px; border: 1px solid var(--border-color); box-shadow: 0 1px 4px rgba(0,0,0,0.04); overflow: hidden; max-width: 600px; margin: 0 auto; width: 100%; display: flex; flex-direction: column;">
+                            
+                            <div style="padding: 20px; border-bottom: 1px solid var(--border-color);">
+                                <h4 style="margin: 0 0 12px 0; color: var(--primary-color); font-size: 15px; display: flex; align-items: center; gap: 8px;">
+                                    <i class="fa-solid fa-cake-candles"></i> Daftar Ulang Tahun Anggota
+                                </h4>
+                                <div id="birthday-list-container" style="display: flex; flex-direction: column; gap: 10px;"></div>
+                            </div>
+
+                            <div style="padding: 20px; border-bottom: 1px solid var(--border-color);">
+                                <div onclick="toggleAgendaForm()" style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                                    <div style="display: flex; align-items: center; gap: 12px;">
+                                        <div style="width: 38px; height: 38px; border-radius: 50%; background: var(--primary-light); display: flex; align-items: center; justify-content: center; color: var(--primary-color);">
+                                            <i class="fa-solid fa-calendar-plus"></i>
+                                        </div>
+                                        <div>
+                                            <h4 style="margin: 0; color: var(--text-light); font-size: 14px; font-weight: 600;">Tambah Agenda Keluarga</h4>
+                                            <p style="margin: 2px 0 0 0; font-size: 12px; color: gray;" id="agenda-toggle-label">Ketuk untuk membuat jadwal baru</p>
+                                        </div>
+                                    </div>
+                                    <i class="fa-solid fa-chevron-right" id="agenda-chevron-icon" style="color: gray; font-size: 13px; transition: transform 0.2s;"></i>
+                                </div>
+                                
+                                <form id="agenda-form-container" onsubmit="handleCreateAgenda(event)" class="hidden" style="display: none; flex-direction: column; gap: 12px; margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+                                    <input type="text" id="agenda-title" placeholder="Nama Acara / Kegiatan" required style="padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-light); color: var(--text-light); font-size: 14px;">
+                                    <input type="date" id="agenda-date" required style="padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-light); color: var(--text-light); font-size: 14px;">
+                                    <input type="text" id="agenda-desc" placeholder="Keterangan / Lokasi (Opsional)" style="padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-light); color: var(--text-light); font-size: 14px;">
+                                    <div style="display: flex; gap: 8px;">
+                                        <button type="submit" class="btn-primary" style="flex: 1; border-radius: 8px; padding: 10px; font-weight: bold;">Simpan</button>
+                                        <button type="button" onclick="toggleAgendaForm()" style="background: none; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; cursor: pointer; color: var(--text-light);">Batal</button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <div style="padding: 20px;">
+                                <h4 style="margin: 0 0 12px 0; color: var(--primary-color); font-size: 15px; display: flex; align-items: center; gap: 8px;">
+                                    <i class="fa-solid fa-list-check"></i> Daftar Kegiatan Mendatang
+                                </h4>
+                                <div id="agenda-list-container" style="display: flex; flex-direction: column; gap: 10px;"></div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Tab Daftar Keluarga -->
                 <div id="content-family" class="tab-content hidden" style="display: flex; flex-direction: column; height: 100%;">
@@ -270,13 +240,9 @@
                         <h3><i class="fa-solid fa-gear"></i> Pengaturan Akun & Aplikasi</h3>
                     </div>
                     
-                    <!-- Wrapper Utama Pengaturan -->
                     <div style="padding: 15px; padding-bottom: 120px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 12px; max-width: 600px; margin: 0 auto; width: 100%; min-height: 0;">
-                        
-                        <!-- Input File Tersembunyi untuk Ganti Foto Profil -->
                         <input type="file" id="hidden-profile-file-input" accept="image/*" style="display: none;" onchange="triggerUploadProfile(this)">
 
-                        <!-- Kartu Header Profil -->
                         <div style="background: var(--card-bg); padding: 18px; border-radius: 14px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);">
                             <img id="settings-user-avatar" src="https://via.placeholder.com/65" alt="Profil" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary-color);">
                             <div style="flex: 1; overflow: hidden;">
@@ -285,11 +251,8 @@
                             </div>
                         </div>
                         
-                        <!-- Daftar Menu Pengaturan -->
                         <div style="background: var(--card-bg); border-radius: 14px; border: 1px solid var(--border-color); overflow: visible; box-shadow: 0 1px 4px rgba(0,0,0,0.04);">
-                            
-                            <!-- Menu 1: Ganti Foto Profil -->
-                            <div onclick="document.getElementById('hidden-profile-file-input').click()" style="padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.02)'" onmouseout="this.style.background='transparent'">
+                            <div onclick="document.getElementById('hidden-profile-file-input').click()" style="padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); cursor: pointer;">
                                 <div style="display: flex; align-items: center; gap: 15px;">
                                     <i class="fa-solid fa-user-pen" style="font-size: 18px; color: var(--primary-color);"></i>
                                     <div>
@@ -299,21 +262,19 @@
                                 </div>
                                 <i class="fa-solid fa-chevron-right" style="font-size: 13px; color: gray;"></i>
                             </div>
-                    
-                            <!-- Menu Tambahan: Instal Aplikasi ke Ponsel (PWA) -->
-                            <div id="install-pwa-container" class="hidden" onclick="installAppToAndroid()" style="padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.02)'" onmouseout="this.style.background='transparent'">
+    
+                            <div id="install-pwa-container" class="hidden" onclick="installAppToAndroid()" style="padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); cursor: pointer;">
                                 <div style="display: flex; align-items: center; gap: 15px;">
                                     <i class="fa-solid fa-mobile-screen-button" style="font-size: 18px; color: var(--primary-color);"></i>
                                     <div>
                                         <span style="font-size: 15px; font-weight: 500; color: var(--text-light); display: block;">Instal Aplikasi ke Ponsel</span>
-                                        <span style="font-size: 12px; color: gray;">Tambahkan Kitachat ke layar utama Android</span>
+                                        <span style="font-size: 12px; color: gray;">Tambahkan Kitachat ke layar utama</span>
                                     </div>
                                 </div>
                                 <i class="fa-solid fa-chevron-right" style="font-size: 13px; color: gray;"></i>
                             </div>
-                    
-                            <!-- Menu 2: Tema Tampilan -->
-                            <div onclick="toggleTheme()" style="padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.02)'" onmouseout="this.style.background='transparent'">
+    
+                            <div onclick="toggleTheme()" style="padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); cursor: pointer;">
                                 <div style="display: flex; align-items: center; gap: 15px;">
                                     <i class="fa-solid fa-circle-half-stroke" style="font-size: 18px; color: var(--primary-color);"></i>
                                     <div>
@@ -323,21 +284,19 @@
                                 </div>
                                 <i class="fa-solid fa-chevron-right" style="font-size: 13px; color: gray;"></i>
                             </div>
-                    
-                            <!-- Menu 3: Bersihkan Obrolan -->
-                            <div onclick="clearChat()" style="padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.02)'" onmouseout="this.style.background='transparent'">
+    
+                            <div onclick="clearChat()" style="padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); cursor: pointer;">
                                 <div style="display: flex; align-items: center; gap: 15px;">
                                     <i class="fa-solid fa-trash-can" style="font-size: 18px; color: #e74c3c;"></i>
                                     <div>
                                         <span style="font-size: 15px; font-weight: 500; color: var(--text-light); display: block;">Bersihkan Obrolan</span>
-                                        <span style="font-size: 12px; color: gray;">Hapus seluruh riwayat chat grup keluarga</span>
+                                        <span style="font-size: 12px; color: gray;">Hapus seluruh riwayat chat grup</span>
                                     </div>
                                 </div>
                                 <i class="fa-solid fa-chevron-right" style="font-size: 13px; color: gray;"></i>
                             </div>
 
-                            <!-- Menu 4: Email Pemulihan -->
-                            <div onclick="document.getElementById('email-modal').classList.remove('hidden')" style="padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.02)'" onmouseout="this.style.background='transparent'">
+                            <div onclick="document.getElementById('email-modal').classList.remove('hidden')" style="padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); cursor: pointer;">
                                 <div style="display: flex; align-items: center; gap: 15px;">
                                     <i class="fa-solid fa-envelope" style="font-size: 18px; color: var(--primary-color);"></i>
                                     <div>
@@ -347,9 +306,8 @@
                                 </div>
                                 <i class="fa-solid fa-chevron-right" style="font-size: 13px; color: gray;"></i>
                             </div>
-                    
-                            <!-- Menu 5: Ganti Password -->
-                            <div onclick="openChangePasswordModal()" style="padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.02)'" onmouseout="this.style.background='transparent'">
+    
+                            <div onclick="openChangePasswordModal()" style="padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); cursor: pointer;">
                                 <div style="display: flex; align-items: center; gap: 15px;">
                                     <i class="fa-solid fa-lock" style="font-size: 18px; color: var(--primary-color);"></i>
                                     <div>
@@ -360,8 +318,7 @@
                                 <i class="fa-solid fa-chevron-right" style="font-size: 13px; color: gray;"></i>
                             </div>
 
-                            <!-- Menu 6: Cek Pembaruan Aplikasi -->
-                            <div onclick="forceUpdateApp()" style="padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.02)'" onmouseout="this.style.background='transparent'">
+                            <div onclick="forceUpdateApp()" style="padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); cursor: pointer;">
                                 <div style="display: flex; align-items: center; gap: 15px;">
                                     <i class="fa-solid fa-arrows-rotate" style="font-size: 18px; color: var(--primary-color);"></i>
                                     <div>
@@ -372,8 +329,7 @@
                                 <i class="fa-solid fa-chevron-right" style="font-size: 13px; color: gray;"></i>
                             </div>
     
-                            <!-- Menu 7: Keluar Aplikasi -->
-                            <div onclick="logout()" style="padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.02)'" onmouseout="this.style.background='transparent'">
+                            <div onclick="logout()" style="padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
                                 <div style="display: flex; align-items: center; gap: 15px;">
                                     <i class="fa-solid fa-right-from-bracket" style="font-size: 18px; color: #e74c3c;"></i>
                                     <div>
@@ -383,14 +339,13 @@
                                 </div>
                                 <i class="fa-solid fa-chevron-right" style="font-size: 13px; color: gray;"></i>
                             </div>
-    
                         </div>
                     </div>
                 </div>
 
             </div>
 
-            <!-- Modal Panggilan Telepon (WebRTC) -->
+            <!-- Modal Telepon -->
             <div id="call-modal" class="tab-content hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 9999;">
                 <div style="background: var(--card-bg); padding: 25px; border-radius: 12px; width: 350px; text-align: center; border: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
                     <i class="fa-solid fa-phone-volume" style="font-size: 50px; color: var(--primary-color); margin-bottom: 15px;"></i>
@@ -406,7 +361,7 @@
 
             <!-- Modal Ganti Password -->
             <div id="password-modal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 9999;">
-                <div style="background: var(--card-bg); padding: 20px; border-radius: 12px; width: 90%; max-width: 350px; border: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+                <div style="background: var(--card-bg); padding: 20px; border-radius: 12px; width: 90%; max-width: 350px; border: 1px solid var(--border-color);">
                     <h3 style="margin-top: 0; color: var(--text-light); font-size: 16px; margin-bottom: 15px;"><i class="fa-solid fa-lock"></i> Ganti Password</h3>
                     <form onsubmit="handleChangePassword(event)" style="display: flex; flex-direction: column; gap: 12px;">
                         <input type="password" id="old-password" placeholder="Password Lama" required style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-light); color: var(--text-light);">
@@ -449,7 +404,7 @@
                 </div>
             </div>
 
-            <!-- Menu Navigasi Bawah Khusus Mobile (WhatsApp Style Bottom Bar) -->
+            <!-- Menu Navigasi Bawah Khusus Mobile -->
             <div class="sidebar-menu mobile-bottom-nav">
                 <button class="menu-item active" onclick="switchTabNav('chat', this)"><i class="fa-solid fa-message"></i> <span>Obrolan</span></button>
                 <button class="menu-item" onclick="switchTabNav('album', this)"><i class="fa-solid fa-images"></i> <span>Album</span></button>
@@ -462,8 +417,10 @@
 
     </div>
 
-    <!-- Socket.io & Skrip Utama -->
+    <!-- Socket.io & Skrip Utama (Urutan Diperbarui Sesuai Saran Agen) -->
     <script src="/socket.io/socket.io.js"></script>
-    <script src="app.js"></script>
+    <script src="/app.js"></script>
+    <script src="/album-upload.js"></script>
+    <script src="/ui-helpers.js"></script>
 </body>
 </html>
