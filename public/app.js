@@ -366,6 +366,18 @@ async function forceUpdateApp() {
     }
 }
 
+// --- FUNGSI PEMBUKA TAUTAN EKSTERNAL / DEEP LINK ---
+function openExternalLink(url) {
+    // Membuat elemen link sementara untuk memaksa OS/Browser utama membuka aplikasi tujuan (seperti Shopee)
+    const a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+}
+
 // --- FITUR VOICE NOTE ---
 let mediaRecorder;
 let audioChunks = [];
