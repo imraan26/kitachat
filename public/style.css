@@ -285,6 +285,10 @@ form input {
     line-height: 1.4;
     box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.13);
     word-break: break-word;
+    /* Optimasi agar sentuhan long-press di HP tidak terhalang sistem scroll */
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: pan-y; 
 }
 
 .chat-incoming {
@@ -604,18 +608,18 @@ form input {
     }
 }
 
-/* --- TAMBAHAN STYLE: POP-UP MENU ALA WHATSAPP --- */
+/* --- TAMBAHAN STYLE: POP-UP MENU ALA WHATSAPP (Dioptimalkan z-index & kliknya) --- */
 .chat-popup-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.4);
-    z-index: 9999;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    background: rgba(0, 0, 0, 0.45) !important;
+    z-index: 999999 !important; /* Dipaksa berada di lapisan paling atas melampaui elemen lain */
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
     animation: fadeIn 0.2s ease-out;
 }
 
@@ -627,6 +631,7 @@ form input {
     overflow: hidden;
     border: 1px solid var(--border-color);
     animation: scaleUp 0.2s ease-out;
+    z-index: 1000000 !important;
 }
 
 .chat-popup-item {
