@@ -69,6 +69,18 @@ a {
   text-decoration: none;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 #app-container {
   position: relative;
   width: 100vw;
@@ -116,10 +128,14 @@ a {
   text-align: center;
 }
 
-.auth-card h2 {
+.auth-card h1 {
   color: var(--primary-color);
   margin-bottom: 6px;
   font-size: clamp(1.8rem, 2vw, 2.2rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
 }
 
 .auth-card p {
@@ -187,13 +203,33 @@ form input:focus {
   background: var(--primary-dark);
 }
 
-.btn-primary:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
+.btn-secondary {
+  padding: 12px;
+  background: var(--bg-light);
+  color: var(--text-light);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background: var(--border-color);
+}
+
+.form-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 5px;
+}
+
+.form-actions button {
+  flex: 1;
 }
 
 /* =========================
-   MAIN SCREEN
+   MAIN SCREEN & LAYOUT
 ========================= */
 #main-screen {
   display: none;
@@ -201,7 +237,6 @@ form input:focus {
   width: 100%;
   height: 100vh;
   position: relative;
-  padding-top: env(safe-area-inset-top, 0px);
   background: var(--bg-light);
 }
 
@@ -209,7 +244,7 @@ form input:focus {
   display: flex;
 }
 
-/* Header mobile */
+/* Mobile header */
 .mobile-header-top {
   display: flex;
   justify-content: space-between;
@@ -242,6 +277,10 @@ form input:focus {
   display: flex;
   align-items: center;
   gap: 10px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
   min-width: 0;
 }
 
@@ -266,51 +305,7 @@ form input:focus {
   display: none !important;
 }
 
-/* Bottom nav mobile */
-.sidebar-menu.mobile-bottom-nav {
-  display: flex;
-  flex-direction: row;
-  background: var(--card-bg);
-  border-top: 1px solid var(--border-color);
-  width: 100%;
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  z-index: 20;
-}
-
-.mobile-bottom-nav .menu-item {
-  flex: 1;
-  min-height: 58px;
-  padding: 8px 4px;
-  border-right: 1px solid var(--border-color);
-}
-
-.menu-item {
-  background: transparent;
-  border: none;
-  color: var(--text-light);
-  cursor: pointer;
-  font-size: 0.7rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  text-align: center;
-  transition: background 0.2s ease, color 0.2s ease;
-}
-
-.menu-item i {
-  font-size: 1.1rem;
-}
-
-.menu-item.active,
-.menu-item:hover {
-  background: var(--primary-light);
-  color: var(--primary-color);
-}
-
+/* Chat & Content Area */
 .chat-area {
   flex: 1;
   display: flex;
@@ -318,26 +313,49 @@ form input:focus {
   background: var(--bg-light);
   height: 100%;
   overflow: hidden;
+  position: relative;
+}
+
+.tab-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+.tab-scroll-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
 }
 
 .chat-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 15px;
+  padding: 12px 20px;
   background: var(--card-bg);
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
+  min-height: 61px;
 }
 
-.chat-header h3 {
-  font-size: 1rem;
+.chat-header h2 {
+  font-size: 1.05rem;
   color: var(--text-light);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
+/* =========================
+   CHAT TAB SPECIFIC
+========================= */
 .chat-messages {
   flex: 1;
   overflow-y: auto;
@@ -346,62 +364,6 @@ form input:focus {
   flex-direction: column;
   gap: 8px;
   background: var(--bg-light);
-}
-
-.chat-bubble {
-  max-width: 80%;
-  padding: 8px 12px;
-  border-radius: 12px;
-  position: relative;
-  font-size: 0.92rem;
-  line-height: 1.45;
-  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.08);
-  word-break: break-word;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: pan-y;
-}
-
-.chat-incoming {
-  align-self: flex-start;
-  background: var(--card-bg);
-  color: var(--text-light);
-  border-top-left-radius: 0;
-}
-
-.chat-outgoing {
-  align-self: flex-end;
-  background: var(--primary-light);
-  color: var(--text-light);
-  border-top-right-radius: 0;
-}
-
-.chat-sender {
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: var(--primary-color);
-  margin-bottom: 4px;
-}
-
-.chat-text {
-  line-height: 1.45;
-}
-
-.chat-time {
-  font-size: 0.62rem;
-  color: var(--text-muted);
-  text-align: right;
-  margin-top: 4px;
-}
-
-.chat-reply {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  background: rgba(0, 0, 0, 0.04);
-  border-left: 3px solid var(--primary-color);
-  padding: 4px 8px;
-  border-radius: 6px;
-  margin-top: 4px;
 }
 
 .chat-input-area {
@@ -413,6 +375,13 @@ form input:focus {
   border-top: 1px solid var(--border-color);
   width: 100%;
   flex-shrink: 0;
+}
+
+.chat-input-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  width: 100%;
 }
 
 #reply-preview-container {
@@ -441,6 +410,14 @@ form input:focus {
   max-width: 260px;
   margin: 0;
   font-size: 0.75rem;
+}
+
+.file-picker-button {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 20px;
+  padding-bottom: 8px;
+  flex-shrink: 0;
 }
 
 #message-input {
@@ -478,113 +455,174 @@ form input:focus {
   background: var(--primary-dark);
 }
 
-.send-button svg {
-  display: block;
-}
-
 #mic-btn {
   background: transparent;
   border: none;
   color: var(--text-muted);
   font-size: 1.1rem;
   cursor: pointer;
-  padding: 0;
+  padding: 0 0 8px 0;
   width: 32px;
   height: 32px;
-  min-width: 32px;
+  flex-shrink: 0;
 }
 
 #mic-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
 /* =========================
-   ALBUM / MEDIA UI
+   ALBUM & CARDS CONTENT
 ========================= */
-#album-grid-container {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.photo-card {
-  position: relative;
+.upload-card, .content-card {
+  background: var(--card-bg);
+  border-radius: 14px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-soft);
+  max-width: 650px;
+  margin: 0 auto;
   width: 100%;
-  aspect-ratio: 1 / 1;
-  border-radius: 6px;
   overflow: hidden;
-  background: #dcdcdc;
-  cursor: pointer;
+  display: flex;
+  flex-direction: column;
 }
 
-.photo-card img {
+.upload-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  padding: 18px 20px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
 }
 
-.photo-menu-btn {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
-  background: rgba(0, 0, 0, 0.6);
-  color: white;
-  border: none;
+.upload-icon {
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
-  width: 28px;
-  height: 28px;
+  background: var(--primary-light);
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  z-index: 10;
+  color: var(--primary-color);
+  font-size: 18px;
+  flex-shrink: 0;
 }
 
-.photo-dropdown {
-  display: none;
-  position: absolute;
-  bottom: 38px;
-  right: 4px;
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
+.upload-trigger span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  margin-left: 12px;
+}
+
+.upload-trigger strong {
+  color: var(--text-light);
+  font-size: 14px;
+}
+
+.upload-trigger small {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+#photo-upload-form, #agenda-form-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-soft);
+}
+
+#photo-preview {
+  max-width: 100%;
+  max-height: 220px;
   border-radius: 8px;
-  box-shadow: var(--shadow-soft);
-  min-width: 130px;
-  z-index: 20;
-  overflow: hidden;
+  object-fit: cover;
+  margin: 0 auto;
 }
 
-.photo-dropdown.active {
-  display: block;
+.album-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  max-width: 650px;
+  margin: 0 auto;
+  width: 100%;
 }
 
-.photo-dropdown button {
+.card-section {
+  padding: 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.card-section:last-child {
+  border-bottom: none;
+}
+
+.card-section h3 {
+  margin-bottom: 12px;
+  color: var(--primary-color);
+  font-size: 15px;
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
-  padding: 10px 12px;
-  background: transparent;
-  border: none;
-  color: var(--text-light);
-  cursor: pointer;
-  text-align: left;
-  font-size: 0.82rem;
 }
 
-.photo-dropdown button:hover {
-  background: var(--primary-light);
-  color: var(--primary-color);
+.section-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+}
+
+.section-toggle span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.section-toggle strong {
+  color: var(--text-light);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section-toggle small {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-left: 26px;
+}
+
+.stack-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 /* =========================
-   FAMILY LIST
+   FAMILY DIRECTORY
 ========================= */
 .family-directory {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 14px;
+  gap: 15px;
+  max-width: 1000px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .family-card {
@@ -595,66 +633,255 @@ form input:focus {
   background: var(--card-bg);
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  padding: 14px 10px;
+  padding: 20px 15px;
   box-shadow: var(--shadow-soft);
+  text-align: center;
 }
 
 .family-card img {
-  width: 58px;
-  height: 58px;
+  width: 65px;
+  height: 65px;
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid var(--primary-color);
 }
 
 .family-card h4 {
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-weight: 700;
-  text-align: center;
+  color: var(--text-light);
 }
 
 .family-card p {
   color: var(--text-muted);
-  font-size: 0.78rem;
+  font-size: 0.82rem;
+}
+
+/* =========================
+   SETTINGS TAB
+========================= */
+.settings-content {
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.profile-card {
+  background: var(--card-bg);
+  padding: 18px 20px;
+  border-radius: 14px;
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: var(--shadow-soft);
+  margin-bottom: 15px;
+}
+
+.profile-card img {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--primary-color);
+  flex-shrink: 0;
+}
+
+.profile-card h3 {
+  margin: 0 0 4px 0;
+  color: var(--text-light);
+  font-size: 17px;
+  font-weight: bold;
+}
+
+.profile-card p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-card {
+  background: var(--card-bg);
+  border-radius: 14px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  box-shadow: var(--shadow-soft);
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 16px 20px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  text-align: left;
+  color: var(--text-light);
+  transition: background 0.15s ease;
+}
+
+.settings-item:last-child {
+  border-bottom: none;
+}
+
+.settings-item:hover {
+  background: var(--bg-soft);
+}
+
+.settings-item > span:first-child {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.settings-item i {
+  font-size: 18px;
+  color: var(--primary-color);
+  width: 22px;
   text-align: center;
 }
 
+.settings-item i.danger {
+  color: var(--danger);
+}
+
+.settings-item span strong {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-light);
+  display: block;
+}
+
+.settings-item span small {
+  font-size: 12px;
+  color: var(--text-muted);
+  display: block;
+  margin-top: 2px;
+}
+
+.settings-item .danger {
+  color: var(--danger);
+}
+
 /* =========================
-   MODALS
+   MODALS OVERLAY
 ========================= */
-#photo-zoom-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.85);
-  display: none;
-  justify-content: center;
-  align-items: center;
-  z-index: 2000;
-}
-
-#photo-zoom-modal.active {
-  display: flex;
-}
-
-#call-modal {
+.modal-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.7);
-  display: none;
+  display: flex;
   justify-content: center;
   align-items: center;
   z-index: 2000;
+  padding: 20px;
 }
 
-#call-modal.active {
+.modal-card {
+  background: var(--card-bg);
+  padding: 25px;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 360px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-strong);
   display: flex;
+  flex-direction: column;
+  gap: 15px;
+  text-align: center;
+}
+
+.modal-card h2 {
+  margin: 0;
+  color: var(--text-light);
+  font-size: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.modal-card form {
+  text-align: left;
+}
+
+.modal-help-text {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: -5px 0 5px 0;
+}
+
+.call-card {
+  max-width: 340px;
+}
+
+.call-icon {
+  font-size: 45px;
+  color: var(--primary-color);
+  margin-bottom: 5px;
+}
+
+.call-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 5px;
+}
+
+.btn-success {
+  background: var(--success);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.modal-close-button {
+  position: absolute;
+  top: 20px;
+  right: 25px;
+  background: none;
+  border: none;
+  color: white;
+  font-size: 30px;
+  cursor: pointer;
+}
+
+#zoomed-img-element {
+  max-width: 90%;
+  max-height: 90%;
+  border-radius: 8px;
+  object-fit: contain;
 }
 
 /* =========================
-   DESKTOP LAYOUT
+   DESKTOP RESPONSIVE LAYOUT
 ========================= */
 @media (min-width: 768px) {
   #app-container {
@@ -667,7 +894,6 @@ form input:focus {
 
   #main-screen {
     flex-direction: row;
-    padding-top: 0;
     height: 100%;
   }
 
@@ -695,11 +921,6 @@ form input:focus {
     min-height: 72px;
   }
 
-  .desktop-sidebar .user-profile {
-    gap: 12px;
-    min-width: 0;
-  }
-
   .desktop-sidebar .user-profile img {
     width: 40px;
     height: 40px;
@@ -708,9 +929,6 @@ form input:focus {
   .desktop-sidebar .user-profile span {
     color: white;
     font-size: 0.96rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     max-width: 170px;
   }
 
@@ -740,6 +958,7 @@ form input:focus {
 
   .desktop-sidebar .menu-item i {
     width: 18px;
+    font-size: 1.1rem;
   }
 
   .sidebar-menu.mobile-bottom-nav {
@@ -750,44 +969,69 @@ form input:focus {
     flex: 1;
     height: 100%;
   }
-
-  .chat-area .tab-content {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
 }
 
 /* =========================
-   MOBILE ADJUSTMENTS
+   MOBILE RESPONSIVE LAYOUT
 ========================= */
 @media (max-width: 767px) {
-  body {
-    background: var(--bg-light);
-  }
-
   #main-screen {
-    position: relative;
+    padding-bottom: 58px;
   }
 
   .chat-area {
     height: calc(100vh - 60px - 58px);
   }
 
-  .chat-input-area {
+  .sidebar-menu.mobile-bottom-nav {
+    display: flex;
+    flex-direction: row;
     background: var(--card-bg);
     border-top: 1px solid var(--border-color);
+    width: 100%;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    z-index: 20;
   }
 
-  #album-grid-container {
+  .mobile-bottom-nav .menu-item {
+    flex: 1;
+    min-height: 58px;
+    padding: 8px 4px;
+    border-right: 1px solid var(--border-color);
+  }
+
+  .mobile-bottom-nav .menu-item:last-child {
+    border-right: none;
+  }
+
+  .menu-item {
+    background: transparent;
+    border: none;
+    color: var(--text-light);
+    cursor: pointer;
+    font-size: 0.7rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    text-align: center;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+
+  .menu-item.active,
+  .menu-item:hover {
+    background: var(--primary-light);
+    color: var(--primary-color);
+  }
+
+  .album-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-/* =========================
-   UTILS
-========================= */
 .text-muted {
   color: var(--text-muted);
 }
