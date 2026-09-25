@@ -2,7 +2,7 @@
   "id": "/kitachat-app",
   "name": "Kitachat - Hub Keluarga",
   "short_name": "Kitachat",
-  "description": "Aplikasi hub keluarga tercinta bergaya WhatsApp.",
+  "description": "Aplikasi hub keluarga tercinta.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
