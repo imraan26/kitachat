@@ -788,7 +788,7 @@ async function sendMessage() {
 }
 
 // ==========================================================
-// VOICE NOTE RECORDING LOGIC (Lightweight, Fast & Responsive)
+// VOICE NOTE RECORDING LOGIC (Optimized for iOS, Android & Desktop Cross-Compatibility)
 // ==========================================================
 let mediaRecorder = null;
 let audioChunks = [];
@@ -801,12 +801,13 @@ async function startRecording() {
 
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     
+    // Urutan prioritas mimeType: Utamakan format berbasis MP4/AAC agar kompatibel sempurna di iOS & Web Desktop/Android
     const mimeTypes = [
+      'audio/mp4',
+      'audio/aac',
       'audio/webm;codecs=opus', 
       'audio/webm', 
-      'audio/ogg;codecs=opus', 
-      'audio/mp4', 
-      'audio/aac'
+      'audio/ogg;codecs=opus'
     ];
     
     const selectedMime = mimeTypes.find(mime => MediaRecorder.isTypeSupported(mime)) || '';
@@ -825,22 +826,22 @@ async function startRecording() {
       // 1. Reset UI LANGSUNG INSTAN tanpa menunggu proses file / network selesai
       resetMicButtonUI();
 
-      const activeMime = mediaRecorder.mimeType || selectedMime || 'audio/webm';
+      const activeMime = mediaRecorder.mimeType || selectedMime || 'audio/mp4';
       const audioBlob = new Blob(audioChunks, { type: activeMime });
       
-      let extension = 'wav'; 
+      // Tentukan ekstensi file berdasarkan mimeType aktual yang diset oleh browser
+      let extension = 'm4a'; 
       if (activeMime.includes('webm')) extension = 'webm';
-      else if (activeMime.includes('mp4') || activeMime.includes('aac')) extension = 'm4a';
       else if (activeMime.includes('ogg')) extension = 'ogg';
+      else if (activeMime.includes('mp4') || activeMime.includes('aac')) extension = 'm4a';
 
       const file = new File([audioBlob], `voicenote-${Date.now()}.${extension}`, { type: activeMime });
       stream.getTracks().forEach(track => track.stop());
       
-      // 2. Kirim ke server di background (tidak memblokir interaksi pengguna)
+      // 2. Kirim ke server di background
       sendVoiceNote(file);
     };
 
-    // Dilonggarkan: Tanpa timeslice agar perekaman ringan dan tidak lag
     mediaRecorder.start();
     
     const micBtn = document.getElementById('mic-btn');
