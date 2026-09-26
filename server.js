@@ -127,7 +127,7 @@ app.use(
 );
 
 // ==========================================
-// MULTER UPLOAD
+// MULTER UPLOAD (Dioptimalkan untuk Dukungan Audio Lintas Platform)
 // ==========================================
 
 const storage = multer.diskStorage({
@@ -164,7 +164,10 @@ const mediaUpload = multer({
   },
   fileFilter: (req, file, callback) => {
     const isImage = file.mimetype.startsWith('image/');
-    const isAudio = file.mimetype.startsWith('audio/');
+    // Diperluas mencakup seluruh mimetype audio standar agar iOS & Chromium tidak tertolak
+    const isAudio = file.mimetype.startsWith('audio/') || 
+                    file.mimetype === 'video/webm' || 
+                    file.mimetype === 'application/octet-stream';
 
     if (!isImage && !isAudio) {
       return callback(new Error(
@@ -914,7 +917,12 @@ app.post(
       let audioUrl = null;
 
       if (req.file) {
-        if (req.file.mimetype.startsWith('audio/')) {
+        // Deteksi file media berdasarkan mimetype atau ekstensi file yang diunggah
+        const isAudioFile = req.file.mimetype.startsWith('audio/') || 
+                            req.file.mimetype === 'video/webm' || 
+                            /\.(webm|m4a|mp3|wav|ogg|aac)$/i.test(req.file.originalname);
+
+        if (isAudioFile) {
           audioUrl = getUploadUrl(req.file.filename);
         } else {
           imageUrl = getUploadUrl(req.file.filename);
