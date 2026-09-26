@@ -676,6 +676,82 @@ form input:focus {
   width: 100%;
 }
 
+/* =========================
+   PHOTO ALBUM MENU & POPUP
+========================= */
+
+/* Tombol Titik Tiga pada Foto */
+.photo-menu-btn {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.6) !important;
+  color: white !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: background 0.2s;
+}
+
+.photo-menu-btn:hover {
+  background: rgba(0, 0, 0, 0.8) !important;
+}
+
+/* Container Popup Menu Foto */
+.photo-dropdown {
+  position: absolute;
+  right: 8px;
+  bottom: 42px; /* Di atas tombol titik tiga */
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  display: none; /* Tersembunyi default */
+  flex-direction: column;
+  min-width: 110px;
+  z-index: 100;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  animation: popupScale 0.15s ease-out;
+}
+
+/* Saat aktif via JavaScript togglePhotoMenu */
+.photo-dropdown.active {
+  display: flex;
+}
+
+.photo-dropdown button {
+  padding: 10px 15px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--text-light);
+  width: 100%;
+  transition: background 0.15s;
+}
+
+.photo-dropdown button:hover {
+  background: var(--bg-soft);
+}
+
+.photo-dropdown button:last-child {
+  color: #e74c3c; /* Warna merah untuk menu Hapus */
+  border-top: 1px solid var(--border-color);
+}
+
+@keyframes popupScale {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+
 .card-section {
   padding: 20px;
   border-bottom: 1px solid var(--border-color);
