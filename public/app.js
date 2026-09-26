@@ -788,7 +788,7 @@ async function sendMessage() {
 }
 
 // ==========================================================
-// VOICE NOTE RECORDING LOGIC (Optimized for Cross-Platform iOS/Android/Web)
+// VOICE NOTE RECORDING LOGIC (Lightweight, Fast & Responsive)
 // ==========================================================
 let mediaRecorder = null;
 let audioChunks = [];
@@ -810,8 +810,8 @@ async function startRecording() {
     ];
     
     const selectedMime = mimeTypes.find(mime => MediaRecorder.isTypeSupported(mime)) || '';
-    
     const options = selectedMime ? { mimeType: selectedMime } : {};
+    
     mediaRecorder = new MediaRecorder(stream, options);
     audioChunks = [];
 
@@ -822,6 +822,9 @@ async function startRecording() {
     };
     
     mediaRecorder.onstop = async () => {
+      // 1. Reset UI LANGSUNG INSTAN tanpa menunggu proses file / network selesai
+      resetMicButtonUI();
+
       const activeMime = mediaRecorder.mimeType || selectedMime || 'audio/webm';
       const audioBlob = new Blob(audioChunks, { type: activeMime });
       
@@ -833,12 +836,12 @@ async function startRecording() {
       const file = new File([audioBlob], `voicenote-${Date.now()}.${extension}`, { type: activeMime });
       stream.getTracks().forEach(track => track.stop());
       
-      await sendVoiceNote(file);
+      // 2. Kirim ke server di background (tidak memblokir interaksi pengguna)
+      sendVoiceNote(file);
     };
 
-    // OPTIMASI UTAMA: Berikan timeslice (250ms) pada mediaRecorder.start(250)
-    // Ini membantu menyusun metadata durasi file agar mulus diputar di iOS/Safari.
-    mediaRecorder.start(250);
+    // Dilonggarkan: Tanpa timeslice agar perekaman ringan dan tidak lag
+    mediaRecorder.start();
     
     const micBtn = document.getElementById('mic-btn');
     if (micBtn) {
@@ -855,8 +858,7 @@ async function startRecording() {
 
 async function sendVoiceNote(file) {
   if (typeof currentUser === 'undefined' || !currentUser) {
-    alert('Silakan login terlebih dahulu!');
-    resetMicButtonUI();
+    console.warn('Silakan login terlebih dahulu!');
     return;
   }
   
@@ -875,9 +877,7 @@ async function sendVoiceNote(file) {
       throw new Error(data.error || "Gagal mengunggah ke server.");
     }
   } catch (error) {
-    alert("Gagal mengirim Voice Note: " + error.message);
-  } finally {
-    resetMicButtonUI();
+    console.error("Gagal mengirim Voice Note:", error.message);
   }
 }
 
@@ -902,7 +902,6 @@ document.addEventListener('click', (e) => {
         startRecording();
     }
 });
-
 
 // ==========================================================
 // TELEPON CEPAT DARI OBROLAN (CHAT CALL MENU)
