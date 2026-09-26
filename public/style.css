@@ -1303,3 +1303,83 @@ form input:focus {
     font-weight: 500 !important; /* Opsional: sedikit menebalkan agar terbaca jelas */
     font-size: 12px;
 }
+
+/* Container Grid Ulang Tahun */
+.birthday-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr); /* Default Desktop: 4 Berjajar */
+  gap: 16px;
+  padding: 10px 0;
+}
+
+/* Kartu Profil Anggota */
+.birthday-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.birthday-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.08);
+}
+
+/* Foto Profil */
+.birthday-avatar {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin: 0 auto 10px auto;
+  border: 2px solid #4f46e5;
+}
+
+/* Nama & Tanggal */
+.birthday-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 4px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.birthday-date {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+}
+
+.birthday-badge {
+  display: inline-block;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  margin-top: 8px;
+  font-weight: 600;
+}
+
+/* Responsif Mobile: 2 Kolom Berjajar */
+@media (max-width: 768px) {
+  .birthday-grid {
+    grid-template-columns: repeat(2, 1fr); /* 2 Berjajar di HP */
+    gap: 12px;
+  }
+  .birthday-avatar {
+    width: 55px;
+    height: 55px;
+  }
+  .birthday-name {
+    font-size: 13px;
+  }
+  .birthday-date {
+    font-size: 11px;
+  }
+}
