@@ -1391,17 +1391,27 @@ async function deleteAgenda(id) {
     });
 
     if (response.ok) {
+      // Hapus kartu dari DOM secara langsung dengan animasi mulus
       const card = document.querySelector(`[data-agenda-id="${id}"]`);
       if (card) {
+        card.style.transition = 'all 0.2s ease';
         card.style.opacity = '0';
         card.style.transform = 'scale(0.9)';
         setTimeout(() => card.remove(), 200);
       } else {
+        // Jika elemen tidak ditemukan di DOM, muat ulang daftar agenda
         await loadAgendaAndBirthdays();
       }
     } else {
-      const data = await parseJsonResponse(response);
-      alert(data.error || 'Gagal menghapus agenda.');
+      // Tangani respons error dengan aman jika server mengembalikan JSON atau teks kosong
+      let errorMsg = 'Gagal menghapus agenda.';
+      try {
+        const data = await response.json();
+        if (data && data.error) errorMsg = data.error;
+      } catch (e) {
+        // Abaikan jika respons bukan format JSON
+      }
+      alert(errorMsg);
     }
   } catch (error) {
     console.error('Error delete agenda:', error);
