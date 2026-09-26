@@ -693,6 +693,62 @@ async function sendMessage() {
 }
 
 // ==========================================================
+// VOICE NOTE RECORDING LOGIC
+// ==========================================================
+let mediaRecorder;
+let audioChunks = [];
+
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
+
+    mediaRecorder.ondataavailable = (event) => audioChunks.push(event.data);
+    
+    mediaRecorder.onstop = async () => {
+      const audioBlob = new Blob(audioChunks, { type: 'audio/mpeg' });
+      const file = new File([audioBlob], "voicenote.mp3", { type: 'audio/mpeg' });
+      await sendVoiceNote(file);
+      stream.getTracks().forEach(track => track.stop());
+    };
+
+    mediaRecorder.start();
+    document.getElementById('mic-btn').style.color = 'red';
+  } catch (err) {
+    alert("Izin mikrofon ditolak atau tidak didukung.");
+  }
+}
+
+async function sendVoiceNote(file) {
+  if (!currentUser) return alert('Silakan login!');
+  
+  const formData = new FormData();
+  formData.append('media', file);
+  formData.append('client_time', new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+
+  try {
+    const response = await apiFetch('/api/send-message', {
+      method: 'POST',
+      body: formData
+    });
+    if (!response.ok) alert('Gagal mengirim Voice Note.');
+  } catch (error) {
+    console.error('Error:', error);
+  }
+}
+
+// Event listener untuk tombol mic
+document.getElementById('mic-btn')?.addEventListener('click', () => {
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    mediaRecorder.stop();
+    document.getElementById('mic-btn').style.color = '';
+  } else {
+    startRecording();
+  }
+});
+
+// ==========================================================
 // ALBUM
 // ==========================================================
 let currentAlbumFilter = 'semua';
