@@ -4,11 +4,10 @@ let failedLoginAttempts = 0;
 let isLoggingOut = false;
 let socketBound = false;
 
-// ==========================================================
+/// ==========================================================
 // SUPABASE REALTIME CONFIGURATION
 // ==========================================================
-const SUPABASE_URL = 'sb_publishable_Zx1LSh2pPQFgF0JP8B5IJA_wnN57JjD';
-// PERBAIKAN: Gunakan Publishable / Anon Key asli dari Project Settings -> API Keys Supabase Anda
+const SUPABASE_URL = 'https://cxfukktxihfkfolnbhlo.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN4ZnVra3R4aWhma2ZvbG5iaGxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0MzIyNjIsImV4cCI6MjEwNjAwODI2Mn0.6q0n_W6pqV74xmHg_VrjNfepL_QnGGlzoL9XYXWCUdY'; 
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
