@@ -961,6 +961,38 @@
         </div>
       </div>
 
+
+      <!-- =========================
+           CALL SELECTION MODAL
+      ========================== -->
+      <div
+        id="call-selection-modal"
+        class="hidden modal-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-hidden="true"
+      >
+        <div class="modal-card" style="max-width: 360px; width: 90%;">
+          <h2><i class="fa-solid fa-phone" aria-hidden="true"></i> Pilih Keluarga</h2>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Ketuk anggota keluarga untuk memulai panggilan suara.</p>
+          
+          <div id="call-selection-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto; margin-bottom: 15px;">
+            <!-- Daftar anggota keluarga akan dirender otomatis di sini -->
+          </div>
+
+          <div class="form-actions">
+            <button
+              type="button"
+              class="btn-secondary"
+              onclick="closeCallSelectionModal()"
+            >
+              Batal
+            </button>
+          </div>
+        </div>
+      </div>
+      
+
       <!-- =========================
            PASSWORD MODAL
       ========================== -->
