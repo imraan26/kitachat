@@ -628,9 +628,7 @@ function renderIncomingMessage(message, silent = false) {
   sender.className = 'chat-sender';
   sender.textContent = message.name || 'Keluarga';
 
-  const text = document.createElement('div');
-  text.className = 'chat-text';
-  text.textContent = message.message || (message.image_url ? '(Gambar)' : message.audio_url ? '(Voice Note)' : '(Media)');
+  
 
   bubble.append(sender, text);
 
