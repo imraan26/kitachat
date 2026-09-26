@@ -540,34 +540,30 @@ function logout() {
 }
 
 // ==========================================================
-// CHAT
+// CHAT & MESSAGE ACTIONS (Reply & Delete)
 // ==========================================================
+
+// Global Timer untuk Long Press
+let pressTimer;
+
 function clearChatContainer() {
   const chatContainer = document.getElementById('chat-messages-container');
-  if (chatContainer) {
-    chatContainer.replaceChildren();
-  }
+  if (chatContainer) chatContainer.replaceChildren();
 }
 
 function renderChatHistory(history) {
   const chatContainer = document.getElementById('chat-messages-container');
   if (!chatContainer) return;
-
   chatContainer.replaceChildren();
 
   if (!Array.isArray(history) || history.length === 0) {
     const empty = document.createElement('p');
     empty.textContent = 'Belum ada pesan.';
-    empty.style.color = 'gray';
-    empty.style.textAlign = 'center';
-    empty.style.padding = '12px';
+    empty.style.cssText = 'color:gray; text-align:center; padding:12px;';
     chatContainer.appendChild(empty);
     return;
   }
-
-  history.forEach(item => {
-    renderIncomingMessage(item, true);
-  });
+  history.forEach(item => renderIncomingMessage(item, true));
 }
 
 function renderIncomingMessage(message, silent = false) {
@@ -576,6 +572,20 @@ function renderIncomingMessage(message, silent = false) {
 
   const bubble = document.createElement('div');
   bubble.className = 'chat-bubble';
+  
+  // Penanda ID untuk Hapus/Balas
+  if (message.id) bubble.setAttribute('data-message-id', message.id);
+  
+  // Identifikasi pesan milik sendiri (asumsi message.name atau message.user_id)
+  if (currentUser && message.name === currentUser.name) {
+    bubble.classList.add('is-me');
+  }
+
+  // Event Long Press (Klik Tahan)
+  bubble.addEventListener('touchstart', (e) => handleLongPressStart(e, message));
+  bubble.addEventListener('touchend', () => clearTimeout(pressTimer));
+  bubble.addEventListener('mousedown', (e) => handleLongPressStart(e, message));
+  bubble.addEventListener('mouseup', () => clearTimeout(pressTimer));
 
   const sender = document.createElement('div');
   sender.className = 'chat-sender';
@@ -588,22 +598,19 @@ function renderIncomingMessage(message, silent = false) {
   bubble.appendChild(sender);
   bubble.appendChild(text);
 
+  // Bagian Media & Balasan (Tetap Sesuai Struktur Anda)
   if (message.reply_to_id && message.reply_text) {
     const reply = document.createElement('div');
     reply.className = 'chat-reply';
     reply.textContent = `Balasan: ${message.reply_text}`;
     bubble.appendChild(reply);
   }
-
   if (message.image_url) {
     const img = document.createElement('img');
     img.src = message.image_url;
-    img.alt = 'gambar';
-    img.style.maxWidth = '220px';
-    img.style.borderRadius = '10px';
+    img.style.cssText = 'max-width:220px; border-radius:10px; display:block; margin-top:5px;';
     bubble.appendChild(img);
   }
-
   if (message.audio_url) {
     const audio = document.createElement('audio');
     audio.controls = true;
@@ -611,26 +618,74 @@ function renderIncomingMessage(message, silent = false) {
     bubble.appendChild(audio);
   }
 
-  if (message.sticker_url) {
-    const sticker = document.createElement('img');
-    sticker.src = message.sticker_url;
-    sticker.alt = 'sticker';
-    sticker.style.maxWidth = '120px';
-    bubble.appendChild(sticker);
-  }
-
   const time = document.createElement('div');
   time.className = 'chat-time';
   time.textContent = message.time || '';
-
   bubble.appendChild(time);
-  chatContainer.appendChild(bubble);
 
-  if (!silent) {
-    chatBeepAudio.play().catch(() => {});
+  chatContainer.appendChild(bubble);
+  if (!silent) chatBeepAudio.play().catch(() => {});
+  chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+// Handler Long Press
+function handleLongPressStart(e, message) {
+  clearTimeout(pressTimer);
+  pressTimer = setTimeout(() => {
+    const isMe = currentUser && message.name === currentUser.name;
+    const x = e.touches ? e.touches[0].pageX : e.pageX;
+    const y = e.touches ? e.touches[0].pageY : e.pageY;
+    showChatContextMenu(x, y, message.id, isMe, message.message || "(Media)");
+  }, 600);
+}
+
+// Tampilkan Popup Menu
+function showChatContextMenu(x, y, id, isMe, text) {
+  let menu = document.getElementById('chat-context-menu');
+  if (!menu) {
+    menu = document.createElement('div');
+    menu.id = 'chat-context-menu';
+    menu.className = 'context-menu';
+    document.body.appendChild(menu);
   }
 
-  chatContainer.scrollTop = chatContainer.scrollHeight;
+  menu.innerHTML = `
+    <div onclick="initiateReply('${id}', '${text.replace(/'/g, "\\'")}')"> Balas</div>
+    ${isMe ? `<div onclick="deleteMessage('${id}')" style="color:red; border-top:1px solid #eee;"> Hapus</div>` : ''}
+  `;
+
+  menu.style.display = 'block';
+  menu.style.left = Math.min(x, window.innerWidth - 150) + 'px';
+  menu.style.top = y + 'px';
+
+  // Tutup menu jika klik di mana saja
+  setTimeout(() => {
+    document.onclick = () => {
+      menu.style.display = 'none';
+      document.onclick = null;
+    };
+  }, 100);
+}
+
+function initiateReply(id, text) {
+  window.replyingToMessageId = id;
+  const replyContainer = document.getElementById('reply-preview-container');
+  const replyText = document.getElementById('reply-preview-text');
+  if (replyContainer && replyText) {
+    replyText.textContent = text;
+    replyContainer.classList.remove('hidden');
+  }
+}
+
+async function deleteMessage(id) {
+  if (!confirm('Hapus pesan ini?')) return;
+  try {
+    const response = await apiFetch(`/api/delete-message/${id}`, { method: 'DELETE' });
+    if (response.ok) removeMessageFromUI(id);
+    else alert('Gagal menghapus pesan.');
+  } catch (err) {
+    console.error(err);
+  }
 }
 
 function removeMessageFromUI(id) {
@@ -640,54 +695,32 @@ function removeMessageFromUI(id) {
 
 function cancelReply() {
   window.replyingToMessageId = null;
-  const replyBox = document.getElementById('reply-preview');
-  if (replyBox) replyBox.innerHTML = '';
+  const replyContainer = document.getElementById('reply-preview-container');
+  if (replyContainer) replyContainer.classList.add('hidden');
 }
 
 async function sendMessage() {
   const input = document.getElementById('message-input');
-  if (!input) return;
+  if (!input || !input.value.trim()) return;
 
-  const messageText = input.value.trim();
-  if (!messageText) return;
-
-  if (!currentUser) {
-    alert('Silakan login terlebih dahulu!');
-    return;
-  }
+  if (!currentUser) return alert('Silakan login terlebih dahulu!');
 
   const formData = new FormData();
-  formData.append('message', messageText);
-  formData.append(
-    'client_time',
-    new Date().toLocaleTimeString('id-ID', {
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  );
+  formData.append('message', input.value.trim());
+  formData.append('client_time', new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
 
   if (window.replyingToMessageId) {
     formData.append('reply_to_id', String(window.replyingToMessageId));
   }
 
   try {
-    const response = await apiFetch('/api/send-message', {
-      method: 'POST',
-      body: formData
-    });
-
-    const data = await parseJsonResponse(response);
-
-    if (!response.ok) {
-      alert(data.error || 'Gagal mengirim pesan.');
-      return;
+    const response = await apiFetch('/api/send-message', { method: 'POST', body: formData });
+    if (response.ok) {
+      input.value = '';
+      input.style.height = 'auto';
+      cancelReply();
     }
-
-    input.value = '';
-    input.style.height = 'auto';
-    cancelReply();
   } catch (error) {
-    console.error('Error saat mengirim pesan:', error);
     alert('Terjadi kesalahan jaringan.');
   }
 }
