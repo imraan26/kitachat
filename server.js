@@ -9,18 +9,16 @@ const nodemailer = require('nodemailer');
 const fs = require('fs');
 const crypto = require('crypto');
 const cors = require('cors');
-const webpush = require('web-push'); // <-- Modul web-push diimpor dengan benar di sini
+const webpush = require('web-push');
 require('dotenv').config();
 
-// Cetak kunci VAPID sementara di log konsol Railway
-if (process.env.NODE_ENV === 'production') {
-  try {
-    const generatedKeys = webpush.generateVAPIDKeys();
-    console.log('=== VAPID PUBLIC KEY ===:', generatedKeys.publicKey);
-    console.log('=== VAPID PRIVATE KEY ===:', generatedKeys.privateKey);
-  } catch (err) {
-    console.error('Gagal generate VAPID keys:', err);
-  }
+// Cetak kunci VAPID langsung di log konsol Railway
+try {
+  const generatedKeys = webpush.generateVAPIDKeys();
+  console.log('=== VAPID PUBLIC KEY ===:', generatedKeys.publicKey);
+  console.log('=== VAPID PRIVATE KEY ===:', generatedKeys.privateKey);
+} catch (err) {
+  console.error('Gagal generate VAPID keys:', err);
 }
 
 const app = express();
