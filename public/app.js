@@ -1549,6 +1549,11 @@ async function triggerUploadProfile(inputElement) {
   }
 }
 
+// Lepaskan fokus elemen aktif sebelum menyembunyikan modal
+if (document.activeElement && typeof document.activeElement.blur === 'function') {
+  document.activeElement.blur();
+}
+
 function openChangePasswordModal() {
   const modal = document.getElementById('password-modal');
   if (modal) modal.classList.remove('hidden');
@@ -1560,6 +1565,8 @@ function closeChangePasswordModal() {
 
   const oldPw = document.getElementById('old-password');
   const newPw = document.getElementById('new-password');
+
+  
 
   if (oldPw) oldPw.value = '';
   if (newPw) newPw.value = '';
