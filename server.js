@@ -8,6 +8,8 @@ const path = require('path');
 const nodemailer = require('nodemailer');
 const fs = require('fs');
 const crypto = require('crypto');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const cors = require('cors');
 const webpush = require('web-push');
 require('dotenv').config();
@@ -139,6 +141,38 @@ app.use(
     maxAge: process.env.NODE_ENV === 'production' ? '1d' : 0
   })
 );
+
+// ==========================================
+// MIDDLEWARE KEAMANAN (HELMET & RATE LIMIT)
+// ==========================================
+
+// Menggunakan Helmet dengan penyesuaian CSP untuk mengizinkan CDN eksternal (Supabase & FontAwesome)
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
+        connectSrc: ["'self'", "https://*.supabase.co", "wss://*.supabase.co"],
+        imgSrc: ["'self'", "data:", "blob:", "https:"],
+        fontSrc: ["'self'", "https://cdnjs.cloudflare.com", "data:"],
+      },
+    },
+  })
+);
+
+// Batasi jumlah request ke endpoint /api/ untuk mencegah brute-force (maks 150 request per 15 menit per IP)
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, 
+  max: 150, 
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Terlalu banyak permintaan dari IP ini, silakan coba lagi setelah 15 menit.' }
+});
+
+app.use('/api/', apiLimiter);
+
 
 // ==========================================
 // MULTER UPLOAD
