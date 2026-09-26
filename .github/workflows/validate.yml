@@ -1,0 +1,46 @@
+name: Validate Kitachat
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Syntax and dependency validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.18.x'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Validate package scripts
+        run: npm run check
+
+      - name: Validate frontend JavaScript
+        run: |
+          node --check public/app.js
+          node --check public/album-upload.js
+          node --check public/ui-helpers.js
+          node --check public/sw.js
+
+      - name: Validate JSON files
+        run: |
+          node -e "JSON.parse(require('fs').readFileSync('package.json', 'utf8'));"
+          node -e "JSON.parse(require('fs').readFileSync('public/manifest.json', 'utf8'));"
+
+      - name: Validate database initializer
+        run: node --check init-db.js
