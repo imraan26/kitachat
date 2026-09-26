@@ -45,3 +45,39 @@ self.addEventListener('fetch', event => {
 self.addEventListener('message', event => {
   if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
+
+// ==========================================
+// TAMBAHAN: WEB PUSH NOTIFICATION HANDLER
+// ==========================================
+
+self.addEventListener('push', event => {
+  const data = event.data ? event.data.json() : { title: 'Kitachat Family', body: 'Ada pesan baru untuk keluarga!' };
+  
+  const options = {
+    body: data.body,
+    icon: '/manifest.json' in self ? '/manifest.json' : undefined, // Atau sesuaikan path ikon Anda
+    badge: '/manifest.json' in self ? '/manifest.json' : undefined,
+    data: { url: data.url || '/' }
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
+      for (let client of windowClients) {
+        if (client.url === event.notification.data.url && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(event.notification.data.url);
+      }
+    })
+  );
+});
