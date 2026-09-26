@@ -540,52 +540,57 @@ function logout() {
 }
 
 // ==========================================================
-// CHAT & MESSAGE ACTIONS (Reply & Delete)
+// CHAT & MESSAGE ACTIONS (Optimized Reply & Delete)
 // ==========================================================
 
-// Global Timer untuk Long Press
 let pressTimer;
 
 function clearChatContainer() {
-  const chatContainer = document.getElementById('chat-messages-container');
-  if (chatContainer) chatContainer.replaceChildren();
+  const container = document.getElementById('chat-messages-container');
+  if (container) container.replaceChildren();
 }
 
 function renderChatHistory(history) {
-  const chatContainer = document.getElementById('chat-messages-container');
-  if (!chatContainer) return;
-  chatContainer.replaceChildren();
+  const container = document.getElementById('chat-messages-container');
+  if (!container) return;
+  container.replaceChildren();
 
   if (!Array.isArray(history) || history.length === 0) {
     const empty = document.createElement('p');
     empty.textContent = 'Belum ada pesan.';
     empty.style.cssText = 'color:gray; text-align:center; padding:12px;';
-    chatContainer.appendChild(empty);
+    container.appendChild(empty);
     return;
   }
   history.forEach(item => renderIncomingMessage(item, true));
 }
 
 function renderIncomingMessage(message, silent = false) {
-  const chatContainer = document.getElementById('chat-messages-container');
-  if (!chatContainer || !message) return;
+  const container = document.getElementById('chat-messages-container');
+  if (!container || !message) return;
 
   const bubble = document.createElement('div');
   bubble.className = 'chat-bubble';
   
-  // Penanda ID untuk Hapus/Balas
-  if (message.id) bubble.setAttribute('data-message-id', message.id);
+  // Pastikan ID dikonversi ke string untuk selektor DOM yang konsisten
+  const msgId = String(message.id || '');
+  if (msgId) bubble.setAttribute('data-message-id', msgId);
   
-  // Identifikasi pesan milik sendiri (asumsi message.name atau message.user_id)
-  if (currentUser && message.name === currentUser.name) {
-    bubble.classList.add('is-me');
-  }
+  // Identifikasi pesan milik sendiri
+  const isMe = currentUser && (message.name === currentUser.name || message.user_id === currentUser.id);
+  if (isMe) bubble.classList.add('is-me');
 
-  // Event Long Press (Klik Tahan)
-  bubble.addEventListener('touchstart', (e) => handleLongPressStart(e, message));
-  bubble.addEventListener('touchend', () => clearTimeout(pressTimer));
-  bubble.addEventListener('mousedown', (e) => handleLongPressStart(e, message));
-  bubble.addEventListener('mouseup', () => clearTimeout(pressTimer));
+  // Event Listener untuk Long Press (Mobile & Desktop)
+  const startHandler = (e) => handleLongPressStart(e, message, isMe);
+  bubble.addEventListener('touchstart', startHandler, { passive: true });
+  bubble.addEventListener('mousedown', startHandler);
+  
+  // Batalkan timer jika jari/kursor bergerak atau dilepas
+  const cancelHandler = () => clearTimeout(pressTimer);
+  bubble.addEventListener('touchend', cancelHandler);
+  bubble.addEventListener('touchmove', cancelHandler);
+  bubble.addEventListener('mouseup', cancelHandler);
+  bubble.addEventListener('mouseleave', cancelHandler);
 
   const sender = document.createElement('div');
   sender.className = 'chat-sender';
@@ -593,12 +598,11 @@ function renderIncomingMessage(message, silent = false) {
 
   const text = document.createElement('div');
   text.className = 'chat-text';
-  text.textContent = message.message || '(Media)';
+  text.textContent = message.message || (message.image_url ? '(Gambar)' : message.audio_url ? '(Voice Note)' : '(Media)');
 
-  bubble.appendChild(sender);
-  bubble.appendChild(text);
+  bubble.append(sender, text);
 
-  // Bagian Media & Balasan (Tetap Sesuai Struktur Anda)
+  // Render Balasan & Media
   if (message.reply_to_id && message.reply_text) {
     const reply = document.createElement('div');
     reply.className = 'chat-reply';
@@ -615,6 +619,7 @@ function renderIncomingMessage(message, silent = false) {
     const audio = document.createElement('audio');
     audio.controls = true;
     audio.src = message.audio_url;
+    audio.style.marginTop = '5px';
     bubble.appendChild(audio);
   }
 
@@ -623,23 +628,25 @@ function renderIncomingMessage(message, silent = false) {
   time.textContent = message.time || '';
   bubble.appendChild(time);
 
-  chatContainer.appendChild(bubble);
-  if (!silent) chatBeepAudio.play().catch(() => {});
-  chatContainer.scrollTop = chatContainer.scrollHeight;
+  container.appendChild(bubble);
+  if (!silent && typeof chatBeepAudio !== 'undefined') {
+    chatBeepAudio.play().catch(() => {});
+  }
+  container.scrollTop = container.scrollHeight;
 }
 
-// Handler Long Press
-function handleLongPressStart(e, message) {
+function handleLongPressStart(e, message, isMe) {
   clearTimeout(pressTimer);
+  const x = e.touches ? e.touches[0].pageX : e.pageX;
+  const y = e.touches ? e.touches[0].pageY : e.pageY;
+  
   pressTimer = setTimeout(() => {
-    const isMe = currentUser && message.name === currentUser.name;
-    const x = e.touches ? e.touches[0].pageX : e.pageX;
-    const y = e.touches ? e.touches[0].pageY : e.pageY;
+    // Vibrasi ringan pada perangkat mobile (jika didukung)
+    if (navigator.vibrate) navigator.vibrate(50);
     showChatContextMenu(x, y, message.id, isMe, message.message || "(Media)");
   }, 600);
 }
 
-// Tampilkan Popup Menu
 function showChatContextMenu(x, y, id, isMe, text) {
   let menu = document.getElementById('chat-context-menu');
   if (!menu) {
@@ -649,22 +656,33 @@ function showChatContextMenu(x, y, id, isMe, text) {
     document.body.appendChild(menu);
   }
 
+  // Sanitasi teks balasan agar tidak merusak atribut onclick
+  const safeText = text.replace(/'/g, "\\'").replace(/"/g, '"');
+
   menu.innerHTML = `
-    <div onclick="initiateReply('${id}', '${text.replace(/'/g, "\\'")}')"> Balas</div>
-    ${isMe ? `<div onclick="deleteMessage('${id}')" style="color:red; border-top:1px solid #eee;"> Hapus</div>` : ''}
+    <div class="menu-item" onclick="initiateReply('${id}', '${safeText}')">
+      <i class="fa-solid fa-reply"></i> Balas
+    </div>
+    ${isMe ? `
+    <div class="menu-item delete" onclick="deleteMessage('${id}')" style="color:red; border-top:1px solid #eee;">
+      <i class="fa-solid fa-trash"></i> Hapus
+    </div>` : ''}
   `;
 
   menu.style.display = 'block';
-  menu.style.left = Math.min(x, window.innerWidth - 150) + 'px';
+  // Pastikan menu tidak keluar dari layar kanan
+  const menuWidth = 150;
+  const posX = (x + menuWidth > window.innerWidth) ? (window.innerWidth - menuWidth - 10) : x;
+  
+  menu.style.left = posX + 'px';
   menu.style.top = y + 'px';
 
-  // Tutup menu jika klik di mana saja
-  setTimeout(() => {
-    document.onclick = () => {
-      menu.style.display = 'none';
-      document.onclick = null;
-    };
-  }, 100);
+  // Tutup menu saat klik di luar
+  const closeMenu = () => {
+    menu.style.display = 'none';
+    document.removeEventListener('click', closeMenu);
+  };
+  setTimeout(() => document.addEventListener('click', closeMenu), 100);
 }
 
 function initiateReply(id, text) {
@@ -674,35 +692,49 @@ function initiateReply(id, text) {
   if (replyContainer && replyText) {
     replyText.textContent = text;
     replyContainer.classList.remove('hidden');
+    document.getElementById('message-input')?.focus();
   }
 }
 
 async function deleteMessage(id) {
   if (!confirm('Hapus pesan ini?')) return;
   try {
-    const response = await apiFetch(`/api/delete-message/${id}`, { method: 'DELETE' });
-    if (response.ok) removeMessageFromUI(id);
-    else alert('Gagal menghapus pesan.');
+    // Tambahkan header Content-Type jika API memerlukannya
+    const response = await apiFetch(`/api/delete-message/${id}`, { 
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    if (response.ok) {
+      removeMessageFromUI(id);
+    } else {
+      const errorData = await response.json().catch(() => ({}));
+      console.error("Gagal hapus:", errorData);
+      alert(errorData.error || 'Gagal menghapus pesan: Izin ditolak atau pesan tidak ditemukan.');
+    }
   } catch (err) {
-    console.error(err);
+    console.error("Network Error:", err);
+    alert('Terjadi kesalahan jaringan.');
   }
 }
 
 function removeMessageFromUI(id) {
-  const message = document.querySelector(`[data-message-id="${id}"]`);
-  if (message) message.remove();
+  const bubble = document.querySelector(`.chat-bubble[data-message-id="${id}"]`);
+  if (bubble) {
+    bubble.style.opacity = '0';
+    bubble.style.transform = 'scale(0.9)';
+    setTimeout(() => bubble.remove(), 200);
+  }
 }
 
 function cancelReply() {
   window.replyingToMessageId = null;
-  const replyContainer = document.getElementById('reply-preview-container');
-  if (replyContainer) replyContainer.classList.add('hidden');
+  document.getElementById('reply-preview-container')?.classList.add('hidden');
 }
 
 async function sendMessage() {
   const input = document.getElementById('message-input');
   if (!input || !input.value.trim()) return;
-
   if (!currentUser) return alert('Silakan login terlebih dahulu!');
 
   const formData = new FormData();
@@ -720,8 +752,8 @@ async function sendMessage() {
       input.style.height = 'auto';
       cancelReply();
     }
-  } catch (error) {
-    alert('Terjadi kesalahan jaringan.');
+  } catch (err) {
+    alert('Gagal mengirim pesan.');
   }
 }
 
