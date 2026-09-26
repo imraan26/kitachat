@@ -25,17 +25,19 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund # Menggunakan 'npm ci' lebih cepat & aman untuk CI/CD
 
       - name: Validate package scripts
         run: npm run check
 
       - name: Validate frontend JavaScript
         run: |
-          node --check public/app.js
-          node --check public/album-upload.js
-          node --check public/ui-helpers.js
-          node --check public/sw.js
+          STATUS=0
+          echo "Checking public/app.js..." && node --check public/app.js || STATUS=1
+          echo "Checking public/album-upload.js..." && node --check public/album-upload.js || STATUS=1
+          echo "Checking public/ui-helpers.js..." && node --check public/ui-helpers.js || STATUS=1
+          echo "Checking public/sw.js..." && node --check public/sw.js || STATUS=1
+          exit $STATUS
 
       - name: Validate JSON files
         run: |
