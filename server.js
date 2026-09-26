@@ -761,6 +761,38 @@ app.post('/api/agendas', checkSingleDevice, async (req, res) => {
   }
 });
 
+// ==========================================================
+// AGENDA (DELETE)
+// ==========================================================
+
+app.delete('/api/agendas/:id', checkSingleDevice, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(
+      `DELETE FROM agendas WHERE id = $1 RETURNING id`,
+      [id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        error: 'Agenda tidak ditemukan.'
+      });
+    }
+
+    return res.json({
+      message: 'Agenda keluarga berhasil dihapus.'
+    });
+  } catch (error) {
+    console.error('Error menghapus agenda:', error);
+
+    return res.status(500).json({
+      error: 'Terjadi kesalahan pada server.'
+    });
+  }
+});
+
+
 // ==========================================
 // UPDATE PHOTO
 // ==========================================
