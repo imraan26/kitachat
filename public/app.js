@@ -894,6 +894,45 @@ document.addEventListener('click', (e) => {
     }
 });
 
+
+// ==========================================================
+// TELEPON CEPAT DARI OBROLAN (CHAT CALL MENU)
+// ==========================================================
+async function openCallMenu() {
+  try {
+    const response = await apiFetch('/api/users');
+    if (!response.ok) return;
+    
+    const users = await response.json();
+    // Filter agar daftar tidak menyertakan akun yang sedang login sendiri
+    const otherMembers = users.filter(u => String(u.id) !== String(currentUser?.id));
+
+    if (otherMembers.length === 0) {
+      alert('Tidak ada anggota keluarga lain yang tersedia untuk ditelepon.');
+      return;
+    }
+
+    // Tampilkan daftar pilihan anggota keluarga
+    const namesList = otherMembers.map((u, index) => `${index + 1}. ${u.name}`).join('\n');
+    const choice = prompt(`Pilih anggota keluarga yang ingin dihubungi:\n\n${namesList}\n\nMasukkan nomor pilihan:`);
+
+    if (!choice) return;
+    const selectedIndex = parseInt(choice.trim(), 10) - 1;
+
+    if (otherMembers[selectedIndex]) {
+      const target = otherMembers[selectedIndex];
+      startCall(target.id, target.name); // Memanggil fungsi WebRTC startCall yang sudah ada di app.js
+    } else {
+      alert('Pilihan nomor tidak valid.');
+    }
+  } catch (error) {
+    console.error('Gagal membuka menu panggilan:', error);
+    alert('Terjadi kesalahan saat memuat daftar keluarga.');
+  }
+}
+
+
+
 // ==========================================================
 // ALBUM
 // ==========================================================
