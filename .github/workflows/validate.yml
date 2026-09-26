@@ -21,8 +21,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18.18.x'
-          cache: npm
+        node-version: '20.x' # Diubah ke v20 agar mendukung package modern
+        cache: npm
 
       - name: Install dependencies
         run: npm ci --no-audit --no-fund # Menggunakan 'npm ci' lebih cepat & aman untuk CI/CD
