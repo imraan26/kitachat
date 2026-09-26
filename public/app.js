@@ -1209,6 +1209,30 @@ async function deleteAlbumPhoto(photoId) {
 // ==========================================================
 // AGENDA
 // ==========================================================
+
+// Fungsi untuk membuka/menutup form tambah agenda (Penting agar form bisa muncul)
+function toggleAgendaForm() {
+  const form = document.getElementById('agenda-form-container');
+  const label = document.getElementById('agenda-toggle-label');
+  const chevron = document.getElementById('agenda-chevron-icon');
+
+  if (!form) return;
+
+  const isHidden = form.classList.contains('hidden') || form.style.display === 'none';
+
+  if (isHidden) {
+    form.classList.remove('hidden');
+    form.style.display = 'flex';
+    if (label) label.innerText = 'Tutup formulir agenda';
+    if (chevron) chevron.style.transform = 'rotate(90deg)';
+  } else {
+    form.classList.add('hidden');
+    form.style.display = 'none';
+    if (label) label.innerText = 'Ketuk untuk membuat jadwal baru';
+    if (chevron) chevron.style.transform = 'rotate(0deg)';
+  }
+}
+
 async function handleCreateAgenda(event) {
   event.preventDefault();
 
@@ -1244,12 +1268,16 @@ async function handleCreateAgenda(event) {
         if (el) el.value = '';
       });
 
+      // Sembunyikan form kembali setelah sukses
       const form = document.getElementById('agenda-form-container');
       const label = document.getElementById('agenda-toggle-label');
       const chevron = document.getElementById('agenda-chevron-icon');
 
-      if (form) form.style.display = 'none';
-      if (label) label.innerText = 'Ketuk untuk membuat jadwal acara baru';
+      if (form) {
+        form.classList.add('hidden');
+        form.style.display = 'none';
+      }
+      if (label) label.innerText = 'Ketuk untuk membuat jadwal baru';
       if (chevron) chevron.style.transform = 'rotate(0deg)';
 
       await loadAgendaAndBirthdays();
@@ -1311,6 +1339,7 @@ async function loadAgendaAndBirthdays() {
             card.setAttribute('data-agenda-id', item.id);
             card.style.cssText = 'padding: 14px 16px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; display: grid; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); position: relative;';
 
+            // Memastikan perbandingan ID aman dari perbedaan tipe data (string/number)
             const isOwner = currentUser && (String(item.user_id) === String(currentUser.id));
             
             card.innerHTML = `
@@ -1319,7 +1348,7 @@ async function loadAgendaAndBirthdays() {
                   <h5 style="margin: 0; font-size: 15px; font-weight: 600; color: var(--text-light);">${item.title}</h5>
                   <span style="font-size: 12px; font-weight: bold; color: var(--primary-color); background: var(--primary-light); padding: 3px 8px; border-radius: 6px; width: fit-content;">${fDate}</span>
                 </div>
-                ${isOwner ? `<button onclick="deleteAgenda('${item.id}')" style="background:transparent; border:none; color:#e74c3c; cursor:pointer; padding:4px; font-size:14px; opacity:0.7;"><i class="fa-solid fa-trash-can"></i></button>` : ''}
+                ${isOwner ? `<button type="button" onclick="deleteAgenda('${item.id}')" style="background:transparent; border:none; color:#e74c3c; cursor:pointer; padding:4px; font-size:14px; opacity:0.8;" title="Hapus agenda"><i class="fa-solid fa-trash-can"></i></button>` : ''}
               </div>
               ${item.description ? `<p style="margin: 0; font-size: 13px; color: var(--text-muted); line-height: 1.4;">${item.description}</p>` : ''}
             `;
@@ -1333,7 +1362,7 @@ async function loadAgendaAndBirthdays() {
   }
 }
 
-// FUNGSI HAPUS (Ditempatkan di luar, agar global dan valid secara sintaks)
+// FUNGSI HAPUS AGENDA
 async function deleteAgenda(id) {
   if (!confirm('Apakah Anda yakin ingin menghapus agenda ini?')) return;
 
@@ -1348,9 +1377,11 @@ async function deleteAgenda(id) {
         card.style.opacity = '0';
         card.style.transform = 'scale(0.9)';
         setTimeout(() => card.remove(), 200);
+      } else {
+        await loadAgendaAndBirthdays();
       }
     } else {
-      const data = await response.json();
+      const data = await parseJsonResponse(response);
       alert(data.error || 'Gagal menghapus agenda.');
     }
   } catch (error) {
