@@ -437,7 +437,6 @@
             </div>
           </div>
         </section>
-      </section>
 
         <!-- =========================
              ALBUM
@@ -533,147 +532,122 @@
           </div>
         </section>
 
-        <!-- Photo zoom modal -->
-        <div
-          id="photo-zoom-modal"
-          class="hidden modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-hidden="true"
-          aria-label="Pratinjau foto"
-        >
-          <button
-            type="button"
-            class="modal-close-button"
-            onclick="closeZoomModal()"
-            aria-label="Tutup pratinjau foto"
-          >
-            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-          </button>
-
-          <img
-            id="zoomed-img-element"
-            src=""
-            alt="Foto keluarga"
-          >
-        </div>
-
         <!-- ==========================================================
             AGENDA & ULANG TAHUN SECTION
-========================================================== -->
-<section
-  id="content-agenda"
-  class="tab-content hidden"
-  role="tabpanel"
-  aria-hidden="true"
->
-  <header class="chat-header">
-    <h2>
-      <i class="fa-solid fa-calendar-days" aria-hidden="true"></i>
-      Agenda & Ulang Tahun
-    </h2>
-  </header>
-
-  <div class="tab-scroll-content">
-    <div class="content-card">
-      <section class="card-section">
-        <h3>
-          <i class="fa-solid fa-cake-candles" aria-hidden="true"></i>
-          Daftar Ulang Tahun Anggota
-        </h3>
-
-        <div
-          id="birthday-list-container"
-          class="birthday-grid"
-        ></div>
-      </section>
-
-      <section class="card-section">
-        <button
-          type="button"
-          class="section-toggle"
-          onclick="toggleAgendaForm()"
-          aria-controls="agenda-form-container"
+        ========================================================== -->
+        <section
+          id="content-agenda"
+          class="tab-content hidden"
+          role="tabpanel"
+          aria-hidden="true"
         >
-          <span>
-            <strong>
-              <i
-                class="fa-solid fa-calendar-plus"
-                aria-hidden="true"
-              ></i>
-              Tambah Agenda Keluarga
-            </strong>
-            <small id="agenda-toggle-label">
-              Ketuk untuk membuat jadwal baru
-            </small>
-          </span>
+          <header class="chat-header">
+            <h2>
+              <i class="fa-solid fa-calendar-days" aria-hidden="true"></i>
+              Agenda & Ulang Tahun
+            </h2>
+          </header>
 
-          <i
-            class="fa-solid fa-chevron-right"
-            id="agenda-chevron-icon"
-            aria-hidden="true"
-          ></i>
-        </button>
+          <div class="tab-scroll-content">
+            <div class="content-card">
+              <section class="card-section">
+                <h3>
+                  <i class="fa-solid fa-cake-candles" aria-hidden="true"></i>
+                  Daftar Ulang Tahun Anggota
+                </h3>
 
-        <form
-          id="agenda-form-container"
-          class="hidden"
-          onsubmit="handleCreateAgenda(event)"
-        >
-          <input
-            type="text"
-            id="agenda-title"
-            maxlength="150"
-            placeholder="Nama acara atau kegiatan"
-            required
-          >
+                <div
+                  id="birthday-list-container"
+                  class="birthday-grid"
+                ></div>
+              </section>
 
-          <input
-            type="date"
-            id="agenda-date"
-            required
-          >
+              <section class="card-section">
+                <button
+                  type="button"
+                  class="section-toggle"
+                  onclick="toggleAgendaForm()"
+                  aria-controls="agenda-form-container"
+                >
+                  <span>
+                    <strong>
+                      <i
+                        class="fa-solid fa-calendar-plus"
+                        aria-hidden="true"
+                      ></i>
+                      Tambah Agenda Keluarga
+                    </strong>
+                    <small id="agenda-toggle-label">
+                      Ketuk untuk membuat jadwal baru
+                    </small>
+                  </span>
 
-          <input
-            type="text"
-            id="agenda-desc"
-            maxlength="1000"
-            placeholder="Keterangan atau lokasi (opsional)"
-          >
+                  <i
+                    class="fa-solid fa-chevron-right"
+                    id="agenda-chevron-icon"
+                    aria-hidden="true"
+                  ></i>
+                </button>
 
-          <div class="form-actions">
-            <button
-              type="submit"
-              class="btn-primary"
-            >
-              Simpan
-            </button>
+                <form
+                  id="agenda-form-container"
+                  class="hidden"
+                  onsubmit="handleCreateAgenda(event)"
+                >
+                  <input
+                    type="text"
+                    id="agenda-title"
+                    maxlength="150"
+                    placeholder="Nama acara atau kegiatan"
+                    required
+                  >
 
-            <button
-              type="button"
-              class="btn-secondary"
-              onclick="toggleAgendaForm()"
-            >
-              Batal
-            </button>
+                  <input
+                    type="date"
+                    id="agenda-date"
+                    required
+                  >
+
+                  <input
+                    type="text"
+                    id="agenda-desc"
+                    maxlength="1000"
+                    placeholder="Keterangan atau lokasi (opsional)"
+                  >
+
+                  <div class="form-actions">
+                    <button
+                      type="submit"
+                      class="btn-primary"
+                    >
+                      Simpan
+                    </button>
+
+                    <button
+                      type="button"
+                      class="btn-secondary"
+                      onclick="toggleAgendaForm()"
+                    >
+                      Batal
+                    </button>
+                  </div>
+                </form>
+              </section>
+
+              <section class="card-section">
+                <h3>
+                  <i class="fa-solid fa-list-check" aria-hidden="true"></i>
+                  Daftar Kegiatan Mendatang
+                </h3>
+
+                <div
+                  id="agenda-list-container"
+                  class="stack-list"
+                ></div>
+              </section>
+            </div>
           </div>
-        </form>
-      </section>
-
-      <section class="card-section">
-        <h3>
-          <i class="fa-solid fa-list-check" aria-hidden="true"></i>
-          Daftar Kegiatan Mendatang
-        </h3>
-
-        <div
-          id="agenda-list-container"
-          class="stack-list"
-        ></div>
-      </section>
-    </div>
-  </div>
-</section>
+        </section>
 
         <!-- =========================
              FAMILY
@@ -699,7 +673,10 @@
           </div>
         </section>
 
-       <section
+        <!-- =========================
+             SETTINGS
+        ========================== -->
+        <section
           id="content-settings"
           class="tab-content hidden"
           role="tabpanel"
@@ -888,23 +865,51 @@
           </div>
         </section>
 
-        <div id="edit-profile-modal" class="modal-overlay hidden">
-          <div class="modal-card">
-            <h2><i class="fa-solid fa-user-pen"></i> Edit Profil</h2>
-            <form onsubmit="handleUpdateProfile(event)">
-              <label style="font-size: 13px; font-weight: 600; text-align: left; display: block; margin-bottom: 4px;">Nama Lengkap</label>
-              <input type="text" id="edit-profile-name" required maxlength="100">
-              
-              <label style="font-size: 13px; font-weight: 600; text-align: left; display: block; margin: 10px 0 4px 0;">Tanggal Lahir</label>
-              <input type="date" id="edit-profile-birthdate">
+      </section> <!-- Penutup <section class="chat-area"> yang tadinya kurang tepat -->
 
-              <div class="form-actions" style="margin-top: 15px;">
-                <button type="button" class="btn-secondary" onclick="closeEditProfileModal()">Batal</button>
-                <button type="submit" class="btn-primary">Simpan</button>
-              </div>
-            </form>
-          </div>
+      <!-- Photo zoom modal -->
+      <div
+        id="photo-zoom-modal"
+        class="hidden modal-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-hidden="true"
+        aria-label="Pratinjau foto"
+      >
+        <button
+          type="button"
+          class="modal-close-button"
+          onclick="closeZoomModal()"
+          aria-label="Tutup pratinjau foto"
+        >
+          <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+        </button>
+
+        <img
+          id="zoomed-img-element"
+          src=""
+          alt="Foto keluarga"
+        >
+      </div>
+
+      <!-- Edit Profile Modal -->
+      <div id="edit-profile-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+          <h2><i class="fa-solid fa-user-pen"></i> Edit Profil</h2>
+          <form onsubmit="handleUpdateProfile(event)">
+            <label style="font-size: 13px; font-weight: 600; text-align: left; display: block; margin-bottom: 4px;">Nama Lengkap</label>
+            <input type="text" id="edit-profile-name" required maxlength="100">
+            
+            <label style="font-size: 13px; font-weight: 600; text-align: left; display: block; margin: 10px 0 4px 0;">Tanggal Lahir</label>
+            <input type="date" id="edit-profile-birthdate">
+
+            <div class="form-actions" style="margin-top: 15px;">
+              <button type="button" class="btn-secondary" onclick="closeEditProfileModal()">Batal</button>
+              <button type="submit" class="btn-primary">Simpan</button>
+            </div>
+          </form>
         </div>
+      </div>
 
       <!-- =========================
            CALL MODAL
@@ -1168,7 +1173,7 @@
     </main>
   </div>
 
-  <!-- Script harus dimuat berurutan (album-upload.js dihapus untuk menghindari konflik fungsi) -->
+  <!-- Script harus dimuat berurutan -->
   <script src="/socket.io/socket.io.js" defer></script>
   <script src="/app.js" defer></script>
   <script src="/ui-helpers.js" defer></script>
