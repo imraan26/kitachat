@@ -34,8 +34,8 @@
     rel="stylesheet"
     href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
   >
+  <!-- CDN Supabase JS Client wajib dimuat sebelum app.js -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  
 </head>
 
 <body class="light-mode">
@@ -341,14 +341,12 @@
           role="tabpanel"
           aria-hidden="false"
         >
-          <!-- Header Chat Terintegrasi (Digabung agar rapi dan tidak duplikat) -->
           <header class="chat-header">
             <h2>
               <i class="fa-solid fa-users-rectangle" aria-hidden="true"></i>
               Kitachat Keluarga
             </h2>
             <div class="chat-header-actions">
-              <!-- Tombol Telepon Cepat -->
               <button type="button" onclick="openCallMenu()" title="Telepon Keluarga" style="background:transparent; border:none; color:var(--primary-color); font-size:1.2rem; cursor:pointer;">
                 <i class="fa-solid fa-phone" aria-hidden="true"></i>
               </button>
@@ -464,7 +462,6 @@
                 class="upload-trigger"
                 onclick="document.getElementById('photo-file-input').click()"
               >
-                <!-- Tanpa latar belakang lingkaran/oval hijau -->
                 <span class="upload-icon" style="background: none; width: auto; height: auto; color: var(--primary-color); font-size: 22px;">
                   <i class="fa-solid fa-camera-retro" aria-hidden="true"></i>
                 </span>
@@ -585,7 +582,6 @@
           Daftar Ulang Tahun Anggota
         </h3>
 
-        <!-- DISESUAIKAN: Menggunakan class "birthday-grid" agar responsif 4 kolom (desktop) & 2 kolom (mobile) -->
         <div
           id="birthday-list-container"
           class="birthday-grid"
