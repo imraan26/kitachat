@@ -294,6 +294,30 @@ function installAppToAndroid() {
 }
 
 // ==========================================================
+// CEK PEMBARUAN APLIKASI (MANUAL PWA UPDATE)
+// ==========================================================
+async function forceUpdateApp() {
+  if ('serviceWorker' in navigator) {
+    try {
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (registration) {
+        await registration.update();
+        alert('Pemeriksaan selesai. Jika ada versi baru, halaman akan dimuat ulang.');
+        window.location.reload();
+      } else {
+        alert('Tidak ada pembaruan Service Worker yang ditemukan.');
+      }
+    } catch (error) {
+      console.error('Gagal memeriksa pembaruan:', error);
+      alert('Gagal memeriksa pembaruan saat ini.');
+    }
+  } else {
+    alert('Browser Anda tidak mendukung pembaruan otomatis.');
+  }
+}
+
+
+// ==========================================================
 // THEME
 // ==========================================================
 function applySavedTheme() {
