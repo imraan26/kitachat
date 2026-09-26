@@ -140,6 +140,14 @@ function registerSocketEvents() {
     }
   });
 
+  // Sinkronisasi status online real-time untuk tab Keluarga
+  socket.on('online_users_update', (onlineUserIds) => {
+    const familyTab = document.getElementById('content-family');
+    if (familyTab && familyTab.classList.contains('active')) {
+      loadFamilyMembers();
+    }
+  });
+
   socket.on('call_answered', handleCallAnswered);
   socket.on('incoming_call', handleIncomingCall);
   socket.on('ice_candidate', handleIceCandidate);
@@ -309,7 +317,7 @@ function toggleTheme() {
 }
 
 // ==========================================================
-// UI HELPERS
+// UI HELPERS & NAVIGATION
 // ==========================================================
 function showAuthScreen() {
   const authScreen = document.getElementById('auth-screen');
@@ -362,20 +370,44 @@ function switchTab(tab) {
   }
 }
 
-function switchTabNav(tabName) {
-  const navMap = {
-    home: 'home-tab',
-    chat: 'chat-tab',
-    album: 'album-tab',
-    agenda: 'agenda-tab',
-    settings: 'settings-tab'
-  };
+// Fungsi perpindahan tab navigasi utama (Chat, Album, Agenda, Keluarga, Pengaturan)
+function switchTabNav(tabName, buttonElement) {
+  // Sembunyikan semua konten tab
+  const contents = document.querySelectorAll('.tab-content');
+  contents.forEach(content => {
+    content.classList.remove('active');
+    content.classList.add('hidden');
+    content.setAttribute('aria-hidden', 'true');
+  });
 
-  const targetId = navMap[tabName];
-  if (!targetId) return;
+  // Tampilkan tab target
+  const targetContent = document.getElementById(`content-${tabName}`);
+  if (targetContent) {
+    targetContent.classList.remove('hidden');
+    targetContent.classList.add('active');
+    targetContent.setAttribute('aria-hidden', 'false');
+  }
 
-  const tab = document.getElementById(targetId);
-  if (tab) tab.click();
+  // Perbarui kelas aktif pada tombol menu navigasi (desktop & mobile)
+  const menuButtons = document.querySelectorAll('.menu-item');
+  menuButtons.forEach(btn => {
+    if (btn.getAttribute('data-tab') === tabName) {
+      btn.classList.add('active');
+      btn.setAttribute('aria-selected', 'true');
+    } else {
+      btn.classList.remove('active');
+      btn.setAttribute('aria-selected', 'false');
+    }
+  });
+
+  // Pemuatan data spesifik saat tab dibuka
+  if (tabName === 'album') {
+    loadAlbumPhotos();
+  } else if (tabName === 'agenda') {
+    loadAgendaAndBirthdays();
+  } else if (tabName === 'family') {
+    loadFamilyMembers();
+  }
 }
 
 function updateUserInterface() {
@@ -540,7 +572,7 @@ function logout() {
 }
 
 // ==========================================================
-// CHAT & MESSAGE ACTIONS (Optimized Reply & Delete)
+// CHAT & MESSAGE ACTIONS
 // ==========================================================
 
 let pressTimer;
@@ -572,20 +604,20 @@ function renderIncomingMessage(message, silent = false) {
   const bubble = document.createElement('div');
   bubble.className = 'chat-bubble';
   
-  // Pastikan ID dikonversi ke string untuk selektor DOM yang konsisten
   const msgId = String(message.id || '');
   if (msgId) bubble.setAttribute('data-message-id', msgId);
   
-  // Identifikasi pesan milik sendiri
   const isMe = currentUser && (message.name === currentUser.name || message.user_id === currentUser.id);
-  if (isMe) bubble.classList.add('is-me');
+  if (isMe) {
+    bubble.classList.add('chat-outgoing');
+  } else {
+    bubble.classList.add('chat-incoming');
+  }
 
-  // Event Listener untuk Long Press (Mobile & Desktop)
   const startHandler = (e) => handleLongPressStart(e, message, isMe);
   bubble.addEventListener('touchstart', startHandler, { passive: true });
   bubble.addEventListener('mousedown', startHandler);
   
-  // Batalkan timer jika jari/kursor bergerak atau dilepas
   const cancelHandler = () => clearTimeout(pressTimer);
   bubble.addEventListener('touchend', cancelHandler);
   bubble.addEventListener('touchmove', cancelHandler);
@@ -602,7 +634,6 @@ function renderIncomingMessage(message, silent = false) {
 
   bubble.append(sender, text);
 
-  // Render Balasan & Media
   if (message.reply_to_id && message.reply_text) {
     const reply = document.createElement('div');
     reply.className = 'chat-reply';
@@ -641,7 +672,6 @@ function handleLongPressStart(e, message, isMe) {
   const y = e.touches ? e.touches[0].pageY : e.pageY;
   
   pressTimer = setTimeout(() => {
-    // Vibrasi ringan pada perangkat mobile (jika didukung)
     if (navigator.vibrate) navigator.vibrate(50);
     showChatContextMenu(x, y, message.id, isMe, message.message || "(Media)");
   }, 600);
@@ -656,28 +686,25 @@ function showChatContextMenu(x, y, id, isMe, text) {
     document.body.appendChild(menu);
   }
 
-  // Sanitasi teks balasan agar tidak merusak atribut onclick
   const safeText = text.replace(/'/g, "\\'").replace(/"/g, '"');
 
   menu.innerHTML = `
-    <div class="menu-item" onclick="initiateReply('${id}', '${safeText}')">
+    <div class="menu-item" onclick="initiateReply('${id}', '${safeText}')" style="padding:10px; cursor:pointer;">
       <i class="fa-solid fa-reply"></i> Balas
     </div>
     ${isMe ? `
-    <div class="menu-item delete" onclick="deleteMessage('${id}')" style="color:red; border-top:1px solid #eee;">
+    <div class="menu-item delete" onclick="deleteMessage('${id}')" style="color:red; border-top:1px solid #eee; padding:10px; cursor:pointer;">
       <i class="fa-solid fa-trash"></i> Hapus
     </div>` : ''}
   `;
 
   menu.style.display = 'block';
-  // Pastikan menu tidak keluar dari layar kanan
   const menuWidth = 150;
   const posX = (x + menuWidth > window.innerWidth) ? (window.innerWidth - menuWidth - 10) : x;
   
   menu.style.left = posX + 'px';
   menu.style.top = y + 'px';
 
-  // Tutup menu saat klik di luar
   const closeMenu = () => {
     menu.style.display = 'none';
     document.removeEventListener('click', closeMenu);
@@ -699,8 +726,7 @@ function initiateReply(id, text) {
 async function deleteMessage(id) {
   if (!confirm('Hapus pesan ini?')) return;
   try {
-    // Tambahkan header Content-Type jika API memerlukannya
-    const response = await apiFetch(`/api/delete-message/${id}`, { 
+    const response = await apiFetch(`/api/messages/${id}`, { 
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' }
     });
@@ -709,11 +735,9 @@ async function deleteMessage(id) {
       removeMessageFromUI(id);
     } else {
       const errorData = await response.json().catch(() => ({}));
-      console.error("Gagal hapus:", errorData);
-      alert(errorData.error || 'Gagal menghapus pesan: Izin ditolak atau pesan tidak ditemukan.');
+      alert(errorData.error || 'Gagal menghapus pesan.');
     }
   } catch (err) {
-    console.error("Network Error:", err);
     alert('Terjadi kesalahan jaringan.');
   }
 }
@@ -759,33 +783,28 @@ async function sendMessage() {
 
 
 // ==========================================================
-// VOICE NOTE RECORDING LOGIC (Optimized for Kitachat)
+// VOICE NOTE RECORDING LOGIC
 // ==========================================================
 let mediaRecorder = null;
 let audioChunks = [];
 
 async function startRecording() {
   try {
-    // 1. Cek dukungan API peramban
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       throw new Error("Browser Anda tidak mendukung perekaman audio.");
     }
 
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     
-    // 2. Pilih MIME Type terbaik lintas platform (Chrome -> Android -> iOS)
     const mimeTypes = [
       'audio/webm;codecs=opus', 
       'audio/webm', 
       'audio/ogg;codecs=opus', 
-      'audio/mp4', // Fallback Safari/iOS
+      'audio/mp4', 
       'audio/aac'
     ];
     
     const selectedMime = mimeTypes.find(mime => MediaRecorder.isTypeSupported(mime)) || '';
-    console.log("Using MIME type:", selectedMime);
-
-    // Inisialisasi MediaRecorder dengan opsi aman
     mediaRecorder = selectedMime ? new MediaRecorder(stream, { mimeType: selectedMime }) : new MediaRecorder(stream);
     audioChunks = [];
 
@@ -799,24 +818,19 @@ async function startRecording() {
       const activeMime = mediaRecorder.mimeType || selectedMime || 'audio/webm';
       const audioBlob = new Blob(audioChunks, { type: activeMime });
       
-      // Deteksi ekstensi file berdasarkan format aktif
       let extension = 'wav'; 
       if (activeMime.includes('webm')) extension = 'webm';
       else if (activeMime.includes('mp4') || activeMime.includes('aac')) extension = 'm4a';
       else if (activeMime.includes('ogg')) extension = 'ogg';
 
       const file = new File([audioBlob], `voicenote-${Date.now()}.${extension}`, { type: activeMime });
-      
-      // Hentikan mikrofon segera setelah rekaman selesai
       stream.getTracks().forEach(track => track.stop());
       
       await sendVoiceNote(file);
     };
 
-    // 3. Mulai merekam
     mediaRecorder.start();
     
-    // Update UI tombol ke mode 'Sedang Merekam' (Berubah jadi ikon STOP merah/primer)
     const micBtn = document.getElementById('mic-btn');
     if (micBtn) {
         micBtn.classList.add('recording-active');
@@ -825,13 +839,12 @@ async function startRecording() {
     }
   } catch (err) {
     console.error("Recording Error:", err);
-    alert(err.message || "Gagal mengakses mikrofon. Pastikan izin mikrofon diaktifkan.");
+    alert(err.message || "Gagal mengakses mikrofon.");
     resetMicButtonUI();
   }
 }
 
 async function sendVoiceNote(file) {
-  // Pastikan variabel currentUser tersedia dari sesi aktif
   if (typeof currentUser === 'undefined' || !currentUser) {
     alert('Silakan login terlebih dahulu!');
     resetMicButtonUI();
@@ -852,7 +865,6 @@ async function sendVoiceNote(file) {
     if (!response.ok) {
       throw new Error(data.error || "Gagal mengunggah ke server.");
     }
-    console.log("Voice note sent successfully");
   } catch (error) {
     alert("Gagal mengirim Voice Note: " + error.message);
   } finally {
@@ -860,7 +872,6 @@ async function sendVoiceNote(file) {
   }
 }
 
-// Fungsi pembantu untuk mereset UI tombol mikrofon
 function resetMicButtonUI() {
   const micBtn = document.getElementById('mic-btn');
   if (micBtn) {
@@ -868,11 +879,10 @@ function resetMicButtonUI() {
       micBtn.innerHTML = '<i class="fa-solid fa-microphone"></i>';
       micBtn.style.color = '';
       micBtn.title = "Kirim pesan suara";
-      micBtn.disabled = false; // Pastikan tombol selalu aktif
+      micBtn.disabled = false;
   }
 }
 
-// Event Listener Utama untuk Tombol Mikrofon (Mulai & Berhenti)
 document.addEventListener('click', (e) => {
     const btn = e.target.closest('#mic-btn');
     if (!btn) return;
@@ -903,7 +913,6 @@ function getAlbumElements() {
   };
 }
 
-// Tambahan fungsi saat file dipilih agar form & preview muncul otomatis
 function onAlbumFileChange(event) {
   const file = event.target.files && event.target.files[0];
   if (!file) return;
@@ -922,7 +931,7 @@ function onAlbumFileChange(event) {
       preview.classList.remove('hidden');
     };
     reader.readAsDataURL(file);
-    formCard.classList.remove('hidden'); // Menampilkan form unggah
+    formCard.classList.remove('hidden');
   }
 }
 
@@ -940,7 +949,7 @@ function cancelAlbumUpload() {
   }
 
   if (formCard) {
-    formCard.classList.add('hidden'); // Menyembunyikan kembali form saat dibatalkan
+    formCard.classList.add('hidden');
   }
 
   const label = document.getElementById('selected-file-label');
@@ -1224,8 +1233,6 @@ async function deleteAlbumPhoto(photoId) {
 // ==========================================================
 // AGENDA
 // ==========================================================
-
-// Fungsi untuk membuka/menutup form tambah agenda
 function toggleAgendaForm() {
   const form = document.getElementById('agenda-form-container');
   const label = document.getElementById('agenda-toggle-label');
@@ -1277,13 +1284,11 @@ async function handleCreateAgenda(event) {
     if (response.ok) {
       alert(data.message || 'Agenda berhasil dibuat.');
 
-      // Reset form
       ['agenda-title', 'agenda-date', 'agenda-desc'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
       });
 
-      // Sembunyikan form kembali setelah sukses
       const form = document.getElementById('agenda-form-container');
       const label = document.getElementById('agenda-toggle-label');
       const chevron = document.getElementById('agenda-chevron-icon');
@@ -1306,7 +1311,6 @@ async function handleCreateAgenda(event) {
 }
 
 async function loadAgendaAndBirthdays() {
-  // --- BAGIAN ULANG TAHUN ---
   try {
     const resUsers = await apiFetch('/api/users');
     if (resUsers.ok) {
@@ -1335,7 +1339,6 @@ async function loadAgendaAndBirthdays() {
     console.warn('Gagal memuat data ulang tahun:', error);
   }
 
-  // --- BAGIAN AGENDA ---
   try {
     const resAgendas = await apiFetch('/api/agendas');
     if (resAgendas.ok) {
@@ -1356,7 +1359,6 @@ async function loadAgendaAndBirthdays() {
 
             const menuId = `agenda-menu-${item.id || index}`;
 
-            // Setiap kartu agenda dilengkapi tombol titik tiga yang bisa diakses semua anggota keluarga
             card.innerHTML = `
               <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
                 <div style="display: flex; flex-direction: column; gap: 2px;">
@@ -1384,7 +1386,6 @@ async function loadAgendaAndBirthdays() {
   }
 }
 
-// Fungsi untuk membuka/menutup dropdown titik tiga agenda
 function toggleAgendaMenu(event, menuId) {
   event.stopPropagation();
 
@@ -1396,7 +1397,6 @@ function toggleAgendaMenu(event, menuId) {
   if (dropdown) dropdown.classList.toggle('active');
 }
 
-// FUNGSI HAPUS AGENDA (Dapat diakses oleh semua anggota keluarga)
 async function deleteAgenda(id) {
   if (!confirm('Apakah Anda yakin ingin menghapus agenda ini?')) return;
 
@@ -1406,7 +1406,6 @@ async function deleteAgenda(id) {
     });
 
     if (response.ok) {
-      // Hapus kartu dari DOM secara langsung dengan animasi mulus
       const card = document.querySelector(`[data-agenda-id="${id}"]`);
       if (card) {
         card.style.transition = 'all 0.2s ease';
@@ -1414,23 +1413,62 @@ async function deleteAgenda(id) {
         card.style.transform = 'scale(0.9)';
         setTimeout(() => card.remove(), 200);
       } else {
-        // Jika elemen tidak ditemukan di DOM, muat ulang daftar agenda
         await loadAgendaAndBirthdays();
       }
     } else {
-      // Tangani respons error dengan aman jika server mengembalikan JSON atau teks kosong
       let errorMsg = 'Gagal menghapus agenda.';
       try {
         const data = await response.json();
         if (data && data.error) errorMsg = data.error;
-      } catch (e) {
-        // Abaikan jika respons bukan format JSON
-      }
+      } catch (e) {}
       alert(errorMsg);
     }
   } catch (error) {
     console.error('Error delete agenda:', error);
     alert('Terjadi kesalahan jaringan.');
+  }
+}
+
+// ==========================================================
+// KELUARGA (FAMILY DIRECTORY DENGAN STATUS ONLINE)
+// ==========================================================
+async function loadFamilyMembers() {
+  try {
+    const response = await apiFetch('/api/users');
+    if (!response.ok) return;
+
+    const users = await response.json();
+    const container = document.getElementById('family-list-container');
+    if (!container) return;
+
+    container.replaceChildren();
+
+    if (!Array.isArray(users) || users.length === 0) {
+      container.innerHTML = '<p style="color: gray; text-align: center; grid-column: span 3;">Belum ada anggota keluarga.</p>';
+      return;
+    }
+
+    users.forEach(user => {
+      const card = document.createElement('div');
+      card.className = 'family-card';
+      card.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 8px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px 15px; box-shadow: var(--shadow-soft); text-align: center; position: relative;';
+
+      const statusColor = user.is_online ? '#27ae60' : '#95a5a6';
+      const statusText = user.is_online ? 'Online' : 'Offline';
+
+      card.innerHTML = `
+        <div style="position: relative;">
+          <img src="${user.photo_url || '/logo-192.png'}" alt="${user.name}" style="width: 65px; height: 65px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary-color);">
+          <span style="position: absolute; bottom: 2px; right: 2px; width: 14px; height: 14px; background: ${statusColor}; border: 2px solid var(--card-bg); border-radius: 50%;" title="${statusText}"></span>
+        </div>
+        <h4 style="font-size: 1rem; font-weight: 700; color: var(--text-light); margin: 4px 0 0 0;">${user.name}</h4>
+        <p style="color: var(--text-muted); font-size: 0.82rem; margin: 0;">${user.phone || ''}</p>
+        <span style="font-size: 0.75rem; color: ${statusColor}; font-weight: 600; margin-top: 2px;">${statusText}</span>
+      `;
+      container.appendChild(card);
+    });
+  } catch (error) {
+    console.error('Gagal memuat daftar keluarga:', error);
   }
 }
 
@@ -1896,14 +1934,11 @@ function isValidMediaFile(file) {
   const validType =
     file.type.startsWith('image/') ||
     file.type.startsWith('audio/') ||
-    file.type === 'application/pdf' || // Tambahkan ini untuk PDF
-    file.type.startsWith('application/vnd.openxmlformats-officedocument') || // Untuk Word/Excel
-    file.type.startsWith('text/'); // Untuk file teks
+    file.type === 'application/pdf' || 
+    file.type.startsWith('application/vnd.openxmlformats-officedocument') || 
+    file.type.startsWith('text/'); 
 
-  // Jika ingin mendukung SEMUA jenis file (asal ukuran pas), cukup gunakan:
-  // const validType = true; 
-
-  return validType && file.size <= 10 * 1024 * 1024; // Tetap 10MB
+  return validType && file.size <= 10 * 1024 * 1024;
 }
 
 const chatFileInput = document.getElementById('chat-file-input');
