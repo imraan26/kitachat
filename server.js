@@ -748,6 +748,15 @@ app.post('/api/send-message', checkSingleDevice, mediaUpload.single('media'), as
     const savedMessage = result.rows[0];
     const userResult = await pool.query('SELECT name FROM users WHERE id = $1', [userId]);
 
+    // Tambahkan pencarian teks pesan yang sedang dibalas (jika ada)
+    let replyText = null;
+    if (savedMessage.reply_to_id) {
+      const parentMsgQuery = await pool.query('SELECT message FROM messages WHERE id = $1', [savedMessage.reply_to_id]);
+      if (parentMsgQuery.rows.length > 0) {
+        replyText = parentMsgQuery.rows[0].message || '(Lampiran Media)';
+      }
+    }
+
     const messagePayload = {
       id: savedMessage.id,
       user_id: savedMessage.user_id,
@@ -755,6 +764,8 @@ app.post('/api/send-message', checkSingleDevice, mediaUpload.single('media'), as
       message: savedMessage.message,
       image_url: savedMessage.image_url,
       audio_url: savedMessage.audio_url,
+      reply_to_id: savedMessage.reply_to_id, // <-- Sertakan ini
+      reply_text: replyText,               // <-- Sertakan teks balasannya
       time: savedMessage.client_time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
