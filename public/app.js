@@ -1786,7 +1786,10 @@ function cleanupCall(notifyPeer = false) {
   }
 
   if (localStream) {
-    localStream.getTracks().forEach(track => track.stop());
+  localStream.getTracks().forEach(track => {
+    track.stop();
+    track.enabled = false;
+    });
     localStream = null;
   }
 
