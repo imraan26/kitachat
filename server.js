@@ -553,7 +553,7 @@ app.post('/api/login', async (req, res) => {
 });
 
 // ==========================================
-// USERS
+// USERS (Dioptimalkan dengan status is_online)
 // ==========================================
 
 app.get('/api/users', checkSingleDevice, async (req, res) => {
@@ -564,7 +564,13 @@ app.get('/api/users', checkSingleDevice, async (req, res) => {
       ORDER BY name ASC
     `);
 
-    return res.json(result.rows);
+    // Menyertakan status online berdasarkan activeUsers map
+    const usersWithStatus = result.rows.map(user => ({
+      ...user,
+      is_online: activeUsers.has(String(user.id))
+    }));
+
+    return res.json(usersWithStatus);
   } catch (error) {
     console.error('Error mengambil users:', error);
 
@@ -1067,8 +1073,6 @@ app.delete('/api/messages', checkSingleDevice, async (req, res) => {
   const userId = req.userId;
 
   try {
-    // Hanya menghapus pesan milik user yang sedang login.
-    // Jangan menggunakan DELETE FROM messages tanpa filter user.
     const result = await pool.query(
       'DELETE FROM messages WHERE user_id = $1',
       [userId]
@@ -1287,7 +1291,7 @@ app.post('/api/reset-password', async (req, res) => {
 });
 
 // ==========================================
-// SOCKET.IO AUTHENTICATION
+// SOCKET.IO AUTHENTICATION & ONLINE STATUS
 // ==========================================
 
 const activeUsers = new Map();
@@ -1327,6 +1331,9 @@ io.on('connection', async socket => {
   console.log('Anggota keluarga terhubung:', socket.id);
 
   activeUsers.set(socket.userId, socket.id);
+  
+  // Broadcast update status online ke seluruh klien yang terhubung
+  io.emit('online_users_update', Array.from(activeUsers.keys()));
 
   try {
     const result = await pool.query(`
@@ -1448,6 +1455,8 @@ io.on('connection', async socket => {
       activeUsers.get(socket.userId) === socket.id
     ) {
       activeUsers.delete(socket.userId);
+      // Broadcast update status online saat user terputus
+      io.emit('online_users_update', Array.from(activeUsers.keys()));
     }
 
     console.log('Anggota keluarga terputus:', socket.id);
