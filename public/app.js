@@ -8,13 +8,19 @@ let socketBound = false;
 // SUPABASE REALTIME CONFIGURATION
 // ==========================================================
 const SUPABASE_URL = 'https://cxfukktxihfkfolnbhlo.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN4ZnVra3R4aWhma2ZvbG5iaGxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0MzIyNjIsImV4cCI6MjEwNjAwODI2Mn0.6q0n_W6pqV74xmHg_VrjNfepL_QnGGlzoL9XYXWCUdY'; 
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN4ZnVra3R4aWhma2ZvbG5iaGxvIicucm9sZSI6ImFub24iLCJpYXQiOjE3OTA0MzIyNjIsImV4cCI6MjEwNjAwODI2Mn0.6q0n_W6pqV74xmHg_VrjNfepL_QnGGlzoL9XYXWCUdY'; 
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Buat channel broadcast khusus panggilan keluarga
+// Channel broadcast khusus panggilan keluarga dengan konfigurasi privat & ack
 const callChannel = supabaseClient.channel('kitachat-family-calls', {
-  config: { broadcast: { self: false } }
+  config: {
+    private: true,
+    broadcast: {
+      self: false,
+      ack: true
+    }
+  }
 });
 
 const STORAGE_KEYS = {
@@ -35,10 +41,19 @@ const rtcConfig = {
 
 let localStream = null;
 let peerConnection = null;
-let targetSocketId = null;
+let targetSocketId = null; // Kompatibilitas kode lama
 let targetUserId = null;
+let activeCallId = null;
 let iceCandidateQueue = [];
 let incomingOffer = null;
+let acceptingCall = false;
+let callChannelReady = false;
+let callListenersInitialized = false;
+
+const MAX_ICE_CANDIDATES = 64;
+const MAX_PENDING_ICE_CALLS = 20;
+const PENDING_ICE_TTL_MS = 30_000;
+const pendingIceByCallId = new Map();
 
 const chatBeepAudio = new Audio('/audio/chat-beep.mp3');
 const callRingtone = new Audio('/audio/nadadering-phone.mp3');
@@ -46,6 +61,123 @@ callRingtone.loop = true;
 
 window.replyingToMessageId = null;
 let deferredPrompt = null;
+
+// ==========================================================
+// CALL HELPERS
+// ==========================================================
+function normalizeCallUserId(value) {
+  return value == null ? '' : String(value);
+}
+
+function createCallId() {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+  return `call-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function isValidCallDescription(description, expectedType) {
+  return Boolean(
+    description &&
+    description.type === expectedType &&
+    typeof description.sdp === 'string'
+  );
+}
+
+function setCallStatus(text) {
+  const title = document.getElementById('call-status-title');
+  if (title) title.innerText = text;
+}
+
+function queueIceCandidate(candidate) {
+  if (!candidate || iceCandidateQueue.length >= MAX_ICE_CANDIDATES) {
+    return;
+  }
+  iceCandidateQueue.push(candidate);
+}
+
+function rememberIceBeforeOffer(data) {
+  const callId = String(data.callId || '');
+  const fromUserId = normalizeCallUserId(data.fromUserId);
+
+  if (!callId || !fromUserId || !data.candidate) return;
+
+  let entry = pendingIceByCallId.get(callId);
+  if (!entry || Date.now() - entry.createdAt > PENDING_ICE_TTL_MS) {
+    entry = {
+      fromUserId,
+      candidates: [],
+      createdAt: Date.now()
+    };
+    pendingIceByCallId.set(callId, entry);
+  }
+
+  if (entry.fromUserId !== fromUserId) return;
+  if (entry.candidates.length >= MAX_ICE_CANDIDATES) return;
+
+  entry.candidates.push(data.candidate);
+
+  while (pendingIceByCallId.size > MAX_PENDING_ICE_CALLS) {
+    const oldestCallId = pendingIceByCallId.keys().next().value;
+    pendingIceByCallId.delete(oldestCallId);
+  }
+}
+
+async function sendCallSignal(type, toUserId, extraPayload = {}) {
+  if (!currentUser?.id || !activeCallId || !callChannelReady) {
+    return false;
+  }
+
+  const payload = {
+    ...extraPayload,
+    type,
+    callId: String(activeCallId),
+    fromUserId: normalizeCallUserId(currentUser.id),
+    toUserId: normalizeCallUserId(toUserId)
+  };
+
+  if (!payload.toUserId) return false;
+
+  try {
+    const result = await callChannel.send({
+      type: 'broadcast',
+      event: 'webrtc_signal',
+      payload
+    });
+
+    if (result !== 'ok') {
+      console.warn(`Broadcast ${type} tidak terkonfirmasi:`, result);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error(`Gagal mengirim sinyal ${type}:`, error);
+    return false;
+  }
+}
+
+async function drainIceCandidateQueue(expectedCallId, connection) {
+  if (
+    !connection ||
+    activeCallId !== expectedCallId ||
+    !connection.remoteDescription
+  ) {
+    return;
+  }
+
+  while (
+    iceCandidateQueue.length > 0 &&
+    activeCallId === expectedCallId &&
+    peerConnection === connection
+  ) {
+    const candidate = iceCandidateQueue.shift();
+    try {
+      await connection.addIceCandidate(new RTCIceCandidate(candidate));
+    } catch (error) {
+      console.warn('Gagal menambahkan kandidat ICE:', error);
+    }
+  }
+}
 
 // ==========================================================
 // SESSION / STORAGE
@@ -65,11 +197,9 @@ function loadSavedSession() {
 
   try {
     const parsed = JSON.parse(savedUser);
-
     if (!parsed || !parsed.id) {
       throw new Error('User tidak valid');
     }
-
     return {
       user: parsed,
       token: savedToken
@@ -114,7 +244,6 @@ function createSocket() {
 
   client.on('connect_error', error => {
     console.warn('Socket connect_error:', error.message);
-
     if (
       error.message === 'Unauthorized' ||
       error.message === 'Authentication failed'
@@ -128,7 +257,6 @@ function createSocket() {
 
 function registerSocketEvents() {
   if (!socket || socketBound) return;
-
   socketBound = true;
 
   socket.on('connect', () => {
@@ -169,9 +297,7 @@ function connectAuthenticatedSocket() {
     socket = null;
     socketBound = false;
   }
-
   socket = createSocket();
-
   if (socket) {
     registerSocketEvents();
   }
@@ -182,11 +308,9 @@ function connectAuthenticatedSocket() {
 // ==========================================================
 async function parseJsonResponse(response) {
   const contentType = response.headers.get('content-type') || '';
-
   if (!contentType.includes('application/json')) {
     return {};
   }
-
   try {
     return await response.json();
   } catch (error) {
@@ -212,7 +336,6 @@ async function apiFetch(url, options = {}) {
   }
 
   let response;
-
   try {
     response = await fetch(url, requestOptions);
   } catch (error) {
@@ -259,7 +382,6 @@ function registerServiceWorker() {
             const shouldUpdate = confirm(
               'Versi baru Kitachat tersedia. Perbarui sekarang?'
             );
-
             if (shouldUpdate) {
               newWorker.postMessage({ type: 'SKIP_WAITING' });
             }
@@ -580,12 +702,10 @@ async function handleLogin(event) {
           forgotBtn.classList.remove('hidden');
         }
       }
-
       return;
     }
 
     failedLoginAttempts = 0;
-
     if (forgotBtn) {
       forgotBtn.classList.add('hidden');
     }
@@ -618,45 +738,9 @@ function logout() {
 
   currentUser = null;
   clearSavedSession();
-
   showAuthScreen();
 
   isLoggingOut = false;
-}
-
-// ==========================================================
-// SUPABASE REALTIME CALL LISTENERS
-// ==========================================================
-function initSupabaseCallListeners() {
-  callChannel
-    .on('broadcast', { event: 'webrtc_signal' }, ({ payload }) => {
-      if (!currentUser || String(payload.toUserId) !== String(currentUser.id)) return;
-
-      switch (payload.type) {
-        case 'offer':
-          handleIncomingCall({
-            toUserId: payload.toUserId,
-            fromUserId: payload.fromUserId,
-            callerName: payload.callerName,
-            offer: payload.offer
-          });
-          break;
-        case 'answer':
-          handleCallAnswered({ answer: payload.answer });
-          break;
-        case 'ice_candidate':
-          handleIceCandidate({ candidate: payload.candidate });
-          break;
-        case 'end_call':
-          cleanupCall(false);
-          break;
-      }
-    })
-    .subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        console.log('Terhubung ke Supabase Realtime Call Channel!');
-      }
-    });
 }
 
 // ==========================================================
@@ -1235,12 +1319,10 @@ async function loadAlbumPhotos() {
 
   try {
     const response = await apiFetch('/api/albums');
-
     if (currentReqId !== albumRequestId) return;
 
     if (response.ok) {
       const contentType = response.headers.get('content-type') || '';
-
       if (contentType.includes('application/json')) {
         const data = await response.json();
         globalAlbumData = Array.isArray(data) ? data : [];
@@ -1309,11 +1391,9 @@ async function handleUploadPhoto(event) {
 
 function togglePhotoMenu(event, menuId) {
   event.stopPropagation();
-
   document.querySelectorAll('.photo-dropdown').forEach(el => {
     if (el.id !== menuId) el.classList.remove('active');
   });
-
   const dropdown = document.getElementById(menuId);
   if (dropdown) dropdown.classList.toggle('active');
 }
@@ -1552,11 +1632,9 @@ function formatDateIndo(dateString) {
 
 function toggleAgendaMenu(event, menuId) {
   event.stopPropagation();
-
   document.querySelectorAll('.photo-dropdown').forEach(el => {
     if (el.id !== menuId) el.classList.remove('active');
   });
-
   const dropdown = document.getElementById(menuId);
   if (dropdown) dropdown.classList.toggle('active');
 }
@@ -1869,39 +1947,55 @@ function clearChat() {
 }
 
 // ==========================================================
-// VoIP / WebRTC (SUPABASE REALTIME BROADCAST INTEGRATED)
+// WEBRTC & VoIP CONFIGURATION (SUPABASE REALTIME BROADCAST)
 // ==========================================================
-function createPeerConnection() {
+function createPeerConnection(expectedCallId = activeCallId) {
   const connection = new RTCPeerConnection(rtcConfig);
 
   connection.onicecandidate = event => {
-    if (event.candidate && targetUserId && currentUser) {
-      callChannel.send({
-        type: 'broadcast',
-        event: 'webrtc_signal',
-        payload: {
-          type: 'ice_candidate',
-          toUserId: targetUserId,
-          candidate: event.candidate
-        }
-      });
+    if (
+      !event.candidate ||
+      !currentUser?.id ||
+      !targetUserId ||
+      !expectedCallId ||
+      activeCallId !== expectedCallId
+    ) {
+      return;
     }
+
+    const candidate = event.candidate.toJSON
+      ? event.candidate.toJSON()
+      : event.candidate;
+
+    void sendCallSignal('ice_candidate', targetUserId, { candidate });
   };
 
   connection.ontrack = event => {
     const remoteAudio = document.getElementById('remote-audio');
-
-    if (!remoteAudio || !event.streams[0]) {
-      return;
-    }
+    if (!remoteAudio || !event.streams?.[0]) return;
 
     remoteAudio.srcObject = event.streams[0];
-    remoteAudio.play().catch(() => {});
+    setCallStatus('Terhubung');
+
+    remoteAudio.play().catch(error => {
+      console.warn('Audio remote belum dapat diputar:', error);
+    });
   };
 
   connection.oniceconnectionstatechange = () => {
+    if (
+      activeCallId !== expectedCallId ||
+      peerConnection !== connection
+    ) {
+      return;
+    }
+
     const state = connection.iceConnectionState;
-    if (state === 'failed' || state === 'closed') {
+    if (state === 'connected' || state === 'completed') {
+      setCallStatus('Terhubung');
+    } else if (state === 'disconnected') {
+      setCallStatus('Koneksi terputus sementara...');
+    } else if (state === 'failed' || state === 'closed') {
       cleanupCall(false);
     }
   };
@@ -1910,6 +2004,13 @@ function createPeerConnection() {
 }
 
 function cleanupCall(notifyPeer = false) {
+  const callIdToEnd = activeCallId;
+  const peerToNotify = targetUserId;
+
+  if (notifyPeer && callIdToEnd && peerToNotify && currentUser?.id) {
+    void sendCallSignal('end_call', peerToNotify);
+  }
+
   callRingtone.pause();
   callRingtone.currentTime = 0;
 
@@ -1919,35 +2020,34 @@ function cleanupCall(notifyPeer = false) {
     remoteAudio.srcObject = null;
   }
 
-  if (localStream) {
-    localStream.getTracks().forEach(track => {
-      track.stop();
-    });
-    localStream = null;
+  const streamToStop = localStream;
+  localStream = null;
+  if (streamToStop) {
+    streamToStop.getTracks().forEach(track => track.stop());
   }
 
-  if (peerConnection) {
-    peerConnection.close();
-    peerConnection = null;
+  const connectionToClose = peerConnection;
+  peerConnection = null;
+  if (connectionToClose) {
+    connectionToClose.close();
   }
 
   const modal = document.getElementById('call-modal');
   if (modal) modal.classList.add('hidden');
 
-  if (notifyPeer && targetUserId && currentUser) {
-    callChannel.send({
-      type: 'broadcast',
-      event: 'webrtc_signal',
-      payload: {
-        type: 'end_call',
-        toUserId: String(targetUserId)
-      }
-    });
-  }
+  const acceptBtn = document.getElementById('btn-accept-call');
+  if (acceptBtn) acceptBtn.style.display = 'none';
 
   targetUserId = null;
+  activeCallId = null;
   incomingOffer = null;
   iceCandidateQueue = [];
+  acceptingCall = false;
+
+  if (callIdToEnd) {
+    pendingIceByCallId.delete(String(callIdToEnd));
+  }
+  pendingIceByCallId.clear();
 }
 
 function hangUpCall() {
@@ -1955,33 +2055,59 @@ function hangUpCall() {
 }
 
 async function startCall(peerUserId, peerName) {
-  if (!currentUser) {
+  if (!currentUser?.id) {
     alert('Silakan login terlebih dahulu!');
     return;
   }
 
-  targetUserId = peerUserId;
+  if (!callChannelReady) {
+    alert('Koneksi panggilan belum siap. Silakan coba lagi.');
+    return;
+  }
+
+  if (activeCallId) {
+    alert('Anda sedang berada dalam panggilan.');
+    return;
+  }
+
+  const peerId = normalizeCallUserId(peerUserId);
+  if (!peerId || peerId === normalizeCallUserId(currentUser.id)) {
+    alert('Pengguna tujuan panggilan tidak valid.');
+    return;
+  }
+
+  const thisCallId = createCallId();
+  activeCallId = thisCallId;
+  targetUserId = peerId;
   iceCandidateQueue = [];
   incomingOffer = null;
+  acceptingCall = false;
 
   const modal = document.getElementById('call-modal');
   if (modal) modal.classList.remove('hidden');
 
-  const title = document.getElementById('call-status-title');
   const peerNameEl = document.getElementById('call-peer-name');
   const acceptBtn = document.getElementById('btn-accept-call');
 
-  if (title) title.innerText = 'Memanggil...';
-  if (peerNameEl) peerNameEl.innerText = peerName;
+  setCallStatus('Memanggil...');
+  if (peerNameEl) peerNameEl.innerText = peerName || 'Keluarga';
   if (acceptBtn) acceptBtn.style.display = 'none';
 
+  let stream = null;
+
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({
+    stream = await navigator.mediaDevices.getUserMedia({
       audio: true,
       video: false
     });
 
-    peerConnection = createPeerConnection();
+    if (activeCallId !== thisCallId) {
+      stream.getTracks().forEach(track => track.stop());
+      return;
+    }
+
+    localStream = stream;
+    peerConnection = createPeerConnection(thisCallId);
 
     localStream.getTracks().forEach(track => {
       peerConnection.addTrack(track, localStream);
@@ -1990,127 +2116,309 @@ async function startCall(peerUserId, peerName) {
     const offer = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offer);
 
-    await callChannel.send({
-      type: 'broadcast',
-      event: 'webrtc_signal',
-      payload: {
-        type: 'offer',
-        toUserId: peerUserId,
-        fromUserId: currentUser.id,
-        callerName: currentUser.name,
-        offer
-      }
+    if (activeCallId !== thisCallId || !peerConnection?.localDescription) {
+      return;
+    }
+
+    const localOffer = peerConnection.localDescription.toJSON
+      ? peerConnection.localDescription.toJSON()
+      : {
+          type: peerConnection.localDescription.type,
+          sdp: peerConnection.localDescription.sdp
+        };
+
+    const sent = await sendCallSignal('offer', peerId, {
+      callerName: currentUser.name || 'Keluarga',
+      offer: localOffer
     });
+
+    if (!sent && activeCallId === thisCallId) {
+      cleanupCall(false);
+      alert('Sinyal panggilan gagal dikirim. Coba lagi.');
+    }
   } catch (error) {
     console.error('Error startCall:', error);
-    alert('Tidak dapat mengakses mikrofon.');
-    cleanupCall(true);
+    if (activeCallId === thisCallId) {
+      cleanupCall(false);
+      alert('Panggilan gagal dimulai. Periksa izin mikrofon dan koneksi Anda.');
+    } else if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+    }
   }
 }
 
 function handleIncomingCall(data) {
-  if (!currentUser || !data || String(data.toUserId) !== String(currentUser.id)) {
+  if (
+    !currentUser?.id ||
+    !data ||
+    !data.callId ||
+    !data.fromUserId ||
+    !data.toUserId ||
+    normalizeCallUserId(data.toUserId) !== normalizeCallUserId(currentUser.id) ||
+    normalizeCallUserId(data.fromUserId) === normalizeCallUserId(currentUser.id) ||
+    !isValidCallDescription(data.offer, 'offer')
+  ) {
     return;
   }
 
-  targetUserId = data.fromUserId;
+  if (activeCallId) return;
+
+  const thisCallId = String(data.callId);
+  activeCallId = thisCallId;
+  targetUserId = normalizeCallUserId(data.fromUserId);
   incomingOffer = data.offer;
   iceCandidateQueue = [];
+  acceptingCall = false;
+
+  const pendingEntry = pendingIceByCallId.get(thisCallId);
+  if (
+    pendingEntry &&
+    pendingEntry.fromUserId === targetUserId &&
+    Date.now() - pendingEntry.createdAt <= PENDING_ICE_TTL_MS
+  ) {
+    iceCandidateQueue.push(...pendingEntry.candidates);
+    iceCandidateQueue = iceCandidateQueue.slice(-MAX_ICE_CANDIDATES);
+  }
+  pendingIceByCallId.delete(thisCallId);
 
   const modal = document.getElementById('call-modal');
   if (modal) modal.classList.remove('hidden');
 
-  const title = document.getElementById('call-status-title');
   const peerNameEl = document.getElementById('call-peer-name');
   const acceptBtn = document.getElementById('btn-accept-call');
 
-  if (title) title.innerText = 'Panggilan Masuk...';
+  setCallStatus('Panggilan Masuk...');
   if (peerNameEl) peerNameEl.innerText = data.callerName || 'Keluarga';
   if (acceptBtn) acceptBtn.style.display = 'inline-block';
 
-  callRingtone.play().catch(() => {});
+  callRingtone.play().catch(error => {
+    console.warn('Nada dering tidak dapat diputar:', error);
+  });
 }
 
 async function acceptCall() {
-  if (!incomingOffer) return;
+  if (
+    !incomingOffer ||
+    !activeCallId ||
+    !targetUserId ||
+    acceptingCall ||
+    !callChannelReady
+  ) {
+    return;
+  }
+
+  const thisCallId = activeCallId;
+  const offer = incomingOffer;
+  acceptingCall = true;
 
   callRingtone.pause();
   callRingtone.currentTime = 0;
 
   const acceptBtn = document.getElementById('btn-accept-call');
-  const title = document.getElementById('call-status-title');
-
   if (acceptBtn) acceptBtn.style.display = 'none';
-  if (title) title.innerText = 'Terhubung';
+
+  setCallStatus('Menghubungkan...');
+
+  let stream = null;
 
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({
+    stream = await navigator.mediaDevices.getUserMedia({
       audio: true,
       video: false
     });
 
-    peerConnection = createPeerConnection();
+    if (activeCallId !== thisCallId) {
+      stream.getTracks().forEach(track => track.stop());
+      return;
+    }
+
+    localStream = stream;
+    peerConnection = createPeerConnection(thisCallId);
 
     localStream.getTracks().forEach(track => {
       peerConnection.addTrack(track, localStream);
     });
 
-    await peerConnection.setRemoteDescription(new RTCSessionDescription(incomingOffer));
+    const connection = peerConnection;
+    await connection.setRemoteDescription(new RTCSessionDescription(offer));
 
-    while (iceCandidateQueue.length > 0) {
-      const candidate = iceCandidateQueue.shift();
-      await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+    if (activeCallId !== thisCallId || peerConnection !== connection) {
+      return;
     }
 
-    const answer = await peerConnection.createAnswer();
-    await peerConnection.setLocalDescription(answer);
+    incomingOffer = null;
+    await drainIceCandidateQueue(thisCallId, connection);
 
-    await callChannel.send({
-      type: 'broadcast',
-      event: 'webrtc_signal',
-      payload: {
-        type: 'answer',
-        toUserId: targetUserId,
-        answer
-      }
+    const answer = await connection.createAnswer();
+    await connection.setLocalDescription(answer);
+
+    if (activeCallId !== thisCallId || !connection.localDescription) {
+      return;
+    }
+
+    const localAnswer = connection.localDescription.toJSON
+      ? connection.localDescription.toJSON()
+      : {
+          type: connection.localDescription.type,
+          sdp: connection.localDescription.sdp
+        };
+
+    const sent = await sendCallSignal('answer', targetUserId, {
+      answer: localAnswer
     });
+
+    if (!sent && activeCallId === thisCallId) {
+      cleanupCall(false);
+      alert('Jawaban panggilan gagal dikirim. Coba lagi.');
+    }
   } catch (error) {
     console.error('Error acceptCall:', error);
-    cleanupCall(true);
+    if (activeCallId === thisCallId) {
+      cleanupCall(true);
+      alert('Panggilan gagal diterima. Periksa izin mikrofon dan koneksi Anda.');
+    } else if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+    }
+  } finally {
+    if (activeCallId === thisCallId) {
+      acceptingCall = false;
+    }
   }
 }
 
 async function handleCallAnswered(data) {
-  if (!peerConnection || !data || !data.answer) return;
+  if (
+    !data ||
+    !activeCallId ||
+    String(data.callId) !== String(activeCallId) ||
+    normalizeCallUserId(data.fromUserId) !== normalizeCallUserId(targetUserId) ||
+    !isValidCallDescription(data.answer, 'answer') ||
+    !peerConnection
+  ) {
+    return;
+  }
+
+  const thisCallId = activeCallId;
+  const connection = peerConnection;
 
   try {
-    await peerConnection.setRemoteDescription(data.answer);
+    await connection.setRemoteDescription(new RTCSessionDescription(data.answer));
 
-    while (iceCandidateQueue.length > 0) {
-      const candidate = iceCandidateQueue.shift();
-      await peerConnection.addIceCandidate(candidate);
+    if (activeCallId !== thisCallId || peerConnection !== connection) {
+      return;
     }
 
-    const title = document.getElementById('call-status-title');
-    if (title) title.innerText = 'Terhubung';
+    await drainIceCandidateQueue(thisCallId, connection);
+    setCallStatus('Menghubungkan...');
   } catch (error) {
-    console.error('Gagal set remote description:', error);
-    cleanupCall(false);
+    console.error('Gagal memasang remote description:', error);
+    if (activeCallId === thisCallId) {
+      cleanupCall(false);
+    }
   }
 }
 
 async function handleIceCandidate(data) {
-  if (!peerConnection || !data || !data.candidate) return;
+  if (
+    !data ||
+    !data.callId ||
+    !data.candidate ||
+    normalizeCallUserId(data.toUserId) !== normalizeCallUserId(currentUser?.id)
+  ) {
+    return;
+  }
+
+  const messageCallId = String(data.callId);
+  const senderId = normalizeCallUserId(data.fromUserId);
+
+  if (!activeCallId) {
+    rememberIceBeforeOffer(data);
+    return;
+  }
+
+  if (
+    messageCallId !== String(activeCallId) ||
+    senderId !== normalizeCallUserId(targetUserId)
+  ) {
+    return;
+  }
+
+  if (iceCandidateQueue.length >= MAX_ICE_CANDIDATES) {
+    return;
+  }
+
+  if (!peerConnection || !peerConnection.remoteDescription) {
+    queueIceCandidate(data.candidate);
+    return;
+  }
 
   try {
-    if (peerConnection.remoteDescription) {
-      await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
-    } else {
-      iceCandidateQueue.push(data.candidate);
-    }
+    await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
   } catch (error) {
     console.warn('Error kandidat ICE:', error);
   }
+}
+
+// ==========================================================
+// SUPABASE REALTIME CALL LISTENERS (OPTIMIZED)
+// ==========================================================
+function initSupabaseCallListeners() {
+  if (callListenersInitialized) return;
+  callListenersInitialized = true;
+
+  callChannel
+    .on('broadcast', { event: 'webrtc_signal' }, message => {
+      const payload = message?.payload;
+
+      if (
+        !currentUser?.id ||
+        !payload ||
+        typeof payload !== 'object' ||
+        normalizeCallUserId(payload.toUserId) !== normalizeCallUserId(currentUser.id)
+      ) {
+        return;
+      }
+
+      if (payload.type === 'offer') {
+        handleIncomingCall(payload);
+        return;
+      }
+
+      if (payload.type === 'ice_candidate') {
+        void handleIceCandidate(payload);
+        return;
+      }
+
+      if (
+        !activeCallId ||
+        String(payload.callId) !== String(activeCallId) ||
+        normalizeCallUserId(payload.fromUserId) !== normalizeCallUserId(targetUserId)
+      ) {
+        return;
+      }
+
+      switch (payload.type) {
+        case 'answer':
+          void handleCallAnswered(payload);
+          break;
+        case 'end_call':
+          cleanupCall(false);
+          break;
+        default:
+          break;
+      }
+    })
+    .subscribe((status, error) => {
+      callChannelReady = status === 'SUBSCRIBED';
+
+      if (status === 'SUBSCRIBED') {
+        console.log('Terhubung ke Supabase Realtime Call Channel!');
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.error('Realtime call channel bermasalah:', error || status);
+      } else if (status === 'CLOSED') {
+        console.warn('Realtime call channel tertutup.');
+      }
+    });
 }
 
 // ==========================================================
@@ -2133,7 +2441,6 @@ const chatFileInput = document.getElementById('chat-file-input');
 if (chatFileInput) {
   chatFileInput.addEventListener('change', async function () {
     const file = this.files && this.files[0];
-
     if (!file) return;
 
     if (!currentUser) {
@@ -2226,10 +2533,8 @@ async function handleUpdateProfile(event) {
 
     if (response.ok) {
       alert(data.message || 'Profil berhasil diperbarui.');
-      
       currentUser = data.user;
       localStorage.setItem(STORAGE_KEYS.user, JSON.stringify(currentUser));
-      
       updateUserInterface();
       closeEditProfileModal();
     } else {
@@ -2254,7 +2559,7 @@ window.addEventListener('DOMContentLoaded', () => {
     showAuthScreen();
   }
 
-  // AKTIFKAN LISTENER SUPABASE REALTIME
+  // AKTIFKAN LISTENER SUPABASE REALTIME YANG TELAH DIOPTIMALKAN
   initSupabaseCallListeners();
 });
 
