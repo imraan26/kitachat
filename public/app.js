@@ -1001,22 +1001,50 @@ async function openCallMenu() {
       return;
     }
 
-    const namesList = otherMembers.map((u, index) => `${index + 1}. ${u.name}`).join('\n');
-    const choice = prompt(`Pilih anggota keluarga yang ingin dihubungi:\n\n${namesList}\n\nMasukkan nomor pilihan:`);
+    const container = document.getElementById('call-selection-list');
+    if (!container) return;
+    container.replaceChildren();
 
-    if (!choice) return;
-    const selectedIndex = parseInt(choice.trim(), 10) - 1;
+    otherMembers.forEach(user => {
+      const item = document.createElement('div');
+      item.style.cssText = 'display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; transition: background 0.2s;';
+      
+      const statusColor = user.is_online ? '#27ae60' : '#95a5a6';
+      const statusText = user.is_online ? 'Online' : 'Offline';
 
-    if (otherMembers[selectedIndex]) {
-      const target = otherMembers[selectedIndex];
-      startCall(target.id, target.name);
-    } else {
-      alert('Pilihan nomor tidak valid.');
-    }
+      item.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="position: relative;">
+            <img src="${user.photo_url || '/logo-192.png'}" alt="${user.name}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1px solid var(--primary-color);">
+            <span style="position: absolute; bottom: 0; right: 0; width: 10px; height: 10px; background: ${statusColor}; border: 1px solid var(--card-bg); border-radius: 50%;"></span>
+          </div>
+          <div style="text-align: left;">
+            <strong style="font-size: 14px; color: var(--text-light); display: block;">${user.name}</strong>
+            <span style="font-size: 11px; color: ${statusColor}; font-weight: 600;">${statusText}</span>
+          </div>
+        </div>
+        <button type="button" style="background: var(--primary-color); color: white; border: none; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer;" aria-label="Telepon ${user.name}">
+          <i class="fa-solid fa-phone" style="font-size: 12px;" aria-hidden="true"></i>
+        </button>
+      `;
+
+      item.onclick = () => {
+        closeCallSelectionModal();
+        startCall(user.id, user.name);
+      };
+
+      container.appendChild(item);
+    });
+
+    document.getElementById('call-selection-modal')?.classList.remove('hidden');
   } catch (error) {
     console.error('Gagal membuka menu panggilan:', error);
     alert('Terjadi kesalahan saat memuat daftar keluarga.');
   }
+}
+
+function closeCallSelectionModal() {
+  document.getElementById('call-selection-modal')?.classList.add('hidden');
 }
 
 // ==========================================================
