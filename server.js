@@ -12,6 +12,17 @@ const cors = require('cors');
 const webpush = require('web-push'); // <-- Modul web-push diimpor dengan benar di sini
 require('dotenv').config();
 
+// Cetak kunci VAPID sementara di log konsol Railway
+if (process.env.NODE_ENV === 'production') {
+  try {
+    const generatedKeys = webpush.generateVAPIDKeys();
+    console.log('=== VAPID PUBLIC KEY ===:', generatedKeys.publicKey);
+    console.log('=== VAPID PRIVATE KEY ===:', generatedKeys.privateKey);
+  } catch (err) {
+    console.error('Gagal generate VAPID keys:', err);
+  }
+}
+
 const app = express();
 const server = http.createServer(app);
 
