@@ -657,6 +657,76 @@ function logout() {
   isLoggingOut = false;
 }
 
+function initSupabaseCallListeners() {
+  callChannel
+    .on('broadcast', { event: 'webrtc_signal' }, ({ payload }) => {
+      // Pastikan pesan ini ditujukan untuk user yang sedang login saat ini
+      if (!currentUser || String(payload.toUserId) !== String(currentUser.id)) return;
+
+      switch (payload.type) {
+        case 'offer':
+          handleIncomingCallFromSupabase(payload);
+          break;
+        case 'answer':
+          handleCallAnsweredFromSupabase(payload);
+          break;
+        case 'ice_candidate':
+          handleIceCandidateFromSupabase(payload);
+          break;
+        case 'end_call':
+          cleanupCall(false);
+          break;
+      }
+    })
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        console.log('Terhubung ke Supabase Realtime Call Channel!');
+      }
+    });
+}
+
+// Handler khusus saat menerima penawaran telepon (Offer)
+function handleIncomingCallFromSupabase(data) {
+  targetUserId = data.fromUserId;
+  incomingOffer = data.offer;
+  iceCandidateQueue = [];
+
+  const modal = document.getElementById('call-modal');
+  if (modal) modal.classList.remove('hidden');
+
+  const title = document.getElementById('call-status-title');
+  const peerNameEl = document.getElementById('call-peer-name');
+  const acceptBtn = document.getElementById('btn-accept-call');
+
+  if (title) title.innerText = 'Panggilan Masuk...';
+  if (peerNameEl) peerNameEl.innerText = data.callerName || 'Keluarga';
+  if (acceptBtn) acceptBtn.style.display = 'inline-block';
+
+  callRingtone.play().catch(() => {});
+}
+
+// Handler saat panggilan direspons (Answer)
+async function handleCallAnsweredFromSupabase(data) {
+  if (!peerConnection || !data || !data.answer) return;
+
+  try {
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+
+    while (iceCandidateQueue.length > 0) {
+      const candidate = iceCandidateQueue.shift();
+      await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+    }
+
+    const title = document.getElementById('call-status-title');
+    if (title) title.innerText = 'Terhubung';
+  } catch (error) {
+    console.error('Gagal set remote description dari Supabase:', error);
+    cleanupCall(false);
+  }
+}
+
+
+
 // ==========================================================
 // CHAT & MESSAGE ACTIONS
 // ==========================================================
