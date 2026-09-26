@@ -2096,6 +2096,71 @@ if (chatFileInput) {
   });
 }
 
+
+// Fungsi pembantu untuk konversi VAPID key
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+// Fungsi utama untuk mengaktifkan Push Notification
+async function registerPushNotification() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.log('Push notification tidak didukung oleh browser ini.');
+    return;
+  }
+
+  try {
+    // 1. Daftarkan Service Worker
+    const registration = await navigator.serviceWorker.register('/sw.js');
+    console.log('Service Worker terdaftar:', registration);
+
+    // 2. Minta izin notifikasi ke pengguna
+    const permissionResult = await Notification.requestPermission();
+    if (permissionResult !== 'granted') {
+      console.log('Izin notifikasi ditolak oleh pengguna.');
+      return;
+    }
+
+    // 3. Ambil Public VAPID Key Anda
+    const publicVapidKey = 'BJKdEnjNr4C-Rc0WJi05pmu3Uf__jj941_2GiWesMmqRDM267mq3lfi--P7owdTfIDdEqNqNTV3xNe0bAQS_i8g';
+
+    // 4. Lakukan Subscribe ke PushManager
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
+    });
+
+    // 5. Kirim data langganan ke backend server kita
+    const userId = localStorage.getItem('kitachat_user_id'); // Sesuaikan dengan key storage login Anda
+    const sessionToken = localStorage.getItem('kitachat_session_token');
+
+    await fetch('/api/save-subscription', {
+      method: 'POST',
+      body: JSON.stringify(subscription),
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-id': userId,
+        'x-session-token': sessionToken
+      }
+    });
+
+    console.log('Berhasil berlangganan Web Push Notification!');
+  } catch (err) {
+    console.error('Gagal memproses Push Notification:', err);
+  }
+}
+
+// Panggil fungsi ini saat pengguna berhasil login atau saat aplikasi dimuat
+// Contoh: registerPushNotification();
+
+
 // ==========================================
 // EDIT PROFILE LOGIC (Name & Birthdate)
 // ==========================================
