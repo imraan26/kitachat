@@ -655,8 +655,8 @@ function renderIncomingMessage(message, silent = false) {
     const audio = document.createElement('audio');
     audio.controls = true;
     audio.src = message.audio_url;
-    // Mengatur ukuran pemutar audio agar lebih rapi di dalam gelembung chat
-    audio.style.cssText = 'margin-top: 5px; width: 100%; max-width: 230px; height: 36px;';
+    // Standarkan ukuran lebar dan tinggi pemutar audio agar rapi dan seragam
+    audio.style.cssText = 'margin-top: 4px; width: 210px; height: 32px; display: block;';
     bubble.appendChild(audio);
   }
 
