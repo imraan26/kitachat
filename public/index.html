@@ -559,122 +559,123 @@
           >
         </div>
 
-        <!-- =========================
-             AGENDA
-        ========================== -->
-        <section
-          id="content-agenda"
-          class="tab-content hidden"
-          role="tabpanel"
-          aria-hidden="true"
+        <!-- ==========================================================
+            AGENDA & ULANG TAHUN SECTION
+========================================================== -->
+<section
+  id="content-agenda"
+  class="tab-content hidden"
+  role="tabpanel"
+  aria-hidden="true"
+>
+  <header class="chat-header">
+    <h2>
+      <i class="fa-solid fa-calendar-days" aria-hidden="true"></i>
+      Agenda & Ulang Tahun
+    </h2>
+  </header>
+
+  <div class="tab-scroll-content">
+    <div class="content-card">
+      <section class="card-section">
+        <h3>
+          <i class="fa-solid fa-cake-candles" aria-hidden="true"></i>
+          Daftar Ulang Tahun Anggota
+        </h3>
+
+        <!-- DISESUAIKAN: Menggunakan class "birthday-grid" agar responsif 4 kolom (desktop) & 2 kolom (mobile) -->
+        <div
+          id="birthday-list-container"
+          class="birthday-grid"
+        ></div>
+      </section>
+
+      <section class="card-section">
+        <button
+          type="button"
+          class="section-toggle"
+          onclick="toggleAgendaForm()"
+          aria-controls="agenda-form-container"
         >
-          <header class="chat-header">
-            <h2>
-              <i class="fa-solid fa-calendar-days" aria-hidden="true"></i>
-              Agenda & Ulang Tahun
-            </h2>
-          </header>
+          <span>
+            <strong>
+              <i
+                class="fa-solid fa-calendar-plus"
+                aria-hidden="true"
+              ></i>
+              Tambah Agenda Keluarga
+            </strong>
+            <small id="agenda-toggle-label">
+              Ketuk untuk membuat jadwal baru
+            </small>
+          </span>
 
-          <div class="tab-scroll-content">
-            <div class="content-card">
-              <section class="card-section">
-                <h3>
-                  <i class="fa-solid fa-cake-candles" aria-hidden="true"></i>
-                  Daftar Ulang Tahun Anggota
-                </h3>
+          <i
+            class="fa-solid fa-chevron-right"
+            id="agenda-chevron-icon"
+            aria-hidden="true"
+          ></i>
+        </button>
 
-                <div
-                  id="birthday-list-container"
-                  class="stack-list"
-                ></div>
-              </section>
+        <form
+          id="agenda-form-container"
+          class="hidden"
+          onsubmit="handleCreateAgenda(event)"
+        >
+          <input
+            type="text"
+            id="agenda-title"
+            maxlength="150"
+            placeholder="Nama acara atau kegiatan"
+            required
+          >
 
-              <section class="card-section">
-                <button
-                  type="button"
-                  class="section-toggle"
-                  onclick="toggleAgendaForm()"
-                  aria-controls="agenda-form-container"
-                >
-                  <span>
-                    <strong>
-                      <i
-                        class="fa-solid fa-calendar-plus"
-                        aria-hidden="true"
-                      ></i>
-                      Tambah Agenda Keluarga
-                    </strong>
-                    <small id="agenda-toggle-label">
-                      Ketuk untuk membuat jadwal baru
-                    </small>
-                  </span>
+          <input
+            type="date"
+            id="agenda-date"
+            required
+          >
 
-                  <i
-                    class="fa-solid fa-chevron-right"
-                    id="agenda-chevron-icon"
-                    aria-hidden="true"
-                  ></i>
-                </button>
+          <input
+            type="text"
+            id="agenda-desc"
+            maxlength="1000"
+            placeholder="Keterangan atau lokasi (opsional)"
+          >
 
-                <form
-                  id="agenda-form-container"
-                  class="hidden"
-                  onsubmit="handleCreateAgenda(event)"
-                >
-                  <input
-                    type="text"
-                    id="agenda-title"
-                    maxlength="150"
-                    placeholder="Nama acara atau kegiatan"
-                    required
-                  >
+          <div class="form-actions">
+            <button
+              type="submit"
+              class="btn-primary"
+            >
+              Simpan
+            </button>
 
-                  <input
-                    type="date"
-                    id="agenda-date"
-                    required
-                  >
-
-                  <input
-                    type="text"
-                    id="agenda-desc"
-                    maxlength="1000"
-                    placeholder="Keterangan atau lokasi (opsional)"
-                  >
-
-                  <div class="form-actions">
-                    <button
-                      type="submit"
-                      class="btn-primary"
-                    >
-                      Simpan
-                    </button>
-
-                    <button
-                      type="button"
-                      class="btn-secondary"
-                      onclick="toggleAgendaForm()"
-                    >
-                      Batal
-                    </button>
-                  </div>
-                </form>
-              </section>
-
-              <section class="card-section">
-                <h3>
-                  <i class="fa-solid fa-list-check" aria-hidden="true"></i>
-                  Daftar Kegiatan Mendatang
-                </h3>
-
-                <div
-                  id="agenda-list-container"
-                  class="stack-list"
-                ></div>
-              </section>
-            </div>
+            <button
+              type="button"
+              class="btn-secondary"
+              onclick="toggleAgendaForm()"
+            >
+              Batal
+            </button>
           </div>
-        </section>
+        </form>
+      </section>
+
+      <section class="card-section">
+        <h3>
+          <i class="fa-solid fa-list-check" aria-hidden="true"></i>
+          Daftar Kegiatan Mendatang
+        </h3>
+
+        <div
+          id="agenda-list-container"
+          class="stack-list"
+        ></div>
+      </section>
+    </div>
+  </div>
+</section>
 
         <!-- =========================
              FAMILY
