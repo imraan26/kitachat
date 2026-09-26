@@ -12,18 +12,10 @@ const cors = require('cors');
 const webpush = require('web-push');
 require('dotenv').config();
 
-// Cetak kunci VAPID langsung di log konsol Railway
-try {
-  const generatedKeys = webpush.generateVAPIDKeys();
-  console.log('=== VAPID PUBLIC KEY ===:', generatedKeys.publicKey);
-  console.log('=== VAPID PRIVATE KEY ===:', generatedKeys.privateKey);
-} catch (err) {
-  console.error('Gagal generate VAPID keys:', err);
-}
-
 const app = express();
 const server = http.createServer(app);
 
+// Deklarasikan allowedOrigins DI SINI (sebelum io menggunakannya)
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
   : '*';
