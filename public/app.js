@@ -2043,4 +2043,9 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+// Mencegah parameter sensitif tertinggal di URL browser
+if (window.location.search.includes('phone=') || window.location.search.includes('password=')) {
+  window.history.replaceState({}, document.title, window.location.pathname);
+}
+
 registerServiceWorker();
