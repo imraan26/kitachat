@@ -1210,7 +1210,7 @@ async function deleteAlbumPhoto(photoId) {
 // AGENDA
 // ==========================================================
 
-// Fungsi untuk membuka/menutup form tambah agenda (Penting agar form bisa muncul)
+// Fungsi untuk membuka/menutup form tambah agenda
 function toggleAgendaForm() {
   const form = document.getElementById('agenda-form-container');
   const label = document.getElementById('agenda-toggle-label');
@@ -1333,22 +1333,29 @@ async function loadAgendaAndBirthdays() {
         if (agendas.length === 0) {
           agendaContainer.innerHTML = '<p style="font-size: 13px; color: gray;">Belum ada agenda kegiatan tercatat.</p>';
         } else {
-          agendas.forEach(item => {
+          agendas.forEach((item, index) => {
             const fDate = new Date(item.event_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
             const card = document.createElement('div');
             card.setAttribute('data-agenda-id', item.id);
-            card.style.cssText = 'padding: 14px 16px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; display: grid; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); position: relative;';
+            card.style.cssText = 'padding: 14px 16px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); position: relative;';
 
-            // Memastikan perbandingan ID aman dari perbedaan tipe data (string/number)
-            const isOwner = currentUser && (String(item.user_id) === String(currentUser.id));
-            
+            const menuId = `agenda-menu-${item.id || index}`;
+
+            // Setiap kartu agenda dilengkapi tombol titik tiga yang bisa diakses semua anggota keluarga
             card.innerHTML = `
               <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
                 <div style="display: flex; flex-direction: column; gap: 2px;">
                   <h5 style="margin: 0; font-size: 15px; font-weight: 600; color: var(--text-light);">${item.title}</h5>
                   <span style="font-size: 12px; font-weight: bold; color: var(--primary-color); background: var(--primary-light); padding: 3px 8px; border-radius: 6px; width: fit-content;">${fDate}</span>
                 </div>
-                ${isOwner ? `<button type="button" onclick="deleteAgenda('${item.id}')" style="background:transparent; border:none; color:#e74c3c; cursor:pointer; padding:4px; font-size:14px; opacity:0.8;" title="Hapus agenda"><i class="fa-solid fa-trash-can"></i></button>` : ''}
+                <div style="position: relative;">
+                  <button type="button" onclick="toggleAgendaMenu(event, '${menuId}')" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; padding:4px 8px; font-size:16px;" title="Menu"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+                  <div id="${menuId}" class="photo-dropdown" style="right: 0; bottom: auto; top: 28px; min-width: 110px;">
+                    <button type="button" onclick="deleteAgenda('${item.id}')" style="color: #e74c3c; display: flex; align-items: center; gap: 6px; padding: 8px 12px; width: 100%; background: transparent; border: none; cursor: pointer; text-align: left; font-size: 0.82rem;">
+                      <i class="fa-solid fa-trash-can"></i> Hapus
+                    </button>
+                  </div>
+                </div>
               </div>
               ${item.description ? `<p style="margin: 0; font-size: 13px; color: var(--text-muted); line-height: 1.4;">${item.description}</p>` : ''}
             `;
@@ -1362,7 +1369,19 @@ async function loadAgendaAndBirthdays() {
   }
 }
 
-// FUNGSI HAPUS AGENDA
+// Fungsi untuk membuka/menutup dropdown titik tiga agenda
+function toggleAgendaMenu(event, menuId) {
+  event.stopPropagation();
+
+  document.querySelectorAll('.photo-dropdown').forEach(el => {
+    if (el.id !== menuId) el.classList.remove('active');
+  });
+
+  const dropdown = document.getElementById(menuId);
+  if (dropdown) dropdown.classList.toggle('active');
+}
+
+// FUNGSI HAPUS AGENDA (Dapat diakses oleh semua anggota keluarga)
 async function deleteAgenda(id) {
   if (!confirm('Apakah Anda yakin ingin menghapus agenda ini?')) return;
 
