@@ -1663,9 +1663,15 @@ function isValidMediaFile(file) {
 
   const validType =
     file.type.startsWith('image/') ||
-    file.type.startsWith('audio/');
+    file.type.startsWith('audio/') ||
+    file.type === 'application/pdf' || // Tambahkan ini untuk PDF
+    file.type.startsWith('application/vnd.openxmlformats-officedocument') || // Untuk Word/Excel
+    file.type.startsWith('text/'); // Untuk file teks
 
-  return validType && file.size <= 10 * 1024 * 1024;
+  // Jika ingin mendukung SEMUA jenis file (asal ukuran pas), cukup gunakan:
+  // const validType = true; 
+
+  return validType && file.size <= 10 * 1024 * 1024; // Tetap 10MB
 }
 
 const chatFileInput = document.getElementById('chat-file-input');
