@@ -235,7 +235,6 @@ form input:focus {
   display: none;
   flex-direction: column;
   width: 100%;
-  /* Menggunakan dvh (dynamic viewport height) agar lebih akurat di mobile */
   height: 100vh;
   height: 100dvh; 
   position: relative;
@@ -246,17 +245,14 @@ form input:focus {
   display: flex;
 }
 
-/* Mobile header */
 .mobile-header-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
   background: var(--primary-color);
-  /* REVISI: padding-top menggunakan env(safe-area-inset-top) */
   padding: calc(10px + env(safe-area-inset-top, 0px)) 15px 10px 15px;
   width: 100%;
   z-index: 10;
-  /* REVISI: min-height disesuaikan dengan safe area */
   min-height: calc(60px + env(safe-area-inset-top, 0px));
   flex-shrink: 0;
 }
@@ -309,7 +305,6 @@ form input:focus {
   display: none !important;
 }
 
-/* Kontainer utama chat-area dan tab-content */
 .chat-area {
   flex: 1;
   display: flex;
@@ -382,8 +377,6 @@ form input:focus {
   line-height: 1.45;
   box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.13);
   word-break: break-word;
-  
-  /* TAMBAHAN: Mencegah seleksi teks & menu sistem saat klik tahan di HP */
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
@@ -397,7 +390,7 @@ form input:focus {
   border-top-left-radius: 0;
 }
 
-.chat-outgoing, .chat-bubble.is-me { /* Sesuaikan is-me dengan chat-outgoing */
+.chat-outgoing, .chat-bubble.is-me {
   align-self: flex-end;
   background: var(--primary-light);
   color: var(--text-light);
@@ -433,13 +426,13 @@ form input:focus {
 }
 
 /* =========================
-   POPUP MENU (TAMBAHAN BARU)
+   POPUP MENU
 ========================= */
 .context-menu {
   position: absolute;
-  background: white;
+  background: var(--card-bg);
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  box-shadow: var(--shadow-strong);
   display: none;
   z-index: 9999;
   min-width: 140px;
@@ -574,7 +567,6 @@ form input:focus {
   transition: all 0.3s ease;
 }
 
-/* Gaya saat merekam Voice Note */
 #mic-btn.recording-active {
   color: #ff4444 !important;
   animation: micPulse 1.5s infinite;
@@ -638,8 +630,7 @@ form input:focus {
   gap: 2px;
   flex: 1;
   margin-left: 12px;
-  /* Tambahkan/Pastikan ini: */
-  background: transparent !important; /* Menghilangkan kotak hijau */
+  background: transparent !important;
   padding: 0 !important;
 }
 
@@ -649,7 +640,7 @@ form input:focus {
 }
 
 .upload-trigger small {
-  color: #8696a0 !important; /* Warna abu-abu bersih */
+  color: var(--text-muted) !important;
   background: transparent !important;
   padding: 0 !important;
 }
@@ -683,8 +674,6 @@ form input:focus {
 /* =========================
    PHOTO ALBUM MENU & POPUP
 ========================= */
-
-/* Tombol Titik Tiga pada Foto */
 .photo-menu-btn {
   position: absolute;
   right: 8px;
@@ -707,15 +696,14 @@ form input:focus {
   background: rgba(0, 0, 0, 0.8) !important;
 }
 
-/* Container Popup Menu Foto */
 .photo-dropdown {
   position: absolute;
   right: 8px;
-  bottom: 42px; /* Di atas tombol titik tiga */
-  background: white;
+  bottom: 42px;
+  background: var(--card-bg);
   border-radius: 8px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-  display: none; /* Tersembunyi default */
+  box-shadow: var(--shadow-strong);
+  display: none;
   flex-direction: column;
   min-width: 110px;
   z-index: 100;
@@ -724,7 +712,6 @@ form input:focus {
   animation: popupScale 0.15s ease-out;
 }
 
-/* Saat aktif via JavaScript togglePhotoMenu */
 .photo-dropdown.active {
   display: flex;
 }
@@ -746,7 +733,7 @@ form input:focus {
 }
 
 .photo-dropdown button:last-child {
-  color: #e74c3c; /* Warna merah untuk menu Hapus */
+  color: var(--danger);
   border-top: 1px solid var(--border-color);
 }
 
@@ -754,7 +741,6 @@ form input:focus {
   from { transform: scale(0.9); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
 }
-
 
 .card-section {
   padding: 20px;
@@ -801,7 +787,7 @@ form input:focus {
 }
 
 .section-toggle small {
-  color: #8696a0 !important; /* Warna abu-abu bersih */
+  color: var(--text-muted) !important;
   background: transparent !important;
   padding: 0 !important;
 }
@@ -863,10 +849,9 @@ form input:focus {
   max-width: 600px;
   margin: 0 auto;
   width: 100%;
-  /* Tambahkan ini agar kontainer bisa di-scroll */
   height: 100%; 
   overflow-y: auto; 
-  padding-bottom: 80px; /* Ruang tambahan di bawah agar tidak tertutup menu bawah */
+  padding-bottom: 80px;
 }
 
 .profile-card {
@@ -910,7 +895,6 @@ form input:focus {
   background: var(--card-bg);
   border-radius: 14px;
   border: 1px solid var(--border-color);
-  /* UBAH DARI hidden KE visible ATAU auto */
   overflow: visible; 
   box-shadow: var(--shadow-soft);
   display: flex;
@@ -931,7 +915,7 @@ form input:focus {
   text-align: left;
   color: var(--text-light);
   transition: background 0.15s ease;
-  flex-shrink: 0; /* Mencegah item menciut */
+  flex-shrink: 0;
 }
 
 .settings-item:last-child {
@@ -1148,10 +1132,9 @@ form input:focus {
     flex-direction: column;
     flex: 1;
     width: 100%;
-    background: var(--card-bg); /* Memastikan bersih putih */
+    background: var(--card-bg);
   }
 
-  /* OPTIMALISASI MENU ITEM: Clean WhatsApp Style (Background putih, teks hitam, tanpa blok abu-abu) */
   .desktop-sidebar .menu-item {
     flex-direction: row;
     justify-content: flex-start;
@@ -1294,55 +1277,53 @@ form input:focus {
   color: var(--success);
 }
 
-/* Menghilangkan blok hijau pada tanggal di daftar kegiatan dan mengubah font ke abu-abu */
 #agenda-list-container span {
-    background: transparent !important; /* Hilangkan blok hijau */
+    background: transparent !important;
     background-color: transparent !important;
-    color: #8696a0 !important; /* Warna abu-abu bersih */
-    padding: 0 !important; /* Hapus padding bekas kotak */
-    font-weight: 500 !important; /* Opsional: sedikit menebalkan agar terbaca jelas */
+    color: var(--text-muted) !important;
+    padding: 0 !important;
+    font-weight: 500 !important;
     font-size: 12px;
 }
 
-/* Container Grid Ulang Tahun */
+/* =========================
+   BIRTHDAY GRID CARDS (RESPONSIVE)
+========================= */
 .birthday-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr); /* Default Desktop: 4 Berjajar */
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
   padding: 10px 0;
 }
 
-/* Kartu Profil Anggota */
 .birthday-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 16px;
   text-align: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+  box-shadow: var(--shadow-soft);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .birthday-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 6px 12px rgba(0,0,0,0.08);
+  box-shadow: var(--shadow-strong);
 }
 
-/* Foto Profil */
 .birthday-avatar {
   width: 70px;
   height: 70px;
   border-radius: 50%;
   object-fit: cover;
   margin: 0 auto 10px auto;
-  border: 2px solid #4f46e5;
+  border: 2px solid var(--primary-color);
 }
 
-/* Nama & Tanggal */
 .birthday-name {
   font-size: 15px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-light);
   margin: 0 0 4px 0;
   white-space: nowrap;
   overflow: hidden;
@@ -1351,14 +1332,14 @@ form input:focus {
 
 .birthday-date {
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-muted);
   margin: 0;
 }
 
 .birthday-badge {
   display: inline-block;
-  background: #eff6ff;
-  color: #1d4ed8;
+  background: var(--primary-light);
+  color: var(--primary-color);
   font-size: 11px;
   padding: 3px 8px;
   border-radius: 6px;
@@ -1366,10 +1347,9 @@ form input:focus {
   font-weight: 600;
 }
 
-/* Responsif Mobile: 2 Kolom Berjajar */
 @media (max-width: 768px) {
   .birthday-grid {
-    grid-template-columns: repeat(2, 1fr); /* 2 Berjajar di HP */
+    grid-template-columns: repeat(2, 1fr);
     gap: 12px;
   }
   .birthday-avatar {
