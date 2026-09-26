@@ -720,6 +720,10 @@ form input:focus {
   max-width: 600px;
   margin: 0 auto;
   width: 100%;
+  /* Tambahkan ini agar kontainer bisa di-scroll */
+  height: 100%; 
+  overflow-y: auto; 
+  padding-bottom: 80px; /* Ruang tambahan di bawah agar tidak tertutup menu bawah */
 }
 
 .profile-card {
@@ -763,10 +767,12 @@ form input:focus {
   background: var(--card-bg);
   border-radius: 14px;
   border: 1px solid var(--border-color);
-  overflow: hidden;
+  /* UBAH DARI hidden KE visible ATAU auto */
+  overflow: visible; 
   box-shadow: var(--shadow-soft);
   display: flex;
   flex-direction: column;
+  margin-bottom: 20px;
 }
 
 .settings-item {
@@ -782,6 +788,7 @@ form input:focus {
   text-align: left;
   color: var(--text-light);
   transition: background 0.15s ease;
+  flex-shrink: 0; /* Mencegah item menciut */
 }
 
 .settings-item:last-child {
