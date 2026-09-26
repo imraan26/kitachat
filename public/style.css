@@ -1154,3 +1154,13 @@ form input:focus {
 .success {
   color: var(--success);
 }
+
+/* Menghilangkan blok hijau pada tanggal di daftar kegiatan dan mengubah font ke abu-abu */
+#agenda-list-container span {
+    background: transparent !important; /* Hilangkan blok hijau */
+    background-color: transparent !important;
+    color: #8696a0 !important; /* Warna abu-abu bersih */
+    padding: 0 !important; /* Hapus padding bekas kotak */
+    font-weight: 500 !important; /* Opsional: sedikit menebalkan agar terbaca jelas */
+    font-size: 12px;
+}
