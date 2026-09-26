@@ -772,11 +772,16 @@ app.post('/api/agendas', checkSingleDevice, async (req, res) => {
   }
 });
 
-// Endpoint untuk mengambil daftar ulang tahun keluarga secara otomatis
-app.get('/api/family-birthdays', async (req, res) => {
+// ==========================================
+// ENDPOINT: FAMILY BIRTHDAYS (DIOPTIMALKAN)
+// ==========================================
+app.get('/api/family-birthdays', checkSingleDevice, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, name, profile_picture, birth_date FROM users ORDER BY birth_date ASC'
+      `SELECT id, name, photo_url AS profile_picture, birthdate AS birth_date 
+       FROM users 
+       WHERE birthdate IS NOT NULL 
+       ORDER BY birthdate ASC`
     );
     res.json(result.rows);
   } catch (err) {
