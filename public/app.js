@@ -229,7 +229,7 @@ async function apiFetch(url, options = {}) {
 }
 
 // ==========================================================
-// SERVICE WORKER / PWA
+// SERVICE WORKER / PWA & WEB PUSH NOTIFICATION
 // ==========================================================
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
@@ -237,6 +237,9 @@ function registerServiceWorker() {
   window.addEventListener('load', async () => {
     try {
       const registration = await navigator.serviceWorker.register('/sw.js');
+
+      // Panggil otomatis pendaftaran Push Notification setelah SW aktif
+      registerPushNotification();
 
       registration.addEventListener('updatefound', () => {
         const newWorker = registration.installing;
@@ -269,6 +272,59 @@ function registerServiceWorker() {
       console.warn('Service Worker gagal didaftarkan:', error);
     }
   });
+}
+
+// Fungsi pembantu konversi VAPID key
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+// Fungsi utama untuk mendaftarkan Web Push Notification ke Server
+async function registerPushNotification() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.log('Push notification tidak didukung oleh browser ini.');
+    return;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    
+    // Minta izin ke pengguna jika belum diberikan
+    const permissionResult = await Notification.requestPermission();
+    if (permissionResult !== 'granted') {
+      console.log('Izin notifikasi ditolak oleh pengguna.');
+      return;
+    }
+
+    // Menggunakan VAPID Public Key yang baru saja kita generate dari server Railway
+    const publicVapidKey = 'BJKdEnjNr4C-Rc0WJi05pmu3Uf__jj941_2GiWesMmqRDM267mq3lfi--P7owdTfIDdEqNqNTV3xNe0bAQS_i8g';
+
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
+    });
+
+    if (!currentUser) return; // Belum login, lewati pengiriman langganan ke server
+
+    await apiFetch('/api/save-subscription', {
+      method: 'POST',
+      body: JSON.stringify(subscription),
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    console.log('Berhasil berlangganan Web Push Notification!');
+  } catch (err) {
+    console.error('Gagal memproses Push Notification:', err);
+  }
 }
 
 window.addEventListener('beforeinstallprompt', event => {
@@ -396,7 +452,6 @@ function switchTab(tab) {
 
 // Fungsi perpindahan tab navigasi utama (Chat, Album, Agenda, Keluarga, Pengaturan)
 function switchTabNav(tabName, buttonElement) {
-  // Sembunyikan semua konten tab
   const contents = document.querySelectorAll('.tab-content');
   contents.forEach(content => {
     content.classList.remove('active');
@@ -404,7 +459,6 @@ function switchTabNav(tabName, buttonElement) {
     content.setAttribute('aria-hidden', 'true');
   });
 
-  // Tampilkan tab target
   const targetContent = document.getElementById(`content-${tabName}`);
   if (targetContent) {
     targetContent.classList.remove('hidden');
@@ -412,7 +466,6 @@ function switchTabNav(tabName, buttonElement) {
     targetContent.setAttribute('aria-hidden', 'false');
   }
 
-  // Perbarui kelas aktif pada tombol menu navigasi (desktop & mobile)
   const menuButtons = document.querySelectorAll('.menu-item');
   menuButtons.forEach(btn => {
     if (btn.getAttribute('data-tab') === tabName) {
@@ -424,7 +477,6 @@ function switchTabNav(tabName, buttonElement) {
     }
   });
 
-  // Pemuatan data spesifik saat tab dibuka
   if (tabName === 'album') {
     loadAlbumPhotos();
   } else if (tabName === 'agenda') {
@@ -566,9 +618,8 @@ async function handleLogin(event) {
     updateUserInterface();
     connectAuthenticatedSocket();
 
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission().catch(() => {});
-    }
+    // Daftarkan push notifikasi setelah login sukses
+    registerPushNotification();
   } catch (error) {
     console.error('Error login:', error);
     alert('Tidak dapat terhubung ke server.');
@@ -653,7 +704,6 @@ function renderIncomingMessage(message, silent = false) {
   sender.textContent = message.name || 'Keluarga';
   bubble.appendChild(sender);
 
-  // Hanya tampilkan teks jika pesan teks benar-benar ada dan tidak kosong (Menghilangkan label (Gambar)/(Voice Note))
   if (message.message && message.message.trim() !== '') {
     const text = document.createElement('div');
     text.className = 'chat-text';
@@ -679,7 +729,6 @@ function renderIncomingMessage(message, silent = false) {
     const audio = document.createElement('audio');
     audio.controls = true;
     audio.src = message.audio_url;
-    // Standarkan ukuran lebar dan tinggi pemutar audio agar rapi dan seragam
     audio.style.cssText = 'margin-top: 4px; width: 210px; height: 32px; display: block;';
     bubble.appendChild(audio);
   }
@@ -812,7 +861,7 @@ async function sendMessage() {
 }
 
 // ==========================================================
-// VOICE NOTE RECORDING LOGIC (Optimized for iOS, Android & Desktop Cross-Compatibility)
+// VOICE NOTE RECORDING LOGIC
 // ==========================================================
 let mediaRecorder = null;
 let audioChunks = [];
@@ -825,7 +874,6 @@ async function startRecording() {
 
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     
-    // Urutan prioritas mimeType: Utamakan format berbasis MP4/AAC agar kompatibel sempurna di iOS & Web Desktop/Android
     const mimeTypes = [
       'audio/mp4',
       'audio/aac',
@@ -847,13 +895,11 @@ async function startRecording() {
     };
     
     mediaRecorder.onstop = async () => {
-      // 1. Reset UI LANGSUNG INSTAN tanpa menunggu proses file / network selesai
       resetMicButtonUI();
 
       const activeMime = mediaRecorder.mimeType || selectedMime || 'audio/mp4';
       const audioBlob = new Blob(audioChunks, { type: activeMime });
       
-      // Tentukan ekstensi file berdasarkan mimeType aktual yang diset oleh browser
       let extension = 'm4a'; 
       if (activeMime.includes('webm')) extension = 'webm';
       else if (activeMime.includes('ogg')) extension = 'ogg';
@@ -862,7 +908,6 @@ async function startRecording() {
       const file = new File([audioBlob], `voicenote-${Date.now()}.${extension}`, { type: activeMime });
       stream.getTracks().forEach(track => track.stop());
       
-      // 2. Kirim ke server di background
       sendVoiceNote(file);
     };
 
@@ -937,7 +982,6 @@ async function openCallMenu() {
     if (!response.ok) return;
     
     const users = await response.json();
-    // Filter agar daftar tidak menyertakan akun yang sedang login sendiri
     const otherMembers = users.filter(u => String(u.id) !== String(currentUser?.id));
 
     if (otherMembers.length === 0) {
@@ -945,7 +989,6 @@ async function openCallMenu() {
       return;
     }
 
-    // Tampilkan daftar pilihan anggota keluarga
     const namesList = otherMembers.map((u, index) => `${index + 1}. ${u.name}`).join('\n');
     const choice = prompt(`Pilih anggota keluarga yang ingin dihubungi:\n\n${namesList}\n\nMasukkan nomor pilihan:`);
 
@@ -954,7 +997,7 @@ async function openCallMenu() {
 
     if (otherMembers[selectedIndex]) {
       const target = otherMembers[selectedIndex];
-      startCall(target.id, target.name); // Memanggil fungsi WebRTC startCall yang sudah ada di app.js
+      startCall(target.id, target.name);
     } else {
       alert('Pilihan nomor tidak valid.');
     }
@@ -963,8 +1006,6 @@ async function openCallMenu() {
     alert('Terjadi kesalahan saat memuat daftar keluarga.');
   }
 }
-
-
 
 // ==========================================================
 // ALBUM
@@ -1383,7 +1424,6 @@ async function handleCreateAgenda(event) {
 }
 
 async function loadAgendaAndBirthdays() {
-  // 1. Memuat Daftar Ulang Tahun Anggota (Format Kartu Grid: 4 Kolom Desktop, 2 Kolom Mobile)
   try {
     const response = await apiFetch('/api/family-birthdays');
     const members = await parseJsonResponse(response);
@@ -1418,7 +1458,6 @@ async function loadAgendaAndBirthdays() {
     }
   }
 
-  // 2. Memuat Daftar Agenda Kegiatan Mendatang
   try {
     const resAgendas = await apiFetch('/api/agendas');
     if (resAgendas.ok) {
@@ -1514,17 +1553,6 @@ async function deleteAgenda(id) {
   }
 }
 
-// Helper untuk format tanggal Indonesia (opsional)
-function formatDateIndo(dateString) {
-  const options = { day: 'numeric', month: 'long' };
-  return new Date(dateString).toLocaleDateString('id-ID', options);
-}
-
-// Panggil fungsi saat tab Agenda dibuka atau saat halaman dimuat
-document.addEventListener('DOMContentLoaded', () => {
-  loadFamilyBirthdays();
-});
-
 // ==========================================================
 // KELUARGA (FAMILY DIRECTORY DENGAN STATUS ONLINE)
 // ==========================================================
@@ -1606,7 +1634,6 @@ async function triggerUploadProfile(inputElement) {
   }
 }
 
-// Lepaskan fokus elemen aktif sebelum menyembunyikan modal
 if (document.activeElement && typeof document.activeElement.blur === 'function') {
   document.activeElement.blur();
 }
@@ -1622,8 +1649,6 @@ function closeChangePasswordModal() {
 
   const oldPw = document.getElementById('old-password');
   const newPw = document.getElementById('new-password');
-
-  
 
   if (oldPw) oldPw.value = '';
   if (newPw) newPw.value = '';
@@ -2096,71 +2121,6 @@ if (chatFileInput) {
   });
 }
 
-
-// Fungsi pembantu untuk konversi VAPID key
-function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
-
-// Fungsi utama untuk mengaktifkan Push Notification
-async function registerPushNotification() {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    console.log('Push notification tidak didukung oleh browser ini.');
-    return;
-  }
-
-  try {
-    // 1. Daftarkan Service Worker
-    const registration = await navigator.serviceWorker.register('/sw.js');
-    console.log('Service Worker terdaftar:', registration);
-
-    // 2. Minta izin notifikasi ke pengguna
-    const permissionResult = await Notification.requestPermission();
-    if (permissionResult !== 'granted') {
-      console.log('Izin notifikasi ditolak oleh pengguna.');
-      return;
-    }
-
-    // 3. Ambil Public VAPID Key Anda
-    const publicVapidKey = 'BJKdEnjNr4C-Rc0WJi05pmu3Uf__jj941_2GiWesMmqRDM267mq3lfi--P7owdTfIDdEqNqNTV3xNe0bAQS_i8g';
-
-    // 4. Lakukan Subscribe ke PushManager
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
-    });
-
-    // 5. Kirim data langganan ke backend server kita
-    const userId = localStorage.getItem('kitachat_user_id'); // Sesuaikan dengan key storage login Anda
-    const sessionToken = localStorage.getItem('kitachat_session_token');
-
-    await fetch('/api/save-subscription', {
-      method: 'POST',
-      body: JSON.stringify(subscription),
-      headers: {
-        'Content-Type': 'application/json',
-        'x-user-id': userId,
-        'x-session-token': sessionToken
-      }
-    });
-
-    console.log('Berhasil berlangganan Web Push Notification!');
-  } catch (err) {
-    console.error('Gagal memproses Push Notification:', err);
-  }
-}
-
-// Panggil fungsi ini saat pengguna berhasil login atau saat aplikasi dimuat
-// Contoh: registerPushNotification();
-
-
 // ==========================================
 // EDIT PROFILE LOGIC (Name & Birthdate)
 // ==========================================
@@ -2168,7 +2128,6 @@ function openEditProfileModal() {
   const modal = document.getElementById('edit-profile-modal');
   if (!modal) return;
 
-  // Isi form dengan data user yang sedang aktif saat ini
   const nameInput = document.getElementById('edit-profile-name');
   const bdayInput = document.getElementById('edit-profile-birthdate');
 
@@ -2211,11 +2170,9 @@ async function handleUpdateProfile(event) {
     if (response.ok) {
       alert(data.message || 'Profil berhasil diperbarui.');
       
-      // Perbarui sesi lokal dengan data terbaru
       currentUser = data.user;
       localStorage.setItem(STORAGE_KEYS.user, JSON.stringify(currentUser));
       
-      // Perbarui tampilan antarmuka
       updateUserInterface();
       closeEditProfileModal();
     } else {
@@ -2226,7 +2183,6 @@ async function handleUpdateProfile(event) {
     alert('Terjadi kesalahan jaringan.');
   }
 }
-
 
 // ==========================================================
 // INITIALIZE
@@ -2242,7 +2198,6 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// Mencegah parameter sensitif tertinggal di URL browser
 if (window.location.search.includes('phone=') || window.location.search.includes('password=')) {
   window.history.replaceState({}, document.title, window.location.pathname);
 }
