@@ -660,18 +660,17 @@ function logout() {
 function initSupabaseCallListeners() {
   callChannel
     .on('broadcast', { event: 'webrtc_signal' }, ({ payload }) => {
-      // Pastikan pesan ini ditujukan untuk user yang sedang login saat ini
       if (!currentUser || String(payload.toUserId) !== String(currentUser.id)) return;
 
       switch (payload.type) {
         case 'offer':
-          handleIncomingCallFromSupabase(payload);
+          handleIncomingCall(payload); // Memanggil handler bawaan
           break;
         case 'answer':
-          handleCallAnsweredFromSupabase(payload);
+          handleCallAnswered(payload); // Memanggil handler bawaan
           break;
         case 'ice_candidate':
-          handleIceCandidateFromSupabase(payload);
+          handleIceCandidate(payload); // Memanggil handler bawaan
           break;
         case 'end_call':
           cleanupCall(false);
@@ -1910,16 +1909,21 @@ function clearChat() {
 }
 
 // ==========================================================
-// VoIP / WebRTC
+// VoIP / WebRTC (Optimized with Supabase Realtime Broadcast)
 // ==========================================================
 function createPeerConnection() {
   const connection = new RTCPeerConnection(rtcConfig);
 
   connection.onicecandidate = event => {
-    if (event.candidate && targetSocketId && socket) {
-      socket.emit('ice_candidate', {
-        targetSocketId,
-        candidate: event.candidate
+    if (event.candidate && targetUserId && currentUser) {
+      callChannel.send({
+        type: 'broadcast',
+        event: 'webrtc_signal',
+        payload: {
+          type: 'ice_candidate',
+          toUserId: targetUserId,
+          candidate: event.candidate
+        }
       });
     }
   };
@@ -1956,9 +1960,9 @@ function cleanupCall(notifyPeer = false) {
   }
 
   if (localStream) {
-  localStream.getTracks().forEach(track => {
-    track.stop();
-    track.enabled = false;
+    localStream.getTracks().forEach(track => {
+      track.stop();
+      track.enabled = false;
     });
     localStream = null;
   }
@@ -1973,8 +1977,15 @@ function cleanupCall(notifyPeer = false) {
   const modal = document.getElementById('call-modal');
   if (modal) modal.classList.add('hidden');
 
-  if (notifyPeer && targetUserId && socket) {
-    socket.emit('end_call', { toUserId: String(targetUserId) });
+  if (notifyPeer && targetUserId && currentUser) {
+    callChannel.send({
+      type: 'broadcast',
+      event: 'webrtc_signal',
+      payload: {
+        type: 'end_call',
+        toUserId: String(targetUserId)
+      }
+    });
   }
 
   targetSocketId = null;
@@ -2024,10 +2035,17 @@ async function startCall(peerUserId, peerName) {
     const offer = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offer);
 
-    socket.emit('call_user', {
-      toUserId: peerUserId,
-      callerName: currentUser.name,
-      offer
+    // Dikirim melalui Supabase Realtime Broadcast
+    await callChannel.send({
+      type: 'broadcast',
+      event: 'webrtc_signal',
+      payload: {
+        type: 'offer',
+        toUserId: peerUserId,
+        fromUserId: currentUser.id,
+        callerName: currentUser.name,
+        offer
+      }
     });
   } catch (error) {
     console.error('Error startCall:', error);
@@ -2094,9 +2112,15 @@ async function acceptCall() {
     const answer = await peerConnection.createAnswer();
     await peerConnection.setLocalDescription(answer);
 
-    socket.emit('make_answer', {
-      answer,
-      toSocketId: targetSocketId
+    // Dikirim melalui Supabase Realtime Broadcast
+    await callChannel.send({
+      type: 'broadcast',
+      event: 'webrtc_signal',
+      payload: {
+        type: 'answer',
+        toUserId: targetUserId,
+        answer
+      }
     });
   } catch (error) {
     console.error('Error acceptCall:', error);
