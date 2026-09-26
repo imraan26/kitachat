@@ -331,19 +331,26 @@
       <section class="chat-area">
 
         <!-- =========================
-             CHAT
-        ========================== -->
+            CHAT
+        ========================= -->
         <section
           id="content-chat"
           class="tab-content active"
           role="tabpanel"
           aria-hidden="false"
         >
+          <!-- Header Chat Terintegrasi (Digabung agar rapi dan tidak duplikat) -->
           <header class="chat-header">
             <h2>
               <i class="fa-solid fa-users-rectangle" aria-hidden="true"></i>
-              Grup Keluarga
+              Kitachat Keluarga
             </h2>
+            <div class="chat-header-actions">
+              <!-- Tombol Telepon Cepat -->
+              <button type="button" onclick="openCallMenu()" title="Telepon Keluarga" style="background:transparent; border:none; color:var(--primary-color); font-size:1.2rem; cursor:pointer;">
+                <i class="fa-solid fa-phone" aria-hidden="true"></i>
+              </button>
+            </div>
           </header>
 
           <div
@@ -410,7 +417,6 @@
                 <i class="fa-solid fa-microphone" aria-hidden="true"></i>
               </button>
 
-              
               <button
                 type="button"
                 class="send-button"
@@ -431,6 +437,7 @@
             </div>
           </div>
         </section>
+      </section>
 
         <!-- =========================
              ALBUM
