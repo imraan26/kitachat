@@ -1278,7 +1278,7 @@ async function deleteAlbumPhoto(photoId) {
 }
 
 // ==========================================================
-// AGENDA
+// AGENDA & BIRTHDAYS LOGIC
 // ==========================================================
 function toggleAgendaForm() {
   const form = document.getElementById('agenda-form-container');
@@ -1358,34 +1358,42 @@ async function handleCreateAgenda(event) {
 }
 
 async function loadAgendaAndBirthdays() {
+  // 1. Memuat Daftar Ulang Tahun Anggota (Format Kartu Grid: 4 Kolom Desktop, 2 Kolom Mobile)
   try {
-    const resUsers = await apiFetch('/api/users');
-    if (resUsers.ok) {
-      const users = await resUsers.json();
-      const bdayContainer = document.getElementById('birthday-list-container');
+    const response = await apiFetch('/api/family-birthdays');
+    const members = await parseJsonResponse(response);
+    const bdayContainer = document.getElementById('birthday-list-container');
 
-      if (bdayContainer) {
-        bdayContainer.replaceChildren();
-        const usersWithBday = users.filter(u => u.birthdate);
+    if (bdayContainer) {
+      if (!response.ok) throw new Error("Gagal mengambil data ulang tahun.");
 
-        if (usersWithBday.length === 0) {
-          bdayContainer.innerHTML = '<p style="font-size: 13px; color: gray;">Belum ada data tanggal lahir.</p>';
-        } else {
-          usersWithBday.forEach(user => {
-            const date = new Date(user.birthdate);
-            const bdate = date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long' });
-            const row = document.createElement('div');
-            row.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; font-size: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);';
-            row.innerHTML = `<span><b>${user.name}</b></span><span style="color:var(--primary-color); font-weight:600;"><i class="fa-solid fa-gift"></i> ${bdate}</span>`;
-            bdayContainer.appendChild(row);
-          });
-        }
+      if (members.length === 0) {
+        bdayContainer.innerHTML = `<p style="grid-column: span 4; text-align: center; color: #64748b; font-size: 13px;">Belum ada data anggota keluarga.</p>`;
+      } else {
+        bdayContainer.innerHTML = members.map(member => {
+          const formattedDate = member.birth_date ? formatDateIndo(member.birth_date) : "Tanggal belum diatur";
+          const avatarSrc = member.profile_picture || 'https://via.placeholder.com/150';
+
+          return `
+            <div class="birthday-card">
+              <img src="${avatarSrc}" alt="${member.name}" class="birthday-avatar">
+              <h4 class="birthday-name" title="${member.name}">${member.name}</h4>
+              <p class="birthday-date"><i class="fa-solid fa-cake-candles" style="color: #e74c3c;"></i> ${formattedDate}</p>
+              <span class="birthday-badge">Keluarga</span>
+            </div>
+          `;
+        }).join('');
       }
     }
   } catch (error) {
     console.warn('Gagal memuat data ulang tahun:', error);
+    const bdayContainer = document.getElementById('birthday-list-container');
+    if (bdayContainer) {
+      bdayContainer.innerHTML = `<p style="grid-column: span 4; text-align: center; color: #e74c3c; font-size: 13px;">Gagal memuat daftar ulang tahun.</p>`;
+    }
   }
 
+  // 2. Memuat Daftar Agenda Kegiatan Mendatang
   try {
     const resAgendas = await apiFetch('/api/agendas');
     if (resAgendas.ok) {
@@ -1433,6 +1441,11 @@ async function loadAgendaAndBirthdays() {
   }
 }
 
+function formatDateIndo(dateString) {
+  const options = { day: 'numeric', month: 'long' };
+  return new Date(dateString).toLocaleDateString('id-ID', options);
+}
+
 function toggleAgendaMenu(event, menuId) {
   event.stopPropagation();
 
@@ -1473,43 +1486,6 @@ async function deleteAgenda(id) {
   } catch (error) {
     console.error('Error delete agenda:', error);
     alert('Terjadi kesalahan jaringan.');
-  }
-}
-
-
-async function loadFamilyBirthdays() {
-  const container = document.getElementById('birthday-container');
-  if (!container) return;
-
-  try {
-    const response = await apiFetch('/api/family-birthdays');
-    const members = await parseJsonResponse(response);
-
-    if (!response.ok) throw new Error("Gagal mengambil data ulang tahun.");
-
-    if (members.length === 0) {
-      container.innerHTML = `<p style="grid-column: span 4; text-align: center; color: #64748b;">Belum ada data anggota keluarga.</p>`;
-      return;
-    }
-
-    container.innerHTML = members.map(member => {
-      // Format tanggal lahir (misal: 26 Januari) jika format dari DB YYYY-MM-DD
-      const formattedDate = member.birth_date ? formatDateIndo(member.birth_date) : "Tanggal belum diatur";
-      const avatarSrc = member.profile_picture || 'https://via.placeholder.com/150';
-
-      return `
-        <div class="birthday-card">
-          <img src="${avatarSrc}" alt="${member.name}" class="birthday-avatar">
-          <h4 class="birthday-name" title="${member.name}">${member.name}</h4>
-          <p class="birthday-date"><i class="fa-solid fa-cake-candles" style="color: #e74c3c;"></i> ${formattedDate}</p>
-          <span class="birthday-badge">Keluarga</span>
-        </div>
-      `;
-    }).join('');
-
-  } catch (error) {
-    console.error("Error loading birthdays:", error);
-    container.innerHTML = `<p style="grid-column: span 4; text-align: center; color: #e74c3c;">Gagal memuat daftar ulang tahun.</p>`;
   }
 }
 
