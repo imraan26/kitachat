@@ -564,21 +564,26 @@ app.get('/api/users', checkSingleDevice, async (req, res) => {
       ORDER BY name ASC
     `);
 
-    // Menyertakan status online berdasarkan activeUsers map
-    const usersWithStatus = result.rows.map(user => ({
-      ...user,
-      is_online: activeUsers.has(String(user.id))
-    }));
+    // Samarkan nomor telepon untuk anggota lain (kecuali akun sendiri)
+    const usersWithMaskedPhone = result.rows.map(user => {
+      let phone = user.phone || '';
+      if (phone.length > 6 && Number(req.userId) !== Number(user.id)) {
+        phone = phone.substring(0, 4) + '****' + phone.substring(phone.length - 3);
+      }
+      return {
+        ...user,
+        phone,
+        is_online: activeUsers.has(String(user.id))
+      };
+    });
 
-    return res.json(usersWithStatus);
+    return res.json(usersWithMaskedPhone);
   } catch (error) {
     console.error('Error mengambil users:', error);
-
-    return res.status(500).json({
-      error: 'Gagal memuat daftar keluarga.'
-    });
+    return res.status(500).json({ error: 'Gagal memuat daftar keluarga.' });
   }
 });
+
 
 // ==========================================
 // ALBUMS
