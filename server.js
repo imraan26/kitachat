@@ -891,6 +891,62 @@ app.post(
 );
 
 // ==========================================
+// UPDATE PROFILE (Name & Birthdate)
+// ==========================================
+app.put('/api/update-profile', checkSingleDevice, async (req, res) => {
+  const userId = req.userId;
+  let { name, birthdate } = req.body;
+
+  if (!name) {
+    return res.status(400).json({
+      error: 'Nama profil wajib diisi.'
+    });
+  }
+
+  name = String(name).trim();
+
+  if (name.length > 100) {
+    return res.status(400).json({
+      error: 'Nama maksimal 100 karakter.'
+    });
+  }
+
+  try {
+    const result = await pool.query(
+      `
+        UPDATE users
+        SET name = $1, birthdate = $2
+        WHERE id = $3
+        RETURNING id, phone, name, birthdate, photo_url
+      `,
+      [
+        escapeHTML(name),
+        birthdate || null,
+        userId
+      ]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        error: 'Pengguna tidak ditemukan.'
+      });
+    }
+
+    return res.json({
+      message: 'Informasi profil berhasil diperbarui.',
+      user: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error update profile:', error);
+
+    return res.status(500).json({
+      error: 'Terjadi kesalahan pada server.'
+    });
+  }
+});
+
+
+// ==========================================
 // MESSAGES
 // ==========================================
 
