@@ -1238,13 +1238,11 @@ async function handleCreateAgenda(event) {
     if (response.ok) {
       alert(data.message || 'Agenda berhasil dibuat.');
 
-      const titleInput = document.getElementById('agenda-title');
-      const dateInput = document.getElementById('agenda-date');
-      const descInput = document.getElementById('agenda-desc');
-
-      if (titleInput) titleInput.value = '';
-      if (dateInput) dateInput.value = '';
-      if (descInput) descInput.value = '';
+      // Reset form
+      ['agenda-title', 'agenda-date', 'agenda-desc'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
 
       const form = document.getElementById('agenda-form-container');
       const label = document.getElementById('agenda-toggle-label');
@@ -1265,6 +1263,7 @@ async function handleCreateAgenda(event) {
 }
 
 async function loadAgendaAndBirthdays() {
+  // --- BAGIAN ULANG TAHUN ---
   try {
     const resUsers = await apiFetch('/api/users');
     if (resUsers.ok) {
@@ -1273,35 +1272,17 @@ async function loadAgendaAndBirthdays() {
 
       if (bdayContainer) {
         bdayContainer.replaceChildren();
-
         const usersWithBday = users.filter(u => u.birthdate);
 
         if (usersWithBday.length === 0) {
-          bdayContainer.innerHTML =
-            '<p style="font-size: 13px; color: gray;">Belum ada data tanggal lahir.</p>';
+          bdayContainer.innerHTML = '<p style="font-size: 13px; color: gray;">Belum ada data tanggal lahir.</p>';
         } else {
           usersWithBday.forEach(user => {
             const date = new Date(user.birthdate);
-            const bdate = date.toLocaleDateString('id-ID', {
-              day: 'numeric',
-              month: 'long'
-            });
-
+            const bdate = date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long' });
             const row = document.createElement('div');
-            // Disesuaikan menjadi latar belakang var(--card-bg) tanpa garis hijau (clean)
-            row.style.cssText =
-              'display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; font-size: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);';
-
-            const name = document.createElement('span');
-            name.innerHTML = `<b>${user.name}</b>`;
-
-            const birthday = document.createElement('span');
-            birthday.style.color = 'var(--primary-color)';
-            birthday.style.fontWeight = '600';
-            birthday.innerHTML = `<i class="fa-solid fa-gift"></i> ${bdate}`;
-
-            row.appendChild(name);
-            row.appendChild(birthday);
+            row.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; font-size: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);';
+            row.innerHTML = `<span><b>${user.name}</b></span><span style="color:var(--primary-color); font-weight:600;"><i class="fa-solid fa-gift"></i> ${bdate}</span>`;
             bdayContainer.appendChild(row);
           });
         }
@@ -1311,7 +1292,8 @@ async function loadAgendaAndBirthdays() {
     console.warn('Gagal memuat data ulang tahun:', error);
   }
 
-    try {
+  // --- BAGIAN AGENDA ---
+  try {
     const resAgendas = await apiFetch('/api/agendas');
     if (resAgendas.ok) {
       const agendas = await resAgendas.json();
@@ -1321,62 +1303,26 @@ async function loadAgendaAndBirthdays() {
         agendaContainer.replaceChildren();
 
         if (agendas.length === 0) {
-          agendaContainer.innerHTML =
-            '<p style="font-size: 13px; color: gray;">Belum ada agenda kegiatan tercatat.</p>';
+          agendaContainer.innerHTML = '<p style="font-size: 13px; color: gray;">Belum ada agenda kegiatan tercatat.</p>';
         } else {
           agendas.forEach(item => {
-            const fDate = new Date(item.event_date).toLocaleDateString('id-ID', {
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric'
-            });
-
+            const fDate = new Date(item.event_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
             const card = document.createElement('div');
-            card.setAttribute('data-agenda-id', item.id); // Simpan ID untuk referensi hapus
-            card.style.cssText =
-              'padding: 14px 16px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; display: grid; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); position: relative;';
+            card.setAttribute('data-agenda-id', item.id);
+            card.style.cssText = 'padding: 14px 16px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; display: grid; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); position: relative;';
 
-            const header = document.createElement('div');
-            header.style.cssText = 'display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;';
-
-            const infoWrapper = document.createElement('div');
-            infoWrapper.style.cssText = 'display: flex; flex-direction: column; gap: 2px;';
-
-            const titleEl = document.createElement('h5');
-            titleEl.textContent = item.title;
-            titleEl.style.cssText = 'margin: 0; font-size: 15px; font-weight: 600; color: var(--text-light);';
-
-            const dateBadge = document.createElement('span');
-            dateBadge.textContent = fDate;
-            dateBadge.style.cssText = 'font-size: 12px; font-weight: bold; color: var(--primary-color); background: var(--primary-light); padding: 3px 8px; border-radius: 6px; width: fit-content;';
-
-            infoWrapper.appendChild(titleEl);
-            infoWrapper.appendChild(dateBadge);
-
-            // Tombol Hapus (Hanya muncul jika user adalah pemilik atau admin)
-            const actionWrapper = document.createElement('div');
             const isOwner = currentUser && (String(item.user_id) === String(currentUser.id));
             
-            if (isOwner) {
-                const delBtn = document.createElement('button');
-                delBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
-                delBtn.style.cssText = 'background: transparent; border: none; color: #e74c3c; cursor: pointer; padding: 4px; font-size: 14px; opacity: 0.7; transition: 0.2s;';
-                delBtn.onclick = () => deleteAgenda(item.id);
-                delBtn.onmouseover = () => delBtn.style.opacity = '1';
-                delBtn.onmouseout = () => delBtn.style.opacity = '0.7';
-                actionWrapper.appendChild(delBtn);
-            }
-
-            header.appendChild(infoWrapper);
-            header.appendChild(actionWrapper);
-
-            const desc = document.createElement('p');
-            desc.textContent = item.description || '';
-            desc.style.cssText = 'margin: 0; font-size: 13px; color: var(--text-muted); line-height: 1.4;';
-
-            card.appendChild(header);
-            if (item.description) card.appendChild(desc);
-
+            card.innerHTML = `
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <h5 style="margin: 0; font-size: 15px; font-weight: 600; color: var(--text-light);">${item.title}</h5>
+                  <span style="font-size: 12px; font-weight: bold; color: var(--primary-color); background: var(--primary-light); padding: 3px 8px; border-radius: 6px; width: fit-content;">${fDate}</span>
+                </div>
+                ${isOwner ? `<button onclick="deleteAgenda('${item.id}')" style="background:transparent; border:none; color:#e74c3c; cursor:pointer; padding:4px; font-size:14px; opacity:0.7;"><i class="fa-solid fa-trash-can"></i></button>` : ''}
+              </div>
+              ${item.description ? `<p style="margin: 0; font-size: 13px; color: var(--text-muted); line-height: 1.4;">${item.description}</p>` : ''}
+            `;
             agendaContainer.appendChild(card);
           });
         }
@@ -1385,8 +1331,10 @@ async function loadAgendaAndBirthdays() {
   } catch (error) {
     console.warn('Gagal memuat agenda:', error);
   }
+}
 
-  async function deleteAgenda(id) {
+// FUNGSI HAPUS (Ditempatkan di luar, agar global dan valid secara sintaks)
+async function deleteAgenda(id) {
   if (!confirm('Apakah Anda yakin ingin menghapus agenda ini?')) return;
 
   try {
@@ -1395,14 +1343,12 @@ async function loadAgendaAndBirthdays() {
     });
 
     if (response.ok) {
-      // Hapus elemen secara langsung dari UI agar cepat
       const card = document.querySelector(`[data-agenda-id="${id}"]`);
       if (card) {
         card.style.opacity = '0';
         card.style.transform = 'scale(0.9)';
         setTimeout(() => card.remove(), 200);
       }
-      console.log('Agenda berhasil dihapus');
     } else {
       const data = await response.json();
       alert(data.error || 'Gagal menghapus agenda.');
