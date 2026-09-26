@@ -759,21 +759,21 @@ async function sendMessage() {
 
 
 // ==========================================================
-// VOICE NOTE RECORDING LOGIC (Final Optimized)
+// VOICE NOTE RECORDING LOGIC (Optimized for Kitachat)
 // ==========================================================
-let mediaRecorder;
+let mediaRecorder = null;
 let audioChunks = [];
 
 async function startRecording() {
   try {
-    // 1. Cek dukungan API
+    // 1. Cek dukungan API peramban
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error("Browser Anda tidak mendukung perekaman audio.");
+      throw new Error("Browser Anda tidak mendukung perekaman audio.");
     }
 
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     
-    // 2. Pilih MIME Type terbaik (Urutan: Chrome -> Android -> iOS)
+    // 2. Pilih MIME Type terbaik lintas platform (Chrome -> Android -> iOS)
     const mimeTypes = [
       'audio/webm;codecs=opus', 
       'audio/webm', 
@@ -785,25 +785,29 @@ async function startRecording() {
     const selectedMime = mimeTypes.find(mime => MediaRecorder.isTypeSupported(mime)) || '';
     console.log("Using MIME type:", selectedMime);
 
-    mediaRecorder = new MediaRecorder(stream, { mimeType: selectedMime });
+    // Inisialisasi MediaRecorder dengan opsi aman
+    mediaRecorder = selectedMime ? new MediaRecorder(stream, { mimeType: selectedMime }) : new MediaRecorder(stream);
     audioChunks = [];
 
     mediaRecorder.ondataavailable = (event) => {
-      if (event.data && event.data.size > 0) audioChunks.push(event.data);
+      if (event.data && event.data.size > 0) {
+        audioChunks.push(event.data);
+      }
     };
     
     mediaRecorder.onstop = async () => {
-      const audioBlob = new Blob(audioChunks, { type: selectedMime });
+      const activeMime = mediaRecorder.mimeType || selectedMime || 'audio/webm';
+      const audioBlob = new Blob(audioChunks, { type: activeMime });
       
-      // Deteksi ekstensi berdasarkan format yang digunakan
+      // Deteksi ekstensi file berdasarkan format aktif
       let extension = 'wav'; 
-      if (selectedMime.includes('webm')) extension = 'webm';
-      else if (selectedMime.includes('mp4') || selectedMime.includes('aac')) extension = 'm4a';
-      else if (selectedMime.includes('ogg')) extension = 'ogg';
+      if (activeMime.includes('webm')) extension = 'webm';
+      else if (activeMime.includes('mp4') || activeMime.includes('aac')) extension = 'm4a';
+      else if (activeMime.includes('ogg')) extension = 'ogg';
 
-      const file = new File([audioBlob], `voicenote-${Date.now()}.${extension}`, { type: selectedMime });
+      const file = new File([audioBlob], `voicenote-${Date.now()}.${extension}`, { type: activeMime });
       
-      // Hentikan mic segera setelah rekaman selesai
+      // Hentikan mikrofon segera setelah rekaman selesai
       stream.getTracks().forEach(track => track.stop());
       
       await sendVoiceNote(file);
@@ -812,22 +816,25 @@ async function startRecording() {
     // 3. Mulai merekam
     mediaRecorder.start();
     
-    // Update UI
+    // Update UI tombol ke mode 'Sedang Merekam' (Berubah jadi ikon STOP merah/primer)
     const micBtn = document.getElementById('mic-btn');
     if (micBtn) {
         micBtn.classList.add('recording-active');
-        micBtn.innerHTML = '<i class="fa-solid fa-stop"></i>'; // Ubah ikon ke STOP
+        micBtn.innerHTML = '<i class="fa-solid fa-stop" style="color: #e74c3c;"></i>'; 
+        micBtn.title = "Ketuk untuk berhenti dan kirim";
     }
   } catch (err) {
     console.error("Recording Error:", err);
-    alert(err.message || "Gagal mengakses mikrofon.");
+    alert(err.message || "Gagal mengakses mikrofon. Pastikan izin mikrofon diaktifkan.");
+    resetMicButtonUI();
   }
 }
 
 async function sendVoiceNote(file) {
-  // Pastikan variabel currentUser tersedia (dari sistem login Anda)
+  // Pastikan variabel currentUser tersedia dari sesi aktif
   if (typeof currentUser === 'undefined' || !currentUser) {
     alert('Silakan login terlebih dahulu!');
+    resetMicButtonUI();
     return;
   }
   
@@ -841,22 +848,31 @@ async function sendVoiceNote(file) {
       body: formData
     });
     
-    if (!response.ok) throw new Error("Gagal mengunggah ke server.");
+    const data = await parseJsonResponse(response);
+    if (!response.ok) {
+      throw new Error(data.error || "Gagal mengunggah ke server.");
+    }
     console.log("Voice note sent successfully");
   } catch (error) {
     alert("Gagal mengirim Voice Note: " + error.message);
   } finally {
-    // Reset UI tombol ke ikon semula
-    const micBtn = document.getElementById('mic-btn');
-    if (micBtn) {
-        micBtn.classList.remove('recording-active');
-        micBtn.innerHTML = '<i class="fa-solid fa-microphone"></i>';
-        micBtn.style.color = '';
-    }
+    resetMicButtonUI();
   }
 }
 
-// Event Listener Utama
+// Fungsi pembantu untuk mereset UI tombol mikrofon
+function resetMicButtonUI() {
+  const micBtn = document.getElementById('mic-btn');
+  if (micBtn) {
+      micBtn.classList.remove('recording-active');
+      micBtn.innerHTML = '<i class="fa-solid fa-microphone"></i>';
+      micBtn.style.color = '';
+      micBtn.title = "Kirim pesan suara";
+      micBtn.disabled = false; // Pastikan tombol selalu aktif
+  }
+}
+
+// Event Listener Utama untuk Tombol Mikrofon (Mulai & Berhenti)
 document.addEventListener('click', (e) => {
     const btn = e.target.closest('#mic-btn');
     if (!btn) return;
@@ -867,7 +883,6 @@ document.addEventListener('click', (e) => {
         startRecording();
     }
 });
-
 
 // ==========================================================
 // ALBUM
