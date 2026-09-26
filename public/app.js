@@ -693,7 +693,7 @@ async function sendMessage() {
 }
 
 // ==========================================================
-// VOICE NOTE RECORDING LOGIC
+// VOICE NOTE RECORDING LOGIC (Cross-Platform Compatible)
 // ==========================================================
 let mediaRecorder;
 let audioChunks = [];
@@ -701,50 +701,88 @@ let audioChunks = [];
 async function startRecording() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder = new MediaRecorder(stream);
+    
+    // Tentukan format yang didukung oleh browser (iOS vs Android/Desktop)
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm') 
+                     ? 'audio/webm' 
+                     : 'audio/mp4'; // Fallback untuk iOS/Safari
+
+    mediaRecorder = new MediaRecorder(stream, { mimeType });
     audioChunks = [];
 
-    mediaRecorder.ondataavailable = (event) => audioChunks.push(event.data);
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) audioChunks.push(event.data);
+    };
     
     mediaRecorder.onstop = async () => {
-      const audioBlob = new Blob(audioChunks, { type: 'audio/mpeg' });
-      const file = new File([audioBlob], "voicenote.mp3", { type: 'audio/mpeg' });
+      const audioBlob = new Blob(audioChunks, { type: mimeType });
+      
+      // Gunakan ekstensi yang sesuai berdasarkan mimeType
+      const extension = mimeType.includes('webm') ? 'webm' : 'm4a';
+      const file = new File([audioBlob], `voicenote.${extension}`, { type: mimeType });
+      
       await sendVoiceNote(file);
+      
+      // Hentikan semua track mic untuk menghemat baterai & privasi
       stream.getTracks().forEach(track => track.stop());
     };
 
     mediaRecorder.start();
-    document.getElementById('mic-btn').style.color = 'red';
+    
+    // Visual feedback
+    const micBtn = document.getElementById('mic-btn');
+    if (micBtn) {
+        micBtn.style.color = '#ff4444';
+        micBtn.classList.add('recording-active'); // Bisa ditambah animasi CSS
+    }
   } catch (err) {
-    alert("Izin mikrofon ditolak atau tidak didukung.");
+    console.error("Mic Error:", err);
+    alert("Izin mikrofon ditolak atau perangkat tidak mendukung perekaman.");
   }
 }
 
 async function sendVoiceNote(file) {
-  if (!currentUser) return alert('Silakan login!');
+  if (typeof currentUser === 'undefined' || !currentUser) {
+    return alert('Silakan login terlebih dahulu!');
+  }
   
   const formData = new FormData();
   formData.append('media', file);
-  formData.append('client_time', new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+  formData.append('client_time', new Date().toLocaleTimeString('id-ID', { 
+    hour: '2-digit', 
+    minute: '2-digit' 
+  }));
 
   try {
+    // Pastikan fungsi apiFetch Anda sudah terdefinisi
     const response = await apiFetch('/api/send-message', {
       method: 'POST',
       body: formData
     });
-    if (!response.ok) alert('Gagal mengirim Voice Note.');
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      alert(errorData.error || 'Gagal mengirim Voice Note.');
+    }
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error pengiriman:', error);
+    alert('Terjadi kesalahan jaringan.');
   }
 }
 
-// Event listener untuk tombol mic
-document.getElementById('mic-btn')?.addEventListener('click', () => {
-  if (mediaRecorder && mediaRecorder.state === "recording") {
-    mediaRecorder.stop();
-    document.getElementById('mic-btn').style.color = '';
-  } else {
-    startRecording();
+// Event listener yang aman
+document.addEventListener('DOMContentLoaded', () => {
+  const micBtn = document.getElementById('mic-btn');
+  if (micBtn) {
+    micBtn.addEventListener('click', () => {
+      if (mediaRecorder && mediaRecorder.state === "recording") {
+        mediaRecorder.stop();
+        micBtn.style.color = '';
+        micBtn.classList.remove('recording-active');
+      } else {
+        startRecording();
+      }
+    });
   }
 });
 
