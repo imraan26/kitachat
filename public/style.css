@@ -171,12 +171,12 @@ form {
   gap: 12px;
 }
 
-fform input {
+form input {
   width: 100%;
   padding: 12px 14px;
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  background: var(--card-bg); /* Pastikan input selalu bersih putih/gelap konsisten */
+  background: var(--card-bg);
   color: var(--text-light);
   font-size: 0.95rem;
   outline: none;
@@ -305,14 +305,14 @@ form input:focus {
   display: none !important;
 }
 
-/* Pastikan kontainer utama chat-area dan tab-content mengunci tinggi dan aktifkan scroll */
+/* Kontainer utama chat-area dan tab-content */
 .chat-area {
   flex: 1;
   display: flex;
   flex-direction: column;
   background: var(--bg-light);
   height: 100%;
-  min-height: 0; /* Kunci penting agar flex item bisa dibatasi tingginya */
+  min-height: 0;
   overflow: hidden;
   position: relative;
 }
@@ -321,16 +321,16 @@ form input:focus {
   display: flex;
   flex-direction: column;
   height: 100%;
-  min-height: 0; /* Kunci penting agar flex item bisa dibatasi tingginya */
+  min-height: 0;
   width: 100%;
   overflow: hidden;
 }
 
 .tab-scroll-content {
   flex: 1;
-  min-height: 0; /* Kunci agar area scroll aktif */
-  overflow-y: auto; /* Mengaktifkan scroll vertikal */
-  -webkit-overflow-scrolling: touch; /* Scroll mulus di perangkat iOS/Mobile */
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -539,7 +539,7 @@ form input:focus {
   max-width: 650px;
   margin: 0 auto;
   width: 100%;
-  overflow: visible !important; /* Diubah dari hidden agar form dan pratinjau foto tidak terpotong */
+  overflow: visible !important;
   display: flex;
   flex-direction: column;
 }
@@ -593,7 +593,7 @@ form input:focus {
   gap: 12px;
   padding: 20px;
   border-top: 1px solid var(--border-color);
-  background: var(--card-bg); /* Diubah dari bg-soft agar bersih tanpa kotak warna berbeda */
+  background: var(--card-bg);
 }
 
 #photo-preview {
@@ -998,8 +998,10 @@ form input:focus {
     flex-direction: column;
     flex: 1;
     width: 100%;
+    background: var(--card-bg); /* Memastikan bersih putih */
   }
 
+  /* OPTIMALISASI MENU ITEM: Clean WhatsApp Style (Background putih, teks hitam, tanpa blok abu-abu) */
   .desktop-sidebar .menu-item {
     flex-direction: row;
     justify-content: flex-start;
@@ -1011,11 +1013,34 @@ form input:focus {
     font-size: 0.96rem;
     gap: 12px;
     text-align: left;
+    background: var(--card-bg);
+    color: var(--text-light);
+    transition: background 0.15s ease, color 0.15s ease;
   }
 
   .desktop-sidebar .menu-item i {
     width: 18px;
     font-size: 1.1rem;
+    color: var(--text-muted);
+  }
+
+  .desktop-sidebar .menu-item:hover {
+    background: var(--bg-soft);
+    color: var(--primary-color);
+  }
+
+  .desktop-sidebar .menu-item:hover i {
+    color: var(--primary-color);
+  }
+
+  .desktop-sidebar .menu-item.active {
+    background: var(--primary-light);
+    color: var(--primary-color);
+    font-weight: 600;
+  }
+
+  .desktop-sidebar .menu-item.active i {
+    color: var(--primary-color);
   }
 
   .sidebar-menu.mobile-bottom-nav {
@@ -1025,16 +1050,16 @@ form input:focus {
   .chat-area {
     flex: 1;
     height: 100%;
-    min-height: 0; /* WAJIB ADA agar scroll aktif */
-    overflow: hidden; /* WAJIB ADA agar scroll aktif */
+    min-height: 0;
+    overflow: hidden;
   }
 
   .chat-area .tab-content {
     height: 100%;
-    min-height: 0; /* WAJIB ADA agar scroll aktif */
+    min-height: 0;
     display: flex;
     flex-direction: column;
-    overflow: hidden; /* WAJIB ADA agar scroll aktif */
+    overflow: hidden;
   }
 }
 
@@ -1049,13 +1074,13 @@ form input:focus {
 
   .chat-area {
     height: calc(100vh - 60px - 58px);
-    min-height: 0; /* WAJIB ADA agar scroll aktif */
-    overflow: hidden; /* WAJIB ADA agar scroll aktif */
+    min-height: 0;
+    overflow: hidden;
   }
 
   .chat-area .tab-content {
-    min-height: 0; /* WAJIB ADA agar scroll aktif */
-    overflow: hidden; /* WAJIB ADA agar scroll aktif */
+    min-height: 0;
+    overflow: hidden;
   }
 
   .sidebar-menu.mobile-bottom-nav {
