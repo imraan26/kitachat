@@ -909,6 +909,61 @@ io.on('connection', socket => {
   activeUsers.set(socket.userId, socket.id);
   io.emit('online_users_update', Array.from(activeUsers.keys()));
 
+  // ==========================================
+  // WEBRTC SIGNALING VIA SOCKET.IO
+  // ==========================================
+  socket.on('call_user', data => {
+    const { toUserId, callId, offer, callerName } = data;
+    const targetSocketId = activeUsers.get(String(toUserId));
+    
+    if (targetSocketId) {
+      io.to(targetSocketId).emit('incoming_call', {
+        callId,
+        fromUserId: socket.userId,
+        callerName,
+        offer
+      });
+    }
+  });
+
+  socket.on('call_answer', data => {
+    const { toUserId, callId, answer } = data;
+    const targetSocketId = activeUsers.get(String(toUserId));
+    
+    if (targetSocketId) {
+      io.to(targetSocketId).emit('call_answered', {
+        callId,
+        fromUserId: socket.userId,
+        answer
+      });
+    }
+  });
+
+  socket.on('call_ice_candidate', data => {
+    const { toUserId, callId, candidate } = data;
+    const targetSocketId = activeUsers.get(String(toUserId));
+    
+    if (targetSocketId) {
+      io.to(targetSocketId).emit('ice_candidate', {
+        callId,
+        fromUserId: socket.userId,
+        candidate
+      });
+    }
+  });
+
+  socket.on('end_call', data => {
+    const { toUserId, callId } = data;
+    const targetSocketId = activeUsers.get(String(toUserId));
+    
+    if (targetSocketId) {
+      io.to(targetSocketId).emit('end_call', {
+        callId,
+        fromUserId: socket.userId
+      });
+    }
+  });
+
   socket.on('disconnect', () => {
     if (activeUsers.get(socket.userId) === socket.id) {
       activeUsers.delete(socket.userId);
