@@ -4,6 +4,17 @@ let failedLoginAttempts = 0;
 let isLoggingOut = false;
 let socketBound = false;
 
+// Ganti dengan URL dan Anon Key dari Project Settings Supabase Anda
+const SUPABASE_URL = 'https://cxfukktxihfkfolnbhlo.supabase.co';
+const SUPABASE_ANON_KEY = 'https://cxfukktxihfkfolnbhlo.supabase.co/rest/v1/';
+
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Buat channel broadcast khusus panggilan keluarga
+const callChannel = supabaseClient.channel('kitachat-family-calls', {
+  config: { broadcast: { self: false } }
+});
+
 const STORAGE_KEYS = {
   user: 'kitachat_user',
   token: 'kitachat_session_token',
