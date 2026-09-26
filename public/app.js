@@ -788,7 +788,7 @@ async function sendMessage() {
 }
 
 // ==========================================================
-// VOICE NOTE RECORDING LOGIC
+// VOICE NOTE RECORDING LOGIC (Optimized for Cross-Platform iOS/Android/Web)
 // ==========================================================
 let mediaRecorder = null;
 let audioChunks = [];
@@ -810,7 +810,9 @@ async function startRecording() {
     ];
     
     const selectedMime = mimeTypes.find(mime => MediaRecorder.isTypeSupported(mime)) || '';
-    mediaRecorder = selectedMime ? new MediaRecorder(stream, { mimeType: selectedMime }) : new MediaRecorder(stream);
+    
+    const options = selectedMime ? { mimeType: selectedMime } : {};
+    mediaRecorder = new MediaRecorder(stream, options);
     audioChunks = [];
 
     mediaRecorder.ondataavailable = (event) => {
@@ -834,7 +836,9 @@ async function startRecording() {
       await sendVoiceNote(file);
     };
 
-    mediaRecorder.start();
+    // OPTIMASI UTAMA: Berikan timeslice (250ms) pada mediaRecorder.start(250)
+    // Ini membantu menyusun metadata durasi file agar mulus diputar di iOS/Safari.
+    mediaRecorder.start(250);
     
     const micBtn = document.getElementById('mic-btn');
     if (micBtn) {
