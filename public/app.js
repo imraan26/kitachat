@@ -627,12 +627,15 @@ function renderIncomingMessage(message, silent = false) {
   const sender = document.createElement('div');
   sender.className = 'chat-sender';
   sender.textContent = message.name || 'Keluarga';
+  bubble.appendChild(sender);
 
-  const text = document.createElement('div');
-  text.className = 'chat-text';
-  text.textContent = message.message || (message.image_url ? '(Gambar)' : message.audio_url ? '(Voice Note)' : '(Media)');
-
-  bubble.append(sender, text);
+  // Hanya tampilkan teks jika pesan teks benar-benar ada dan tidak kosong (Menghilangkan label (Gambar)/(Voice Note))
+  if (message.message && message.message.trim() !== '') {
+    const text = document.createElement('div');
+    text.className = 'chat-text';
+    text.textContent = message.message;
+    bubble.appendChild(text);
+  }
 
   if (message.reply_to_id && message.reply_text) {
     const reply = document.createElement('div');
@@ -640,17 +643,20 @@ function renderIncomingMessage(message, silent = false) {
     reply.textContent = `Balasan: ${message.reply_text}`;
     bubble.appendChild(reply);
   }
+  
   if (message.image_url) {
     const img = document.createElement('img');
     img.src = message.image_url;
     img.style.cssText = 'max-width:220px; border-radius:10px; display:block; margin-top:5px;';
     bubble.appendChild(img);
   }
+  
   if (message.audio_url) {
     const audio = document.createElement('audio');
     audio.controls = true;
     audio.src = message.audio_url;
-    audio.style.marginTop = '5px';
+    // Mengatur ukuran pemutar audio agar lebih rapi di dalam gelembung chat
+    audio.style.cssText = 'margin-top: 5px; width: 100%; max-width: 230px; height: 36px;';
     bubble.appendChild(audio);
   }
 
@@ -780,7 +786,6 @@ async function sendMessage() {
     alert('Gagal mengirim pesan.');
   }
 }
-
 
 // ==========================================================
 // VOICE NOTE RECORDING LOGIC
