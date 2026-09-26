@@ -4,25 +4,6 @@ let failedLoginAttempts = 0;
 let isLoggingOut = false;
 let socketBound = false;
 
-// ==========================================================
-// SUPABASE REALTIME CONFIGURATION
-// ==========================================================
-const SUPABASE_URL = 'https://cxfukktxihfkfolnbhlo.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN4ZnVra3R4aWhma2ZvbG5iaGxvIicucm9sZSI6ImFub24iLCJpYXQiOjE3OTA0MzIyNjIsImV4cCI6MjEwNjAwODI2Mn0.6q0n_W6pqV74xmHg_VrjNfepL_QnGGlzoL9XYXWCUdY'; 
-
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-// Channel broadcast khusus panggilan keluarga dengan konfigurasi privat & ack
-const callChannel = supabaseClient.channel('kitachat-family-calls', {
-  config: {
-    private: true,
-    broadcast: {
-      self: false,
-      ack: true
-    }
-  }
-});
-
 const STORAGE_KEYS = {
   user: 'kitachat_user',
   token: 'kitachat_session_token',
@@ -47,8 +28,6 @@ let activeCallId = null;
 let iceCandidateQueue = [];
 let incomingOffer = null;
 let acceptingCall = false;
-let callChannelReady = false;
-let callListenersInitialized = false;
 
 const MAX_ICE_CANDIDATES = 64;
 const MAX_PENDING_ICE_CALLS = 20;
@@ -123,35 +102,32 @@ function rememberIceBeforeOffer(data) {
   }
 }
 
-async function sendCallSignal(type, toUserId, extraPayload = {}) {
-  if (!currentUser?.id || !activeCallId || !callChannelReady) {
+function sendCallSignal(type, toUserId, extraPayload = {}) {
+  if (!currentUser?.id || !activeCallId || !socket || !socket.connected) {
     return false;
   }
 
   const payload = {
     ...extraPayload,
-    type,
     callId: String(activeCallId),
-    fromUserId: normalizeCallUserId(currentUser.id),
     toUserId: normalizeCallUserId(toUserId)
   };
 
   if (!payload.toUserId) return false;
 
-  try {
-    const result = await callChannel.send({
-      type: 'broadcast',
-      event: 'webrtc_signal',
-      payload
-    });
+  let eventName = '';
+  if (type === 'offer') eventName = 'call_user';
+  else if (type === 'answer') eventName = 'call_answer';
+  else if (type === 'ice_candidate') eventName = 'call_ice_candidate';
+  else if (type === 'end_call') eventName = 'end_call';
 
-    if (result !== 'ok') {
-      console.warn(`Broadcast ${type} tidak terkonfirmasi:`, result);
-      return false;
-    }
+  if (!eventName) return false;
+
+  try {
+    socket.emit(eventName, payload);
     return true;
   } catch (error) {
-    console.error(`Gagal mengirim sinyal ${type}:`, error);
+    console.error(`Gagal mengirim sinyal ${type} via Socket.IO:`, error);
     return false;
   }
 }
@@ -222,7 +198,7 @@ if (savedSession.user) {
 }
 
 // ==========================================================
-// SOCKET.IO
+// SOCKET.IO & SIGNALING LISTENERS
 // ==========================================================
 function createSocket() {
   const token = localStorage.getItem(STORAGE_KEYS.token);
@@ -289,6 +265,23 @@ function registerSocketEvents() {
   });
 
   socket.on('chat_cleared', clearChatContainer);
+
+  // WebRTC Signaling Listeners via Socket.IO
+  socket.on('incoming_call', data => {
+    handleIncomingCall(data);
+  });
+
+  socket.on('call_answered', data => {
+    void handleCallAnswered(data);
+  });
+
+  socket.on('ice_candidate', data => {
+    void handleIceCandidate(data);
+  });
+
+  socket.on('end_call', () => {
+    cleanupCall(false);
+  });
 }
 
 function connectAuthenticatedSocket() {
@@ -728,7 +721,7 @@ function logout() {
   if (isLoggingOut) return;
   isLoggingOut = true;
 
-  cleanupCall(false);
+  cleanupCall(true);
 
   if (socket) {
     socket.disconnect();
@@ -1947,7 +1940,7 @@ function clearChat() {
 }
 
 // ==========================================================
-// WEBRTC & VoIP CONFIGURATION (SUPABASE REALTIME BROADCAST)
+// WEBRTC & VoIP CONFIGURATION (SOCKET.IO SIGNALING)
 // ==========================================================
 function createPeerConnection(expectedCallId = activeCallId) {
   const connection = new RTCPeerConnection(rtcConfig);
@@ -2060,8 +2053,8 @@ async function startCall(peerUserId, peerName) {
     return;
   }
 
-  if (!callChannelReady) {
-    alert('Koneksi panggilan belum siap. Silakan coba lagi.');
+  if (!socket || !socket.connected) {
+    alert('Koneksi socket belum siap. Silakan coba lagi.');
     return;
   }
 
@@ -2153,8 +2146,6 @@ function handleIncomingCall(data) {
     !data ||
     !data.callId ||
     !data.fromUserId ||
-    !data.toUserId ||
-    normalizeCallUserId(data.toUserId) !== normalizeCallUserId(currentUser.id) ||
     normalizeCallUserId(data.fromUserId) === normalizeCallUserId(currentUser.id) ||
     !isValidCallDescription(data.offer, 'offer')
   ) {
@@ -2202,7 +2193,8 @@ async function acceptCall() {
     !activeCallId ||
     !targetUserId ||
     acceptingCall ||
-    !callChannelReady
+    !socket ||
+    !socket.connected
   ) {
     return;
   }
@@ -2322,8 +2314,7 @@ async function handleIceCandidate(data) {
   if (
     !data ||
     !data.callId ||
-    !data.candidate ||
-    normalizeCallUserId(data.toUserId) !== normalizeCallUserId(currentUser?.id)
+    !data.candidate
   ) {
     return;
   }
@@ -2357,68 +2348,6 @@ async function handleIceCandidate(data) {
   } catch (error) {
     console.warn('Error kandidat ICE:', error);
   }
-}
-
-// ==========================================================
-// SUPABASE REALTIME CALL LISTENERS (OPTIMIZED)
-// ==========================================================
-function initSupabaseCallListeners() {
-  if (callListenersInitialized) return;
-  callListenersInitialized = true;
-
-  callChannel
-    .on('broadcast', { event: 'webrtc_signal' }, message => {
-      const payload = message?.payload;
-
-      if (
-        !currentUser?.id ||
-        !payload ||
-        typeof payload !== 'object' ||
-        normalizeCallUserId(payload.toUserId) !== normalizeCallUserId(currentUser.id)
-      ) {
-        return;
-      }
-
-      if (payload.type === 'offer') {
-        handleIncomingCall(payload);
-        return;
-      }
-
-      if (payload.type === 'ice_candidate') {
-        void handleIceCandidate(payload);
-        return;
-      }
-
-      if (
-        !activeCallId ||
-        String(payload.callId) !== String(activeCallId) ||
-        normalizeCallUserId(payload.fromUserId) !== normalizeCallUserId(targetUserId)
-      ) {
-        return;
-      }
-
-      switch (payload.type) {
-        case 'answer':
-          void handleCallAnswered(payload);
-          break;
-        case 'end_call':
-          cleanupCall(false);
-          break;
-        default:
-          break;
-      }
-    })
-    .subscribe((status, error) => {
-      callChannelReady = status === 'SUBSCRIBED';
-
-      if (status === 'SUBSCRIBED') {
-        console.log('Terhubung ke Supabase Realtime Call Channel!');
-      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        console.error('Realtime call channel bermasalah:', error || status);
-      } else if (status === 'CLOSED') {
-        console.warn('Realtime call channel tertutup.');
-      }
-    });
 }
 
 // ==========================================================
@@ -2558,9 +2487,6 @@ window.addEventListener('DOMContentLoaded', () => {
   } else {
     showAuthScreen();
   }
-
-  // AKTIFKAN LISTENER SUPABASE REALTIME YANG TELAH DIOPTIMALKAN
-  initSupabaseCallListeners();
 });
 
 if (window.location.search.includes('phone=') || window.location.search.includes('password=')) {
