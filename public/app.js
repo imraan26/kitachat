@@ -1476,6 +1476,54 @@ async function deleteAgenda(id) {
   }
 }
 
+
+async function loadFamilyBirthdays() {
+  const container = document.getElementById('birthday-container');
+  if (!container) return;
+
+  try {
+    const response = await apiFetch('/api/family-birthdays');
+    const members = await parseJsonResponse(response);
+
+    if (!response.ok) throw new Error("Gagal mengambil data ulang tahun.");
+
+    if (members.length === 0) {
+      container.innerHTML = `<p style="grid-column: span 4; text-align: center; color: #64748b;">Belum ada data anggota keluarga.</p>`;
+      return;
+    }
+
+    container.innerHTML = members.map(member => {
+      // Format tanggal lahir (misal: 26 Januari) jika format dari DB YYYY-MM-DD
+      const formattedDate = member.birth_date ? formatDateIndo(member.birth_date) : "Tanggal belum diatur";
+      const avatarSrc = member.profile_picture || 'https://via.placeholder.com/150';
+
+      return `
+        <div class="birthday-card">
+          <img src="${avatarSrc}" alt="${member.name}" class="birthday-avatar">
+          <h4 class="birthday-name" title="${member.name}">${member.name}</h4>
+          <p class="birthday-date"><i class="fa-solid fa-cake-candles" style="color: #e74c3c;"></i> ${formattedDate}</p>
+          <span class="birthday-badge">Keluarga</span>
+        </div>
+      `;
+    }).join('');
+
+  } catch (error) {
+    console.error("Error loading birthdays:", error);
+    container.innerHTML = `<p style="grid-column: span 4; text-align: center; color: #e74c3c;">Gagal memuat daftar ulang tahun.</p>`;
+  }
+}
+
+// Helper untuk format tanggal Indonesia (opsional)
+function formatDateIndo(dateString) {
+  const options = { day: 'numeric', month: 'long' };
+  return new Date(dateString).toLocaleDateString('id-ID', options);
+}
+
+// Panggil fungsi saat tab Agenda dibuka atau saat halaman dimuat
+document.addEventListener('DOMContentLoaded', () => {
+  loadFamilyBirthdays();
+});
+
 // ==========================================================
 // KELUARGA (FAMILY DIRECTORY DENGAN STATUS ONLINE)
 // ==========================================================
