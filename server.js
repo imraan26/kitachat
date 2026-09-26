@@ -772,6 +772,20 @@ app.post('/api/agendas', checkSingleDevice, async (req, res) => {
   }
 });
 
+// Endpoint untuk mengambil daftar ulang tahun keluarga secara otomatis
+app.get('/api/family-birthdays', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, name, profile_picture, birth_date FROM users ORDER BY birth_date ASC'
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error fetching birthdays:", err);
+    res.status(500).json({ error: "Gagal memuat data ulang tahun." });
+  }
+});
+
+
 // ==========================================================
 // AGENDA (DELETE)
 // ==========================================================
