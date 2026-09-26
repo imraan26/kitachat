@@ -1311,7 +1311,7 @@ async function loadAgendaAndBirthdays() {
     console.warn('Gagal memuat data ulang tahun:', error);
   }
 
-  try {
+    try {
     const resAgendas = await apiFetch('/api/agendas');
     if (resAgendas.ok) {
       const agendas = await resAgendas.json();
@@ -1332,39 +1332,47 @@ async function loadAgendaAndBirthdays() {
             });
 
             const card = document.createElement('div');
-            // Garis hijau pinggir dihapus dan diganti kartu bersih standar
+            card.setAttribute('data-agenda-id', item.id); // Simpan ID untuk referensi hapus
             card.style.cssText =
-              'padding: 14px 16px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; display: grid; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);';
+              'padding: 14px 16px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; display: grid; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); position: relative;';
 
             const header = document.createElement('div');
-            header.style.display = 'flex';
-            header.style.justifyContent = 'space-between';
-            header.style.alignItems = 'center';
+            header.style.cssText = 'display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;';
+
+            const infoWrapper = document.createElement('div');
+            infoWrapper.style.cssText = 'display: flex; flex-direction: column; gap: 2px;';
 
             const titleEl = document.createElement('h5');
             titleEl.textContent = item.title;
-            titleEl.style.margin = '0';
-            titleEl.style.fontSize = '15px';
-            titleEl.style.fontWeight = '600';
-            titleEl.style.color = 'var(--text-light)';
+            titleEl.style.cssText = 'margin: 0; font-size: 15px; font-weight: 600; color: var(--text-light);';
 
             const dateBadge = document.createElement('span');
             dateBadge.textContent = fDate;
-            dateBadge.style.fontSize = '12px';
-            dateBadge.style.fontWeight = 'bold';
-            dateBadge.style.color = 'var(--primary-color)';
-            dateBadge.style.background = 'var(--primary-light)';
-            dateBadge.style.padding = '3px 8px';
-            dateBadge.style.borderRadius = '6px';
+            dateBadge.style.cssText = 'font-size: 12px; font-weight: bold; color: var(--primary-color); background: var(--primary-light); padding: 3px 8px; border-radius: 6px; width: fit-content;';
 
-            header.appendChild(titleEl);
-            header.appendChild(dateBadge);
+            infoWrapper.appendChild(titleEl);
+            infoWrapper.appendChild(dateBadge);
+
+            // Tombol Hapus (Hanya muncul jika user adalah pemilik atau admin)
+            const actionWrapper = document.createElement('div');
+            const isOwner = currentUser && (String(item.user_id) === String(currentUser.id));
+            
+            if (isOwner) {
+                const delBtn = document.createElement('button');
+                delBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
+                delBtn.style.cssText = 'background: transparent; border: none; color: #e74c3c; cursor: pointer; padding: 4px; font-size: 14px; opacity: 0.7; transition: 0.2s;';
+                delBtn.onclick = () => deleteAgenda(item.id);
+                delBtn.onmouseover = () => delBtn.style.opacity = '1';
+                delBtn.onmouseout = () => delBtn.style.opacity = '0.7';
+                actionWrapper.appendChild(delBtn);
+            }
+
+            header.appendChild(infoWrapper);
+            header.appendChild(actionWrapper);
 
             const desc = document.createElement('p');
             desc.textContent = item.description || '';
-            desc.style.margin = '0';
-            desc.style.fontSize = '13px';
-            desc.style.color = 'var(--text-muted)';
+            desc.style.cssText = 'margin: 0; font-size: 13px; color: var(--text-muted); line-height: 1.4;';
 
             card.appendChild(header);
             if (item.description) card.appendChild(desc);
@@ -1376,6 +1384,32 @@ async function loadAgendaAndBirthdays() {
     }
   } catch (error) {
     console.warn('Gagal memuat agenda:', error);
+  }
+
+  async function deleteAgenda(id) {
+  if (!confirm('Apakah Anda yakin ingin menghapus agenda ini?')) return;
+
+  try {
+    const response = await apiFetch(`/api/agendas/${id}`, {
+      method: 'DELETE'
+    });
+
+    if (response.ok) {
+      // Hapus elemen secara langsung dari UI agar cepat
+      const card = document.querySelector(`[data-agenda-id="${id}"]`);
+      if (card) {
+        card.style.opacity = '0';
+        card.style.transform = 'scale(0.9)';
+        setTimeout(() => card.remove(), 200);
+      }
+      console.log('Agenda berhasil dihapus');
+    } else {
+      const data = await response.json();
+      alert(data.error || 'Gagal menghapus agenda.');
+    }
+  } catch (error) {
+    console.error('Error delete agenda:', error);
+    alert('Terjadi kesalahan jaringan.');
   }
 }
 
