@@ -2072,6 +2072,73 @@ if (chatFileInput) {
   });
 }
 
+// ==========================================
+// EDIT PROFILE LOGIC (Name & Birthdate)
+// ==========================================
+function openEditProfileModal() {
+  const modal = document.getElementById('edit-profile-modal');
+  if (!modal) return;
+
+  // Isi form dengan data user yang sedang aktif saat ini
+  const nameInput = document.getElementById('edit-profile-name');
+  const bdayInput = document.getElementById('edit-profile-birthdate');
+
+  if (nameInput && currentUser) nameInput.value = currentUser.name || '';
+  if (bdayInput && currentUser) bdayInput.value = currentUser.birthdate || '';
+
+  modal.classList.remove('hidden');
+}
+
+function closeEditProfileModal() {
+  const modal = document.getElementById('edit-profile-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+async function handleUpdateProfile(event) {
+  event.preventDefault();
+
+  if (!currentUser) {
+    alert('Silakan login terlebih dahulu!');
+    return;
+  }
+
+  const name = document.getElementById('edit-profile-name')?.value.trim() || '';
+  const birthdate = document.getElementById('edit-profile-birthdate')?.value || '';
+
+  if (!name) {
+    alert('Nama profil tidak boleh kosong.');
+    return;
+  }
+
+  try {
+    const response = await apiFetch('/api/update-profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, birthdate })
+    });
+
+    const data = await parseJsonResponse(response);
+
+    if (response.ok) {
+      alert(data.message || 'Profil berhasil diperbarui.');
+      
+      // Perbarui sesi lokal dengan data terbaru
+      currentUser = data.user;
+      localStorage.setItem(STORAGE_KEYS.user, JSON.stringify(currentUser));
+      
+      // Perbarui tampilan antarmuka
+      updateUserInterface();
+      closeEditProfileModal();
+    } else {
+      alert(data.error || 'Gagal memperbarui profil.');
+    }
+  } catch (error) {
+    console.error('Error update profile:', error);
+    alert('Terjadi kesalahan jaringan.');
+  }
+}
+
+
 // ==========================================================
 // INITIALIZE
 // ==========================================================
