@@ -35,7 +35,7 @@
     href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
   >
   <!-- CDN Supabase JS Client wajib dimuat sebelum app.js -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 </head>
 
 <body class="light-mode">
@@ -933,15 +933,15 @@
 
           <div class="call-actions">
             <button
-              type="button"
-              id="btn-accept-call"
-              class="btn-success"
-              onclick="acceptCall()"
-              hidden
-            >
-              <i class="fa-solid fa-check" aria-hidden="true"></i>
-              Terima
-            </button>
+            type="button"
+            id="btn-accept-call"
+            class="btn-success"
+            acceptCall()"
+            hidden
+          >
+            <i class="fa-solid fa-check" aria-hidden="true"></i>
+            Terima
+          </button>
 
             <button
               type="button"
