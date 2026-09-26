@@ -15,7 +15,10 @@ require('dotenv').config();
 const app = express();
 const server = http.createServer(app);
 
-// Deklarasikan allowedOrigins DI SINI (sebelum io menggunakannya)
+// Deklarasi activeUsers DIPINDAHKAN KE ATAS agar tidak memicu ReferenceError
+const activeUsers = new Map();
+
+// Deklarasikan allowedOrigins
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
   : '*';
@@ -220,10 +223,6 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-function getRequestUserId(req) {
-  return req.userId || req.headers['x-user-id'];
-}
-
 function getUploadUrl(filename) {
   return `/uploads/${filename}`;
 }
@@ -238,10 +237,6 @@ function deleteUploadedFile(file) {
       console.error('Gagal menghapus file upload:', error);
     }
   });
-}
-
-function getSafeMessageText(message) {
-  return message || '(Lampiran Media)';
 }
 
 // ==========================================
@@ -748,7 +743,6 @@ app.post('/api/send-message', checkSingleDevice, mediaUpload.single('media'), as
     const savedMessage = result.rows[0];
     const userResult = await pool.query('SELECT name FROM users WHERE id = $1', [userId]);
 
-    // Tambahkan pencarian teks pesan yang sedang dibalas (jika ada)
     let replyText = null;
     if (savedMessage.reply_to_id) {
       const parentMsgQuery = await pool.query('SELECT message FROM messages WHERE id = $1', [savedMessage.reply_to_id]);
@@ -764,14 +758,13 @@ app.post('/api/send-message', checkSingleDevice, mediaUpload.single('media'), as
       message: savedMessage.message,
       image_url: savedMessage.image_url,
       audio_url: savedMessage.audio_url,
-      reply_to_id: savedMessage.reply_to_id, // <-- Sertakan ini
-      reply_text: replyText,               // <-- Sertakan teks balasannya
+      reply_to_id: savedMessage.reply_to_id,
+      reply_text: replyText,
       time: savedMessage.client_time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
     io.emit('receive_message', messagePayload);
 
-    // Kirim Web Push Notification ke anggota keluarga lain di latar belakang
     try {
       const subs = await pool.query('SELECT * FROM push_subscriptions WHERE user_id != $1', [userId]);
       const pushPayload = JSON.stringify({
@@ -864,8 +857,6 @@ app.put('/api/update-password', checkSingleDevice, async (req, res) => {
 // ==========================================
 // SOCKET.IO & START SERVER
 // ==========================================
-
-const activeUsers = new Map();
 
 io.use(async (socket, next) => {
   const auth = socket.handshake.auth || {};
