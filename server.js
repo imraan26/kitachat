@@ -1647,6 +1647,7 @@ app.use((error, req, res, next) => {
   next();
 });
 
+
 // ==========================================
 // GRACEFUL SHUTDOWN
 // ==========================================
@@ -1668,6 +1669,14 @@ async function shutdown(signal) {
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
+
+
+// Cetak kunci VAPID sekali di log konsol Railway/Lokal
+const generatedKeys = webpush.generateVAPIDKeys();
+console.log('=== VAPID PUBLIC KEY ===:', generatedKeys.publicKey);
+console.log('=== VAPID PRIVATE KEY ===:', generatedKeys.privateKey);
+
+
 
 // ==========================================
 // START SERVER
