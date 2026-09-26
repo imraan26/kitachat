@@ -692,99 +692,117 @@ async function sendMessage() {
   }
 }
 
+js
 // ==========================================================
-// VOICE NOTE RECORDING LOGIC (Cross-Platform Compatible)
+// VOICE NOTE RECORDING LOGIC (Final Optimized)
 // ==========================================================
 let mediaRecorder;
 let audioChunks = [];
 
 async function startRecording() {
   try {
+    // 1. Cek dukungan API
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Browser Anda tidak mendukung perekaman audio.");
+    }
+
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     
-    // Tentukan format yang didukung oleh browser (iOS vs Android/Desktop)
-    const mimeType = MediaRecorder.isTypeSupported('audio/webm') 
-                     ? 'audio/webm' 
-                     : 'audio/mp4'; // Fallback untuk iOS/Safari
+    // 2. Pilih MIME Type terbaik (Urutan: Chrome -> Android -> iOS)
+    const mimeTypes = [
+      'audio/webm;codecs=opus', 
+      'audio/webm', 
+      'audio/ogg;codecs=opus', 
+      'audio/mp4', // Fallback Safari/iOS
+      'audio/aac'
+    ];
+    
+    const selectedMime = mimeTypes.find(mime => MediaRecorder.isTypeSupported(mime)) || '';
+    console.log("Using MIME type:", selectedMime);
 
-    mediaRecorder = new MediaRecorder(stream, { mimeType });
+    mediaRecorder = new MediaRecorder(stream, { mimeType: selectedMime });
     audioChunks = [];
 
     mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) audioChunks.push(event.data);
+      if (event.data && event.data.size > 0) audioChunks.push(event.data);
     };
     
     mediaRecorder.onstop = async () => {
-      const audioBlob = new Blob(audioChunks, { type: mimeType });
+      const audioBlob = new Blob(audioChunks, { type: selectedMime });
       
-      // Gunakan ekstensi yang sesuai berdasarkan mimeType
-      const extension = mimeType.includes('webm') ? 'webm' : 'm4a';
-      const file = new File([audioBlob], `voicenote.${extension}`, { type: mimeType });
+      // Deteksi ekstensi berdasarkan format yang digunakan
+      let extension = 'wav'; 
+      if (selectedMime.includes('webm')) extension = 'webm';
+      else if (selectedMime.includes('mp4') || selectedMime.includes('aac')) extension = 'm4a';
+      else if (selectedMime.includes('ogg')) extension = 'ogg';
+
+      const file = new File([audioBlob], `voicenote-${Date.now()}.${extension}`, { type: selectedMime });
+      
+      // Hentikan mic segera setelah rekaman selesai
+      stream.getTracks().forEach(track => track.stop());
       
       await sendVoiceNote(file);
-      
-      // Hentikan semua track mic untuk menghemat baterai & privasi
-      stream.getTracks().forEach(track => track.stop());
     };
 
+    // 3. Mulai merekam
     mediaRecorder.start();
     
-    // Visual feedback
+    // Update UI
     const micBtn = document.getElementById('mic-btn');
     if (micBtn) {
-        micBtn.style.color = '#ff4444';
-        micBtn.classList.add('recording-active'); // Bisa ditambah animasi CSS
+        micBtn.classList.add('recording-active');
+        micBtn.innerHTML = '<i class="fa-solid fa-stop"></i>'; // Ubah ikon ke STOP
     }
   } catch (err) {
-    console.error("Mic Error:", err);
-    alert("Izin mikrofon ditolak atau perangkat tidak mendukung perekaman.");
+    console.error("Recording Error:", err);
+    alert(err.message || "Gagal mengakses mikrofon.");
   }
 }
 
 async function sendVoiceNote(file) {
+  // Pastikan variabel currentUser tersedia (dari sistem login Anda)
   if (typeof currentUser === 'undefined' || !currentUser) {
-    return alert('Silakan login terlebih dahulu!');
+    alert('Silakan login terlebih dahulu!');
+    return;
   }
   
   const formData = new FormData();
   formData.append('media', file);
-  formData.append('client_time', new Date().toLocaleTimeString('id-ID', { 
-    hour: '2-digit', 
-    minute: '2-digit' 
-  }));
+  formData.append('client_time', new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
 
   try {
-    // Pastikan fungsi apiFetch Anda sudah terdefinisi
     const response = await apiFetch('/api/send-message', {
       method: 'POST',
       body: formData
     });
     
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      alert(errorData.error || 'Gagal mengirim Voice Note.');
-    }
+    if (!response.ok) throw new Error("Gagal mengunggah ke server.");
+    console.log("Voice note sent successfully");
   } catch (error) {
-    console.error('Error pengiriman:', error);
-    alert('Terjadi kesalahan jaringan.');
+    alert("Gagal mengirim Voice Note: " + error.message);
+  } finally {
+    // Reset UI tombol ke ikon semula
+    const micBtn = document.getElementById('mic-btn');
+    if (micBtn) {
+        micBtn.classList.remove('recording-active');
+        micBtn.innerHTML = '<i class="fa-solid fa-microphone"></i>';
+        micBtn.style.color = '';
+    }
   }
 }
 
-// Event listener yang aman
-document.addEventListener('DOMContentLoaded', () => {
-  const micBtn = document.getElementById('mic-btn');
-  if (micBtn) {
-    micBtn.addEventListener('click', () => {
-      if (mediaRecorder && mediaRecorder.state === "recording") {
+// Event Listener Utama
+document.addEventListener('click', (e) => {
+    const btn = e.target.closest('#mic-btn');
+    if (!btn) return;
+
+    if (mediaRecorder && mediaRecorder.state === "recording") {
         mediaRecorder.stop();
-        micBtn.style.color = '';
-        micBtn.classList.remove('recording-active');
-      } else {
+    } else {
         startRecording();
-      }
-    });
-  }
+    }
 });
+
 
 // ==========================================================
 // ALBUM
