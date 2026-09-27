@@ -915,12 +915,47 @@ io.use(async (socket, next) => {
   }
 });
 
-io.on('connection', socket => {
+io.on('connection', async socket => {
   activeUsers.set(socket.userId, socket.id);
   
-  // Masukkan socket ke room keluarga masing-masing
   if (socket.familyCode) {
     socket.join(socket.familyCode);
+
+    // KIRIM RIWAYAT CHAT KHUSUS KELUARGA INI SAAT KONEKSI TERHUBUNG
+    try {
+      const historyQuery = await pool.query(`
+        SELECT 
+          messages.id, 
+          messages.user_id, 
+          users.name, 
+          messages.message, 
+          messages.image_url, 
+          messages.audio_url, 
+          messages.reply_to_id, 
+          messages.created_at, 
+          messages.client_time
+        FROM messages
+        JOIN users ON messages.user_id = users.id
+        WHERE messages.family_code = $1 AND messages.is_deleted = FALSE
+        ORDER BY messages.created_at ASC
+        LIMIT 100
+      `, [socket.familyCode]);
+
+      const formattedHistory = historyQuery.rows.map(row => ({
+        id: row.id,
+        user_id: row.user_id,
+        name: row.name,
+        message: row.message,
+        image_url: row.image_url,
+        audio_url: row.audio_url,
+        reply_to_id: row.reply_to_id,
+        time: row.client_time || new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }));
+
+      socket.emit('chat_history', formattedHistory);
+    } catch (err) {
+      console.error('Gagal memuat riwayat chat socket:', err);
+    }
   }
 
   io.to(socket.familyCode).emit('online_users_update', Array.from(activeUsers.keys()));
