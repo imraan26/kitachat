@@ -1,3 +1,29 @@
-node_modules/
+# ==========================================
+# 🔒 FILE RAHASIA & LOKAL (WAJIB)
+# ==========================================
 .env
-public/uploads/
+.env.local
+.env.*.local
+
+# ==========================================
+# 📦 DEPENDENCIES & CACHE
+# ==========================================
+node_modules/
+/npm-debug.log*
+/yarn-error.log*
+/pnpm-debug.log*
+.eslintcache
+
+# ==========================================
+# 🍏 SETTINGAN OPERATING SYSTEM (macOS)
+# ==========================================
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# ==========================================
+# 🛰️ RAILWAY CONFIG (Lokal)
+# ==========================================
+# Menyembunyikan token link internal Railway Anda
+.railway/
