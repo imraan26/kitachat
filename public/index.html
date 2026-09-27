@@ -138,27 +138,27 @@
           onsubmit="handleRegister(event)"
           autocomplete="on"
         >
-          <!-- Pilihan Sistem Keluarga -->
-          <div class="family-reg-options" style="margin-bottom: 12px; display: flex; gap: 10px; background: rgba(0,0,0,0.03); padding: 8px; border-radius: 8px;">
-            <label style="flex: 1; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 500;">
-              <input type="radio" name="register_type" value="create" checked onclick="toggleInviteCodeInput('create')">
+          <!-- Pilihan Sistem Keluarga yang Disesuaikan -->
+          <div class="family-reg-options" style="margin-bottom: 15px; display: flex; gap: 10px; background: var(--bg-color, #f8f9fa); padding: 6px; border: 1px solid var(--border-color, #e2e8f0); border-radius: 10px;">
+            <label style="flex: 1; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 600; padding: 10px; border-radius: 8px; transition: all 0.2s; color: var(--text-light, #1e293b);">
+              <input type="radio" name="register_type" value="create" checked onclick="toggleInviteCodeInput('create')" style="accent-color: var(--primary-color, #00a884);">
               Buat Keluarga
             </label>
-            <label style="flex: 1; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 500;">
-              <input type="radio" name="register_type" value="join" onclick="toggleInviteCodeInput('join')">
+            <label style="flex: 1; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 600; padding: 10px; border-radius: 8px; transition: all 0.2s; color: var(--text-light, #1e293b);">
+              <input type="radio" name="register_type" value="join" onclick="toggleInviteCodeInput('join')" style="accent-color: var(--primary-color, #00a884);">
               Gabung Keluarga
             </label>
           </div>
 
-          <!-- Input Kode Undangan (Hanya muncul jika pilih Gabung) -->
-          <div id="invite-code-container" class="hidden" style="margin-bottom: 10px;">
+          <!-- Input Kode Undangan -->
+          <div id="invite-code-container" class="hidden" style="margin-bottom: 12px;">
             <label class="sr-only" for="reg-invite-code">Kode Undangan Keluarga</label>
             <input
               type="text"
               id="reg-invite-code"
               name="invite_code"
-              placeholder="Masukkan Kode Undangan (Cth: KITA-XXXX)"
-              style="text-transform: uppercase;"
+              placeholder="KODE UNDANGAN (Cth: KITA-XXXX)"
+              style="text-transform: uppercase; letter-spacing: 1px; font-weight: 600;"
             >
           </div>
 
