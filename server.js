@@ -146,7 +146,6 @@ app.use(
 // MIDDLEWARE KEAMANAN (HELMET & RATE LIMIT)
 // ==========================================
 
-// Menggunakan Helmet dengan penyesuaian CSP untuk mengizinkan CDN eksternal (Supabase & FontAwesome)
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -162,7 +161,6 @@ app.use(
   })
 );
 
-// Batasi jumlah request ke endpoint /api/ untuk mencegah brute-force (maks 150 request per 15 menit per IP)
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
   max: 150, 
@@ -172,7 +170,6 @@ const apiLimiter = rateLimit({
 });
 
 app.use('/api/', apiLimiter);
-
 
 // ==========================================
 // MULTER UPLOAD
@@ -199,7 +196,6 @@ const imageUpload = multer({
     if (!file.mimetype.startsWith('image/')) {
       return callback(new Error('Hanya file gambar yang diizinkan.'));
     }
-
     callback(null, true);
   }
 });
@@ -217,11 +213,8 @@ const mediaUpload = multer({
                     file.mimetype === 'application/octet-stream';
 
     if (!isImage && !isAudio) {
-      return callback(new Error(
-        'Hanya file gambar atau audio yang diizinkan.'
-      ));
+      return callback(new Error('Hanya file gambar atau audio yang diizinkan.'));
     }
-
     callback(null, true);
   }
 });
@@ -234,7 +227,6 @@ function escapeHTML(value) {
   if (typeof value !== 'string') {
     return value;
   }
-
   return value.replace(/[&<>'"]/g, character => ({
     '&': '&amp;',
     '<': '&lt;',
@@ -265,7 +257,6 @@ function deleteUploadedFile(file) {
   if (!file || !file.path) {
     return;
   }
-
   fs.unlink(file.path, error => {
     if (error && error.code !== 'ENOENT') {
       console.error('Gagal menghapus file upload:', error);
@@ -288,6 +279,8 @@ async function initDB() {
       photo_url TEXT,
       session_token TEXT,
       email VARCHAR(255) UNIQUE,
+      family_code VARCHAR(50) NOT NULL,
+      is_head BOOLEAN DEFAULT FALSE,
       reset_token VARCHAR(255),
       reset_token_expiry BIGINT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -303,6 +296,7 @@ async function initDB() {
 
     CREATE TABLE IF NOT EXISTS agendas (
       id SERIAL PRIMARY KEY,
+      family_code VARCHAR(50),
       title VARCHAR(150) NOT NULL,
       event_date DATE NOT NULL,
       description TEXT,
@@ -311,7 +305,7 @@ async function initDB() {
 
     CREATE TABLE IF NOT EXISTS messages (
       id SERIAL PRIMARY KEY,
-      family_id INT,
+      family_code VARCHAR(50),
       user_id INT REFERENCES users(id) ON DELETE CASCADE,
       message TEXT,
       image_url TEXT,
@@ -333,51 +327,27 @@ async function initDB() {
     );
   `);
 
-  await pool.query(`
-    ALTER TABLE users
-    ADD COLUMN IF NOT EXISTS email VARCHAR(255)
-  `);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255)`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS family_code VARCHAR(50)`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_head BOOLEAN DEFAULT FALSE`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255)`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expiry BIGINT`);
+  await pool.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS family_code VARCHAR(50)`);
+  await pool.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_to_id INT`);
+  await pool.query(`ALTER TABLE agendas ADD COLUMN IF NOT EXISTS family_code VARCHAR(50)`);
 
-  await pool.query(`
-    ALTER TABLE users
-    ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255)
-  `);
-
-  await pool.query(`
-    ALTER TABLE users
-    ADD COLUMN IF NOT EXISTS reset_token_expiry BIGINT
-  `);
-
-  await pool.query(`
-    ALTER TABLE messages
-    ADD COLUMN IF NOT EXISTS reply_to_id INT
-  `);
-
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS idx_messages_created_at
-    ON messages(created_at)
-  `);
-
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS idx_messages_user_id
-    ON messages(user_id)
-  `);
-
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS idx_albums_created_at
-    ON albums(created_at)
-  `);
-
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS idx_users_session_token
-    ON users(session_token)
-  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_messages_user_id ON messages(user_id)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_messages_family_code ON messages(family_code)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_albums_created_at ON albums(created_at)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_session_token ON users(session_token)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_family_code ON users(family_code)`);
 
   console.log('Database berhasil diinisialisasi.');
 }
 
 // ==========================================
-// AUTHENTICATION MIDDLEWARE
+// AUTHENTICATION MIDDLEWARE (WITH FAMILY CODE)
 // ==========================================
 
 async function checkSingleDevice(req, res, next) {
@@ -392,18 +362,12 @@ async function checkSingleDevice(req, res, next) {
 
   try {
     const result = await pool.query(
-      `
-        SELECT id, session_token
-        FROM users
-        WHERE id = $1
-      `,
+      `SELECT id, session_token, family_code FROM users WHERE id = $1`,
       [userId]
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({
-        error: 'Pengguna tidak ditemukan.'
-      });
+      return res.status(404).json({ error: 'Pengguna tidak ditemukan.' });
     }
 
     const dbToken = result.rows[0].session_token;
@@ -417,14 +381,12 @@ async function checkSingleDevice(req, res, next) {
 
     req.userId = result.rows[0].id;
     req.sessionToken = clientToken;
+    req.familyCode = result.rows[0].family_code; // Isolasi per keluarga
 
     next();
   } catch (error) {
     console.error('Error checkSingleDevice:', error);
-
-    return res.status(500).json({
-      error: 'Terjadi kesalahan pada server.'
-    });
+    return res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
   }
 }
 
@@ -433,9 +395,7 @@ async function checkSingleDevice(req, res, next) {
 // ==========================================
 
 app.get('/api/status', (req, res) => {
-  res.json({
-    status: 'Server Kitachat berjalan dengan lancar!'
-  });
+  res.json({ status: 'Server Kitachat berjalan dengan lancar!' });
 });
 
 app.post('/api/save-subscription', checkSingleDevice, async (req, res) => {
@@ -459,8 +419,9 @@ app.post('/api/save-subscription', checkSingleDevice, async (req, res) => {
     res.status(500).json({ error: 'Gagal menyimpan langganan push.' });
   }
 });
+
 // ==========================================
-// REGISTER DENGAN SISTEM KELUARGA & INVITE CODE
+// REGISTER & LOGIN (FAMILY INVITE CODE SYSTEM)
 // ==========================================
 
 app.post('/api/register', async (req, res) => {
@@ -491,11 +452,9 @@ app.post('/api/register', async (req, res) => {
     let isHead = false;
 
     if (register_type === 'create') {
-      // Membuat keluarga baru: Generate kode undangan unik (misal: KITA-XXXX)
       finalFamilyCode = 'KITA-' + crypto.randomBytes(3).toString('hex').toUpperCase();
       isHead = true;
     } else if (register_type === 'join') {
-      // Bergabung ke keluarga: Validasi invite code apakah ada di database
       if (!invite_code) {
         return res.status(400).json({ error: 'Kode undangan keluarga wajib diisi.' });
       }
@@ -541,7 +500,6 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-
 app.post('/api/login', async (req, res) => {
   let { phone, password } = req.body;
 
@@ -555,7 +513,7 @@ app.post('/api/login', async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT id, phone, name, password, birthdate, photo_url FROM users WHERE phone = $1`,
+      `SELECT id, phone, name, password, birthdate, photo_url, family_code FROM users WHERE phone = $1`,
       [phone]
     );
 
@@ -585,7 +543,8 @@ app.post('/api/login', async (req, res) => {
         phone: user.phone,
         name: user.name,
         birthdate: user.birthdate,
-        photo_url: user.photo_url
+        photo_url: user.photo_url,
+        family_code: user.family_code
       }
     });
   } catch (error) {
@@ -595,7 +554,7 @@ app.post('/api/login', async (req, res) => {
 });
 
 // ==========================================
-// USERS, ALBUMS, & AGENDAS
+// USERS, ALBUMS, & AGENDAS (ISOLATED BY FAMILY)
 // ==========================================
 
 app.get('/api/users', checkSingleDevice, async (req, res) => {
@@ -603,8 +562,9 @@ app.get('/api/users', checkSingleDevice, async (req, res) => {
     const result = await pool.query(`
       SELECT id, name, phone, birthdate, photo_url, created_at
       FROM users
+      WHERE family_code = $1
       ORDER BY name ASC
-    `);
+    `, [req.familyCode]);
 
     const usersWithMaskedPhone = result.rows.map(user => {
       let phone = user.phone || '';
@@ -631,8 +591,9 @@ app.get('/api/albums', checkSingleDevice, async (req, res) => {
       SELECT albums.id, albums.user_id, albums.image_url, albums.caption, albums.created_at, users.name AS uploader_name
       FROM albums
       JOIN users ON albums.user_id = users.id
+      WHERE users.family_code = $1
       ORDER BY albums.created_at DESC
-    `);
+    `, [req.familyCode]);
     return res.json(result.rows);
   } catch (error) {
     console.error('Error mengambil album:', error);
@@ -682,7 +643,12 @@ app.delete('/api/albums/:id', checkSingleDevice, async (req, res) => {
 
 app.get('/api/agendas', checkSingleDevice, async (req, res) => {
   try {
-    const result = await pool.query(`SELECT id, title, event_date, description, created_at FROM agendas ORDER BY event_date ASC, created_at ASC`);
+    const result = await pool.query(`
+      SELECT id, title, event_date, description, created_at 
+      FROM agendas 
+      WHERE family_code = $1 
+      ORDER BY event_date ASC, created_at ASC
+    `, [req.familyCode]);
     return res.json(result.rows);
   } catch (error) {
     console.error('Error mengambil agenda:', error);
@@ -697,8 +663,8 @@ app.post('/api/agendas', checkSingleDevice, async (req, res) => {
   }
   try {
     const result = await pool.query(
-      `INSERT INTO agendas (title, event_date, description) VALUES ($1, $2, $3) RETURNING id, title, event_date, description, created_at`,
-      [escapeHTML(title.trim()), event_date, escapeHTML(String(description || '').trim())]
+      `INSERT INTO agendas (family_code, title, event_date, description) VALUES ($1, $2, $3, $4) RETURNING id, title, event_date, description, created_at`,
+      [req.familyCode, escapeHTML(title.trim()), event_date, escapeHTML(String(description || '').trim())]
     );
     return res.status(201).json({ message: 'Agenda berhasil ditambahkan.', agenda: result.rows[0] });
   } catch (error) {
@@ -720,7 +686,12 @@ app.delete('/api/agendas/:id', checkSingleDevice, async (req, res) => {
 
 app.get('/api/family-birthdays', checkSingleDevice, async (req, res) => {
   try {
-    const result = await pool.query(`SELECT id, name, photo_url AS profile_picture, birthdate AS birth_date FROM users ORDER BY birthdate ASC NULLS LAST, name ASC`);
+    const result = await pool.query(`
+      SELECT id, name, photo_url AS profile_picture, birthdate AS birth_date 
+      FROM users 
+      WHERE family_code = $1 
+      ORDER BY birthdate ASC NULLS LAST, name ASC
+    `, [req.familyCode]);
     res.json(result.rows);
   } catch (err) {
     console.error("Error fetching birthdays:", err);
@@ -736,7 +707,7 @@ app.post('/api/update-photo', checkSingleDevice, imageUpload.single('image'), as
     const photoUrl = getUploadUrl(req.file.filename);
 
     const result = await pool.query(
-      `UPDATE users SET photo_url = $1 WHERE id = $2 RETURNING id, phone, name, birthdate, photo_url`,
+      `UPDATE users SET photo_url = $1 WHERE id = $2 RETURNING id, phone, name, birthdate, photo_url, family_code`,
       [photoUrl, userId]
     );
 
@@ -758,7 +729,7 @@ app.put('/api/update-profile', checkSingleDevice, async (req, res) => {
 
   try {
     const result = await pool.query(
-      `UPDATE users SET name = $1, birthdate = $2 WHERE id = $3 RETURNING id, phone, name, birthdate, photo_url`,
+      `UPDATE users SET name = $1, birthdate = $2 WHERE id = $3 RETURNING id, phone, name, birthdate, photo_url, family_code`,
       [escapeHTML(name.trim()), birthdate || null, userId]
     );
     return res.json({ message: 'Profil diperbarui.', user: result.rows[0] });
@@ -769,11 +740,12 @@ app.put('/api/update-profile', checkSingleDevice, async (req, res) => {
 });
 
 // ==========================================
-// MESSAGES & PUSH TRIGGER
+// MESSAGES & PUSH TRIGGER (ISOLATED ROOMS)
 // ==========================================
 
 app.post('/api/send-message', checkSingleDevice, mediaUpload.single('media'), async (req, res) => {
   const userId = req.userId;
+  const familyCode = req.familyCode;
 
   try {
     let { message, sticker_url, reply_to_id, client_time } = req.body;
@@ -799,10 +771,10 @@ app.post('/api/send-message', checkSingleDevice, mediaUpload.single('media'), as
     }
 
     const result = await pool.query(
-      `INSERT INTO messages (user_id, message, image_url, sticker_url, audio_url, reply_to_id, client_time)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, user_id, message, image_url, sticker_url, audio_url, reply_to_id, is_deleted, created_at, client_time`,
-      [userId, message, imageUrl, stickerUrl, audioUrl, replyToId, client_time || null]
+      `INSERT INTO messages (family_code, user_id, message, image_url, sticker_url, audio_url, reply_to_id, client_time)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING id, family_code, user_id, message, image_url, sticker_url, audio_url, reply_to_id, is_deleted, created_at, client_time`,
+      [familyCode, userId, message, imageUrl, stickerUrl, audioUrl, replyToId, client_time || null]
     );
 
     const savedMessage = result.rows[0];
@@ -828,10 +800,16 @@ app.post('/api/send-message', checkSingleDevice, mediaUpload.single('media'), as
       time: savedMessage.client_time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
-    io.emit('receive_message', messagePayload);
+    // Broadcast HANYA ke room keluarga tersebut
+    io.to(familyCode).emit('receive_message', messagePayload);
 
     try {
-      const subs = await pool.query('SELECT * FROM push_subscriptions WHERE user_id != $1', [userId]);
+      const subs = await pool.query(`
+        SELECT push_subscriptions.* FROM push_subscriptions
+        JOIN users ON push_subscriptions.user_id = users.id
+        WHERE push_subscriptions.user_id != $1 AND users.family_code = $2
+      `, [userId, familyCode]);
+
       const pushPayload = JSON.stringify({
         title: messagePayload.name,
         body: savedMessage.message || 'Mengirim lampiran media',
@@ -861,7 +839,7 @@ app.delete('/api/messages/:id', checkSingleDevice, async (req, res) => {
       [Number(req.params.id), req.userId]
     );
     if (result.rowCount === 0) return res.status(403).json({ error: 'Tidak memiliki hak.' });
-    io.emit('message_deleted', { id: Number(req.params.id) });
+    io.to(req.familyCode).emit('message_deleted', { id: Number(req.params.id) });
     return res.json({ message: 'Pesan dihapus.' });
   } catch (error) {
     console.error('Error hapus pesan:', error);
@@ -872,7 +850,7 @@ app.delete('/api/messages/:id', checkSingleDevice, async (req, res) => {
 app.delete('/api/messages', checkSingleDevice, async (req, res) => {
   try {
     await pool.query('DELETE FROM messages WHERE user_id = $1', [req.userId]);
-    io.emit('messages_deleted_by_user', { user_id: req.userId });
+    io.to(req.familyCode).emit('messages_deleted_by_user', { user_id: req.userId });
     return res.json({ message: 'Riwayat pesan dibersihkan.' });
   } catch (error) {
     console.error('Error clear messages:', error);
@@ -920,16 +898,17 @@ app.put('/api/update-password', checkSingleDevice, async (req, res) => {
 });
 
 // ==========================================
-// SOCKET.IO & START SERVER
+// SOCKET.IO & START SERVER (WITH FAMILY ROOMS)
 // ==========================================
 
 io.use(async (socket, next) => {
   const auth = socket.handshake.auth || {};
   if (!auth.userId || !auth.sessionToken) return next(new Error('Unauthorized'));
   try {
-    const res = await pool.query('SELECT id FROM users WHERE id = $1 AND session_token = $2', [auth.userId, auth.sessionToken]);
+    const res = await pool.query('SELECT id, family_code FROM users WHERE id = $1 AND session_token = $2', [auth.userId, auth.sessionToken]);
     if (res.rows.length === 0) return next(new Error('Unauthorized'));
     socket.userId = String(auth.userId);
+    socket.familyCode = res.rows[0].family_code;
     next();
   } catch (e) {
     next(new Error('Authentication failed'));
@@ -938,7 +917,13 @@ io.use(async (socket, next) => {
 
 io.on('connection', socket => {
   activeUsers.set(socket.userId, socket.id);
-  io.emit('online_users_update', Array.from(activeUsers.keys()));
+  
+  // Masukkan socket ke room keluarga masing-masing
+  if (socket.familyCode) {
+    socket.join(socket.familyCode);
+  }
+
+  io.to(socket.familyCode).emit('online_users_update', Array.from(activeUsers.keys()));
 
   // ==========================================
   // WEBRTC SIGNALING VIA SOCKET.IO
@@ -998,7 +983,9 @@ io.on('connection', socket => {
   socket.on('disconnect', () => {
     if (activeUsers.get(socket.userId) === socket.id) {
       activeUsers.delete(socket.userId);
-      io.emit('online_users_update', Array.from(activeUsers.keys()));
+      if (socket.familyCode) {
+        io.to(socket.familyCode).emit('online_users_update', Array.from(activeUsers.keys()));
+      }
     }
   });
 });
