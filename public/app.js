@@ -10,10 +10,13 @@ const STORAGE_KEYS = {
   theme: 'kitachat_theme'
 };
 
+/* ==========================================================
+   OPTIMASI 1: Perbaikan STUN Server WebRTC yang valid
+========================================================== */
 const rtcConfig = {
   iceServers: [
-    { urls: 'stun:://google.com' },
-    { urls: 'stun:://google.com' }
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' }
   ],
   iceCandidatePoolSize: 10
 };
@@ -116,7 +119,6 @@ function sendCallSignal(type, toUserId, extraPayload = {}) {
 
   let eventName = '';
   if (type === 'offer') eventName = 'call_user';
-  // OPTIMASI: Pastikan diubah menjadi 'call_answer' agar cocok dengan listener socket.on('call_answer') di server.js
   else if (type === 'answer') eventName = 'call_answer'; 
   else if (type === 'ice_candidate') eventName = 'call_ice_candidate';
   else if (type === 'end_call') eventName = 'end_call';
@@ -267,12 +269,10 @@ function registerSocketEvents() {
 
   socket.on('chat_cleared', clearChatContainer);
 
-    // WebRTC Signaling Listeners via Socket.IO
   socket.on('incoming_call', data => {
     handleIncomingCall(data);
   });
 
-  // OPTIMASI: Memastikan mendengarkan 'call_answered' yang dipancarkan oleh server.js Anda
   socket.on('call_answered', data => {
     void handleCallAnswered(data);
   });
@@ -280,7 +280,6 @@ function registerSocketEvents() {
   socket.on('ice_candidate', data => {
     void handleIceCandidate(data);
   });
-
 
   socket.on('end_call', () => {
     cleanupCall(false);
@@ -636,11 +635,9 @@ async function handleRegister(event) {
   const password = document.getElementById('reg-password')?.value || '';
   const birthdate = document.getElementById('reg-birthdate')?.value || '';
   
-  // Ambil nilai jenis pendaftaran (create / join) dari radio button
   const registerTypeEl = document.querySelector('input[name="register_type"]:checked');
   const register_type = registerTypeEl ? registerTypeEl.value : 'create';
   
-  // Ambil kode undangan jika opsi 'join' yang dipilih
   const invite_code = document.getElementById('reg-invite-code')?.value?.trim().toUpperCase() || '';
 
   if (!name || !phone || !password || !register_type) {

@@ -800,7 +800,7 @@ app.post('/api/send-message', checkSingleDevice, mediaUpload.single('media'), as
       time: savedMessage.client_time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
-  // Broadcast HANYA ke room keluarga tersebut
+    // Broadcast HANYA ke room keluarga tersebut
     io.to(familyCode).emit('receive_message', messagePayload);
 
     try {
@@ -816,12 +816,10 @@ app.post('/api/send-message', checkSingleDevice, mediaUpload.single('media'), as
         url: '/'
       });
 
-      // Pastikan VAPID keys tersedia sebelum mengirim notifikasi untuk mencegah error 401
       if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
         subs.rows.forEach(sub => {
           const pushSub = { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } };
           webpush.sendNotification(pushSub, pushPayload).catch(err => {
-            // Hapus otomatis subscription jika kedaluwarsa (410) atau tidak valid (404)
             if (err.statusCode === 410 || err.statusCode === 404) {
               pool.query('DELETE FROM push_subscriptions WHERE endpoint = $1', [sub.endpoint]).catch(() => {});
             } else {
@@ -971,57 +969,92 @@ io.on('connection', async socket => {
   io.to(socket.familyCode).emit('online_users_update', Array.from(activeUsers.keys()));
 
   // ==========================================
-  // WEBRTC SIGNALING VIA SOCKET.IO
+  // WEBRTC SIGNALING VIA SOCKET.IO (DENGAN VALIDASI KELUARGA)
   // ==========================================
-  socket.on('call_user', data => {
+  socket.on('call_user', async data => {
     const { toUserId, callId, offer, callerName } = data;
-    const targetSocketId = activeUsers.get(String(toUserId));
-    
-    if (targetSocketId) {
-      io.to(targetSocketId).emit('incoming_call', {
-        callId,
-        fromUserId: socket.userId,
-        callerName,
-        offer
-      });
+    try {
+      const targetUser = await pool.query('SELECT family_code FROM users WHERE id = $1', [toUserId]);
+      if (targetUser.rows.length === 0 || targetUser.rows[0].family_code !== socket.familyCode) {
+        return;
+      }
+      const targetSocketId = activeUsers.get(String(toUserId));
+      if (targetSocketId) {
+        io.to(targetSocketId).emit('incoming_call', {
+          callId,
+          fromUserId: socket.userId,
+          callerName,
+          offer
+        });
+      }
+    } catch (err) {
+      console.error('Error call_user signaling:', err);
     }
   });
 
-  socket.on('call_answer', data => {
+  socket.on('call_answer', async data => {
     const { toUserId, callId, answer } = data;
-    const targetSocketId = activeUsers.get(String(toUserId));
-    
-    if (targetSocketId) {
-      io.to(targetSocketId).emit('call_answered', {
-        callId,
-        fromUserId: socket.userId,
-        answer
-      });
+    try {
+      const targetUser = await pool.query('SELECT family_code FROM users WHERE id = $1', [toUserId]);
+      if (targetUser.rows.length === 0 || targetUser.rows[0].family_code !== socket.familyCode) {
+        return;
+      }
+      const targetSocketId = activeUsers.get(String(toUserId));
+      if (targetSocketId) {
+        io.to(targetSocketId).emit('call_answered', {
+          callId,
+          fromUserId: socket.userId,
+          answer
+        });
+      }
+    } catch (err) {
+      console.error('Error call_answer signaling:', err);
     }
   });
 
-  socket.on('call_ice_candidate', data => {
+  socket.on('call_ice_candidate', async data => {
     const { toUserId, callId, candidate } = data;
-    const targetSocketId = activeUsers.get(String(toUserId));
-    
-    if (targetSocketId) {
-      io.to(targetSocketId).emit('ice_candidate', {
-        callId,
-        fromUserId: socket.userId,
-        candidate
-      });
+    try {
+      const targetUser = await pool.query('SELECT family_code FROM users WHERE id = $1', [toUserId]);
+      if (targetUser.rows.length === 0 || targetUser.rows[0].family_code !== socket.familyCode) {
+        return;
+      }
+      const targetSocketId = activeUsers.get(String(toUserId));
+      if (targetSocketId) {
+        io.to(targetSocketId).emit('ice_candidate', {
+          callId,
+          fromUserId: socket.userId,
+          candidate
+        });
+      }
+    } catch (err) {
+      console.error('Error call_ice_candidate signaling:', err);
     }
   });
 
-  socket.on('end_call', data => {
+  socket.on('end_call', async data => {
     const { toUserId, callId } = data;
-    const targetSocketId = activeUsers.get(String(toUserId));
-    
-    if (targetSocketId) {
-      io.to(targetSocketId).emit('end_call', {
-        callId,
-        fromUserId: socket.userId
-      });
+    try {
+      if (toUserId) {
+        const targetUser = await pool.query('SELECT family_code FROM users WHERE id = $1', [toUserId]);
+        if (targetUser.rows.length > 0 && targetUser.rows[0].family_code === socket.familyCode) {
+          const targetSocketId = activeUsers.get(String(toUserId));
+          if (targetSocketId) {
+            io.to(targetSocketId).emit('end_call', {
+              callId,
+              fromUserId: socket.userId
+            });
+          }
+        }
+      } else if (socket.familyCode) {
+        // Fallback broadcast ke room keluarga jika toUserId tidak disertakan
+        socket.to(socket.familyCode).emit('end_call', {
+          callId,
+          fromUserId: socket.userId
+        });
+      }
+    } catch (err) {
+      console.error('Error end_call signaling:', err);
     }
   });
 

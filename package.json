@@ -12,15 +12,15 @@
     "dev": "nodemon server.js",
     "check": "node --check server.js"
   },
-  
   "keywords": [
     "chat",
     "family",
     "express",
     "socket.io",
-    "postgres"
+    "postgres",
+    "webrtc"
   ],
-  "author": "",
+  "author": "Imraan Kamil",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
