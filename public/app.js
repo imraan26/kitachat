@@ -829,7 +829,12 @@ function renderIncomingMessage(message, silent = false) {
   if (message.image_url) {
     const img = document.createElement('img');
     img.src = message.image_url;
-    img.style.cssText = 'max-width:220px; border-radius:10px; display:block; margin-top:5px;';
+    // Tambahkan cursor pointer agar pengguna tahu foto bisa diklik
+    img.style.cssText = 'max-width:220px; border-radius:10px; display:block; margin-top:5px; cursor:pointer;';
+    
+    // Hubungkan dengan fungsi zoom modal yang sudah ada
+    img.onclick = () => openZoomModal(message.image_url);
+    
     bubble.appendChild(img);
   }
   
