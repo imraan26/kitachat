@@ -816,10 +816,13 @@ app.post('/api/send-message', checkSingleDevice, mediaUpload.single('media'), as
         url: '/'
       });
 
-      subs.rows.forEach(sub => {
-        const pushSub = { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } };
-        webpush.sendNotification(pushSub, pushPayload).catch(err => console.error('Push error:', err));
-      });
+      // Pastikan VAPID keys tersedia sebelum mengirim notifikasi untuk mencegah error 401
+      if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+        subs.rows.forEach(sub => {
+          const pushSub = { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } };
+          webpush.sendNotification(pushSub, pushPayload).catch(err => console.error('Push error:', err));
+        });
+      }
     } catch (pushErr) {
       console.error('Gagal mengirim push notification:', pushErr);
     }
