@@ -459,17 +459,16 @@ app.post('/api/save-subscription', checkSingleDevice, async (req, res) => {
     res.status(500).json({ error: 'Gagal menyimpan langganan push.' });
   }
 });
-
 // ==========================================
-// REGISTER & LOGIN
+// REGISTER DENGAN SISTEM KELUARGA & INVITE CODE
 // ==========================================
 
 app.post('/api/register', async (req, res) => {
-  let { phone, name, password, birthdate, photo_url } = req.body;
+  let { phone, name, password, birthdate, photo_url, register_type, invite_code } = req.body;
 
-  if (!phone || !name || !password) {
+  if (!phone || !name || !password || !register_type) {
     return res.status(400).json({
-      error: 'Nomor telepon, nama, dan password wajib diisi.'
+      error: 'Nomor telepon, nama, password, dan jenis pendaftaran wajib diisi.'
     });
   }
 
@@ -488,21 +487,52 @@ app.post('/api/register', async (req, res) => {
       });
     }
 
+    let finalFamilyCode = '';
+    let isHead = false;
+
+    if (register_type === 'create') {
+      // Membuat keluarga baru: Generate kode undangan unik (misal: KITA-XXXX)
+      finalFamilyCode = 'KITA-' + crypto.randomBytes(3).toString('hex').toUpperCase();
+      isHead = true;
+    } else if (register_type === 'join') {
+      // Bergabung ke keluarga: Validasi invite code apakah ada di database
+      if (!invite_code) {
+        return res.status(400).json({ error: 'Kode undangan keluarga wajib diisi.' });
+      }
+      
+      const checkCode = await pool.query(
+        'SELECT family_code FROM users WHERE family_code = $1 LIMIT 1',
+        [invite_code.trim().toUpperCase()]
+      );
+
+      if (checkCode.rows.length === 0) {
+        return res.status(404).json({ error: 'Kode undangan keluarga tidak valid atau tidak ditemukan.' });
+      }
+
+      finalFamilyCode = checkCode.rows[0].family_code;
+      isHead = false;
+    } else {
+      return res.status(400).json({ error: 'Tipe pendaftaran tidak valid.' });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 12);
     const sessionToken = crypto.randomBytes(32).toString('hex');
 
     const result = await pool.query(
       `
-        INSERT INTO users (phone, name, password, birthdate, photo_url, session_token)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING id, phone, name, birthdate, photo_url, created_at
+        INSERT INTO users (phone, name, password, birthdate, photo_url, session_token, family_code, is_head)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING id, phone, name, birthdate, photo_url, family_code, is_head, created_at
       `,
-      [phone, escapeHTML(name), hashedPassword, birthdate || null, photo_url || null, sessionToken]
+      [phone, escapeHTML(name), hashedPassword, birthdate || null, photo_url || null, sessionToken, finalFamilyCode, isHead]
     );
 
     return res.status(201).json({
-      message: 'Registrasi berhasil! Selamat bergabung di Kitachat.',
+      message: isHead 
+        ? `Keluarga berhasil dibuat! Kode Undangan Anda: ${finalFamilyCode}` 
+        : 'Berhasil bergabung ke dalam keluarga!',
       session_token: sessionToken,
+      family_code: finalFamilyCode,
       user: result.rows[0]
     });
   } catch (error) {
@@ -510,6 +540,7 @@ app.post('/api/register', async (req, res) => {
     return res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
   }
 });
+
 
 app.post('/api/login', async (req, res) => {
   let { phone, password } = req.body;

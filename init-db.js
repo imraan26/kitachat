@@ -27,6 +27,7 @@ async function setupDatabase() {
   try {
     await client.query('BEGIN');
 
+    // 1. Pembuatan Tabel Utama
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -37,6 +38,8 @@ async function setupDatabase() {
         photo_url TEXT,
         session_token TEXT,
         email VARCHAR(255) UNIQUE,
+        family_code VARCHAR(50),
+        is_head BOOLEAN DEFAULT FALSE,
         reset_token VARCHAR(255),
         reset_token_expiry BIGINT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -73,11 +76,15 @@ async function setupDatabase() {
       );
     `);
 
+    // 2. Migrasi Kolom Tambahan (Untuk keamanan jika tabel sudah ada sebelumnya)
     await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255)');
+    await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS family_code VARCHAR(50)');
+    await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_head BOOLEAN DEFAULT FALSE');
     await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255)');
     await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expiry BIGINT');
     await client.query('ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_to_id INT');
 
+    // 3. Pembuatan Indeks untuk Performa Kueri
     await client.query('CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at)');
     await client.query('CREATE INDEX IF NOT EXISTS idx_messages_user_id ON messages(user_id)');
     await client.query('CREATE INDEX IF NOT EXISTS idx_messages_reply_to_id ON messages(reply_to_id)');
