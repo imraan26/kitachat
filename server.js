@@ -801,7 +801,7 @@ app.post('/api/send-message', checkSingleDevice, mediaUpload.single('media'), as
       time: savedMessage.client_time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
-    // Broadcast HANYA ke room keluarga tersebut
+  // Broadcast HANYA ke room keluarga tersebut
     io.to(familyCode).emit('receive_message', messagePayload);
 
     try {
@@ -831,6 +831,9 @@ app.post('/api/send-message', checkSingleDevice, mediaUpload.single('media'), as
           });
         });
       }
+    } catch (pushErr) {
+      console.error('Gagal mengirim push notification:', pushErr);
+    }
 
     return res.status(201).json({ message: 'Pesan dikirim.', data: messagePayload });
   } catch (error) {
