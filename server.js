@@ -15,6 +15,7 @@ const webpush = require('web-push');
 require('dotenv').config();
 
 const app = express();
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 
 // Deklarasi activeUsers DIPINDAHKAN KE ATAS agar tidak memicu ReferenceError
@@ -820,12 +821,16 @@ app.post('/api/send-message', checkSingleDevice, mediaUpload.single('media'), as
       if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
         subs.rows.forEach(sub => {
           const pushSub = { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } };
-          webpush.sendNotification(pushSub, pushPayload).catch(err => console.error('Push error:', err));
+          webpush.sendNotification(pushSub, pushPayload).catch(err => {
+            // Hapus otomatis subscription jika kedaluwarsa (410) atau tidak valid (404)
+            if (err.statusCode === 410 || err.statusCode === 404) {
+              pool.query('DELETE FROM push_subscriptions WHERE endpoint = $1', [sub.endpoint]).catch(() => {});
+            } else {
+              console.error('Push error:', err);
+            }
+          });
         });
       }
-    } catch (pushErr) {
-      console.error('Gagal mengirim push notification:', pushErr);
-    }
 
     return res.status(201).json({ message: 'Pesan dikirim.', data: messagePayload });
   } catch (error) {
