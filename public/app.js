@@ -632,9 +632,21 @@ async function handleRegister(event) {
   const phone = document.getElementById('reg-phone')?.value?.trim() || '';
   const password = document.getElementById('reg-password')?.value || '';
   const birthdate = document.getElementById('reg-birthdate')?.value || '';
+  
+  // Ambil nilai jenis pendaftaran (create / join) dari radio button
+  const registerTypeEl = document.querySelector('input[name="register_type"]:checked');
+  const register_type = registerTypeEl ? registerTypeEl.value : 'create';
+  
+  // Ambil kode undangan jika opsi 'join' yang dipilih
+  const invite_code = document.getElementById('reg-invite-code')?.value?.trim().toUpperCase() || '';
 
-  if (!name || !phone || !password) {
-    alert('Nomor telepon, nama, dan password wajib diisi.');
+  if (!name || !phone || !password || !register_type) {
+    alert('Nomor telepon, nama, password, dan jenis pendaftaran wajib diisi.');
+    return;
+  }
+
+  if (register_type === 'join' && !invite_code) {
+    alert('Kode undangan keluarga wajib diisi jika ingin bergabung.');
     return;
   }
 
@@ -642,7 +654,14 @@ async function handleRegister(event) {
     const response = await fetch('/api/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, phone, password, birthdate })
+      body: JSON.stringify({ 
+        name, 
+        phone, 
+        password, 
+        birthdate, 
+        register_type, 
+        invite_code 
+      })
     });
 
     const data = await parseJsonResponse(response);

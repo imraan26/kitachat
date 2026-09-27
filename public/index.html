@@ -138,6 +138,30 @@
           onsubmit="handleRegister(event)"
           autocomplete="on"
         >
+          <!-- Pilihan Sistem Keluarga -->
+          <div class="family-reg-options" style="margin-bottom: 12px; display: flex; gap: 10px; background: rgba(0,0,0,0.03); padding: 8px; border-radius: 8px;">
+            <label style="flex: 1; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 500;">
+              <input type="radio" name="register_type" value="create" checked onclick="toggleInviteCodeInput('create')">
+              Buat Keluarga
+            </label>
+            <label style="flex: 1; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 500;">
+              <input type="radio" name="register_type" value="join" onclick="toggleInviteCodeInput('join')">
+              Gabung Keluarga
+            </label>
+          </div>
+
+          <!-- Input Kode Undangan (Hanya muncul jika pilih Gabung) -->
+          <div id="invite-code-container" class="hidden" style="margin-bottom: 10px;">
+            <label class="sr-only" for="reg-invite-code">Kode Undangan Keluarga</label>
+            <input
+              type="text"
+              id="reg-invite-code"
+              name="invite_code"
+              placeholder="Masukkan Kode Undangan (Cth: KITA-XXXX)"
+              style="text-transform: uppercase;"
+            >
+          </div>
+
           <label class="sr-only" for="reg-name">Nama lengkap</label>
           <input
             type="text"
@@ -865,7 +889,7 @@
           </div>
         </section>
 
-      </section> <!-- Penutup <section class="chat-area"> yang tadinya kurang tepat -->
+      </section>
 
       <!-- Photo zoom modal -->
       <div
@@ -936,7 +960,7 @@
             type="button"
             id="btn-accept-call"
             class="btn-success"
-            acceptCall()"
+            onclick="acceptCall()"
             hidden
           >
             <i class="fa-solid fa-check" aria-hidden="true"></i>
@@ -960,7 +984,6 @@
           ></audio>
         </div>
       </div>
-
 
       <!-- =========================
            CALL SELECTION MODAL
@@ -992,7 +1015,6 @@
         </div>
       </div>
       
-
       <!-- =========================
            PASSWORD MODAL
       ========================== -->
@@ -1204,6 +1226,22 @@
       </nav>
     </main>
   </div>
+
+  <!-- Fungsi Pendukung UI Registrasi Keluarga -->
+  <script>
+    function toggleInviteCodeInput(type) {
+      const container = document.getElementById('invite-code-container');
+      const inviteInput = document.getElementById('reg-invite-code');
+      if (type === 'join') {
+        container.classList.remove('hidden');
+        inviteInput.required = true;
+      } else {
+        container.classList.add('hidden');
+        inviteInput.required = false;
+        inviteInput.value = '';
+      }
+    }
+  </script>
 
   <!-- Script harus dimuat berurutan -->
   <script src="/socket.io/socket.io.js" defer></script>
