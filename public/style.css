@@ -12,8 +12,8 @@
 
   --danger: #e74c3c;
   --success: #27ae60;
-  --shadow-soft: 0 4px 18px rgba(0, 0, 0, 0.08);
-  --shadow-strong: 0 8px 24px rgba(0, 0, 0, 0.15);
+  --shadow-soft: 0 1px 3px rgba(11, 20, 26, 0.08);
+  --shadow-strong: 0 4px 12px rgba(11, 20, 26, 0.15);
 }
 
 body.dark-mode {
@@ -25,20 +25,20 @@ body.dark-mode {
   --bg-soft: #111b21;
   --card-bg: #111b21;
   --text-light: #e9edef;
-  --text-muted: #9ca7b1;
-  --border-color: #2a3942;
+  --text-muted: #8696a0;
+  --border-color: #222d34;
 
   --danger: #ff6b6b;
   --success: #34d399;
-  --shadow-soft: 0 4px 18px rgba(0, 0, 0, 0.28);
-  --shadow-strong: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.24);
+  --shadow-strong: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-family: "Segoe UI", Helvetica, Arial, sans-serif;
 }
 
 html, body {
@@ -104,12 +104,12 @@ a {
 }
 
 /* =========================
-   AUTH SCREEN
+   AUTH SCREEN (WHATSAPP STYLE)
 ========================= */
 #auth-screen {
   justify-content: center;
   align-items: center;
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+  background: linear-gradient(180deg, var(--primary-color) 130px, var(--bg-light) 130px);
   padding: 20px;
   width: 100vw;
   height: 100vh;
@@ -118,34 +118,41 @@ a {
   z-index: 100;
 }
 
+body.dark-mode #auth-screen {
+  background: linear-gradient(180deg, #111b21 130px, var(--bg-light) 130px);
+}
+
 .auth-card {
   background: var(--card-bg);
-  padding: 25px;
-  border-radius: 12px;
+  padding: 32px 28px;
+  border-radius: 10px;
   width: 100%;
-  max-width: 380px;
+  max-width: 400px;
   box-shadow: var(--shadow-strong);
   text-align: center;
+  border: 1px solid var(--border-color);
 }
 
 .auth-card h1 {
   color: var(--primary-color);
-  margin-bottom: 6px;
-  font-size: clamp(1.8rem, 2vw, 2.2rem);
+  margin-bottom: 4px;
+  font-size: 1.8rem;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
+  font-weight: 600;
 }
 
 .auth-card p {
   color: var(--text-muted);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
+  margin-bottom: 10px;
 }
 
 .tab-buttons {
   display: flex;
-  margin: 22px 0 18px;
+  margin: 20px 0 16px;
   border-bottom: 2px solid var(--border-color);
 }
 
@@ -155,8 +162,8 @@ a {
   background: transparent;
   border: none;
   cursor: pointer;
-  font-weight: 700;
-  color: var(--text-light);
+  font-weight: 600;
+  color: var(--text-muted);
   transition: 0.2s ease;
 }
 
@@ -176,16 +183,16 @@ form input {
   padding: 12px 14px;
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  background: var(--card-bg);
+  background: var(--bg-soft);
   color: var(--text-light);
   font-size: 0.95rem;
   outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.2s ease;
 }
 
 form input:focus {
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(0, 168, 132, 0.12);
+  background: var(--card-bg);
 }
 
 .btn-primary {
@@ -195,8 +202,8 @@ form input:focus {
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  font-weight: 700;
-  transition: background 0.2s ease, opacity 0.2s ease;
+  font-weight: 600;
+  transition: background 0.2s ease;
 }
 
 .btn-primary:hover {
@@ -205,7 +212,7 @@ form input:focus {
 
 .btn-secondary {
   padding: 12px;
-  background: var(--bg-light);
+  background: var(--bg-soft);
   color: var(--text-light);
   border: 1px solid var(--border-color);
   border-radius: 8px;
@@ -249,7 +256,8 @@ form input:focus {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: var(--primary-color);
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border-color);
   padding: calc(10px + env(safe-area-inset-top, 0px)) 15px 10px 15px;
   width: 100%;
   z-index: 10;
@@ -260,17 +268,22 @@ form input:focus {
 .sidebar-icons {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 15px;
 }
 
 .sidebar-icons button {
   background: transparent;
   border: none;
-  color: #fff;
-  font-size: 1.05rem;
+  color: var(--text-muted);
+  font-size: 1.1rem;
   cursor: pointer;
   min-width: 28px;
   min-height: 28px;
+  transition: color 0.2s;
+}
+
+.sidebar-icons button:hover {
+  color: var(--primary-color);
 }
 
 .user-profile {
@@ -285,16 +298,16 @@ form input:focus {
 }
 
 .user-profile img {
-  width: 35px;
-  height: 35px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
 }
 
 .user-profile span {
-  color: #fff;
-  font-weight: 700;
+  color: var(--text-light);
+  font-weight: 600;
   font-size: 0.95rem;
   white-space: nowrap;
   overflow: hidden;
@@ -356,7 +369,7 @@ form input:focus {
 }
 
 /* =========================
-   CHAT TAB & BUBBLES
+   CHAT TAB & BUBBLES (WHATSAPP STYLE)
 ========================= */
 .chat-messages {
   flex: 1;
@@ -364,18 +377,18 @@ form input:focus {
   padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   background: var(--bg-light);
 }
 
 .chat-bubble {
   max-width: 75%;
-  padding: 9px 12px;
+  padding: 8px 12px 6px 12px;
   border-radius: 8px;
   position: relative;
   font-size: 0.92rem;
-  line-height: 1.45;
-  box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.13);
+  line-height: 1.4;
+  box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
   word-break: break-word;
   user-select: none;
   -webkit-user-select: none;
@@ -397,28 +410,33 @@ form input:focus {
   border-top-right-radius: 0;
 }
 
+body.dark-mode .chat-outgoing, 
+body.dark-mode .chat-bubble.is-me {
+  background: #005c4b;
+}
+
 .chat-sender {
   font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--primary-color);
-  margin-bottom: 3px;
+  font-weight: 600;
+  color: #53bdeb;
+  margin-bottom: 2px;
 }
 
 .chat-text {
-  line-height: 1.45;
+  line-height: 1.4;
 }
 
 .chat-time {
   font-size: 0.65rem;
   color: var(--text-muted);
   text-align: right;
-  margin-top: 3px;
+  margin-top: 2px;
 }
 
 .chat-reply {
   font-size: 0.78rem;
   color: var(--text-muted);
-  background: rgba(0, 0, 0, 0.04);
+  background: rgba(0, 0, 0, 0.05);
   border-left: 3px solid var(--primary-color);
   padding: 4px 8px;
   border-radius: 4px;
@@ -465,7 +483,7 @@ form input:focus {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  padding: 10px 15px;
+  padding: 10px 16px;
   background: var(--card-bg);
   border-top: 1px solid var(--border-color);
   width: 100%;
@@ -522,21 +540,21 @@ form input:focus {
 #message-input {
   flex: 1;
   border: 1px solid var(--border-color);
-  border-radius: 22px;
-  padding: 10px 14px;
-  font-size: 1rem;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.95rem;
   line-height: 1.3;
   max-height: 120px;
-  min-height: 42px;
-  background: var(--bg-light);
+  min-height: 40px;
+  background: var(--bg-soft);
   color: var(--text-light);
   outline: none;
   resize: none;
 }
 
 .send-button {
-  background: var(--primary-color);
-  color: #fff;
+  background: transparent;
+  color: var(--text-muted);
   border: none;
   border-radius: 50%;
   width: 40px;
@@ -547,11 +565,11 @@ form input:focus {
   justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
-  box-shadow: 0 1px 2px rgba(17, 27, 33, 0.12);
+  transition: color 0.2s;
 }
 
 .send-button:hover {
-  background: var(--primary-dark);
+  color: var(--primary-color);
 }
 
 #mic-btn {
@@ -588,7 +606,7 @@ form input:focus {
 ========================= */
 .upload-card, .content-card {
   background: var(--card-bg);
-  border-radius: 14px;
+  border-radius: 12px;
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-soft);
   max-width: 650px;
@@ -799,12 +817,12 @@ form input:focus {
 }
 
 /* =========================
-   FAMILY DIRECTORY
+   FAMILY DIRECTORY (WHATSAPP STYLE CARDS)
 ========================= */
 .family-directory {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 15px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
   max-width: 1000px;
   margin: 0 auto;
   width: 100%;
@@ -812,34 +830,39 @@ form input:focus {
 
 .family-card {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 14px;
   background: var(--card-bg);
   border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 20px 15px;
+  border-radius: 10px;
+  padding: 16px;
   box-shadow: var(--shadow-soft);
-  text-align: center;
+  text-align: left;
+  transition: background 0.2s;
+}
+
+.family-card:hover {
+  background: var(--bg-soft);
 }
 
 .family-card img {
-  width: 65px;
-  height: 65px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid var(--primary-color);
+  flex-shrink: 0;
 }
 
 .family-card h4 {
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: 0.98rem;
+  font-weight: 600;
   color: var(--text-light);
+  margin-bottom: 2px;
 }
 
 .family-card p {
   color: var(--text-muted);
-  font-size: 0.82rem;
+  font-size: 0.85rem;
 }
 
 /* =========================
@@ -857,7 +880,7 @@ form input:focus {
 .profile-card {
   background: var(--card-bg);
   padding: 18px 20px;
-  border-radius: 14px;
+  border-radius: 12px;
   border: 1px solid var(--border-color);
   display: flex;
   align-items: center;
@@ -871,7 +894,6 @@ form input:focus {
   height: 60px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid var(--primary-color);
   flex-shrink: 0;
 }
 
@@ -879,7 +901,7 @@ form input:focus {
   margin: 0 0 4px 0;
   color: var(--text-light);
   font-size: 17px;
-  font-weight: bold;
+  font-weight: 600;
 }
 
 .profile-card p {
@@ -893,7 +915,7 @@ form input:focus {
 
 .settings-card {
   background: var(--card-bg);
-  border-radius: 14px;
+  border-radius: 12px;
   border: 1px solid var(--border-color);
   overflow: visible; 
   box-shadow: var(--shadow-soft);
@@ -934,7 +956,7 @@ form input:focus {
 
 .settings-item i {
   font-size: 18px;
-  color: var(--primary-color);
+  color: var(--text-muted);
   width: 22px;
   text-align: center;
 }
@@ -967,7 +989,7 @@ form input:focus {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(11, 20, 26, 0.6);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -977,8 +999,8 @@ form input:focus {
 
 .modal-card {
   background: var(--card-bg);
-  padding: 25px;
-  border-radius: 14px;
+  padding: 24px;
+  border-radius: 12px;
   width: 100%;
   max-width: 360px;
   border: 1px solid var(--border-color);
@@ -1033,7 +1055,7 @@ form input:focus {
   padding: 10px 20px;
   border-radius: 8px;
   cursor: pointer;
-  font-weight: bold;
+  font-weight: 600;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1046,7 +1068,7 @@ form input:focus {
   padding: 10px 20px;
   border-radius: 8px;
   cursor: pointer;
-  font-weight: bold;
+  font-weight: 600;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1075,9 +1097,9 @@ form input:focus {
 ========================= */
 @media (min-width: 768px) {
   #app-container {
-    max-width: 1350px;
-    height: 92vh;
-    border-radius: 12px;
+    max-width: 1400px;
+    height: 95vh;
+    border-radius: 0;
     overflow: hidden;
     box-shadow: var(--shadow-strong);
   }
@@ -1094,7 +1116,7 @@ form input:focus {
 
   .desktop-sidebar {
     display: flex !important;
-    width: 300px;
+    width: 340px;
     height: 100%;
     background: var(--card-bg);
     border-right: 1px solid var(--border-color);
@@ -1106,10 +1128,10 @@ form input:focus {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 15px;
-    background: var(--primary-color);
-    color: white;
-    min-height: 72px;
+    padding: 10px 16px;
+    background: var(--bg-soft);
+    border-right: 1px solid var(--border-color);
+    min-height: 60px;
   }
 
   .desktop-sidebar .user-profile img {
@@ -1118,13 +1140,13 @@ form input:focus {
   }
 
   .desktop-sidebar .user-profile span {
-    color: white;
+    color: var(--text-light);
     font-size: 0.96rem;
     max-width: 170px;
   }
 
   .desktop-sidebar .sidebar-icons button {
-    color: white;
+    color: var(--text-muted);
   }
 
   .desktop-sidebar .sidebar-menu {
@@ -1140,36 +1162,31 @@ form input:focus {
     justify-content: flex-start;
     align-items: center;
     width: 100%;
-    padding: 15px 18px;
+    padding: 12px 18px;
     border-right: none;
     border-bottom: 1px solid var(--border-color);
-    font-size: 0.96rem;
-    gap: 12px;
+    font-size: 0.95rem;
+    gap: 15px;
     text-align: left;
     background: var(--card-bg);
     color: var(--text-light);
-    transition: background 0.15s ease, color 0.15s ease;
+    transition: background 0.15s ease;
   }
 
   .desktop-sidebar .menu-item i {
-    width: 18px;
+    width: 20px;
     font-size: 1.1rem;
     color: var(--text-muted);
   }
 
   .desktop-sidebar .menu-item:hover {
     background: var(--bg-soft);
-    color: var(--primary-color);
-  }
-
-  .desktop-sidebar .menu-item:hover i {
-    color: var(--primary-color);
   }
 
   .desktop-sidebar .menu-item.active {
-    background: var(--primary-light);
-    color: var(--primary-color);
+    background: var(--bg-soft);
     font-weight: 600;
+    color: var(--primary-color);
   }
 
   .desktop-sidebar .menu-item.active i {
@@ -1242,7 +1259,7 @@ form input:focus {
   .menu-item {
     background: transparent;
     border: none;
-    color: var(--text-light);
+    color: var(--text-muted);
     cursor: pointer;
     font-size: 0.7rem;
     display: flex;
@@ -1251,12 +1268,11 @@ form input:focus {
     justify-content: center;
     gap: 4px;
     text-align: center;
-    transition: background 0.2s ease, color 0.2s ease;
+    transition: color 0.2s ease;
   }
 
   .menu-item.active,
   .menu-item:hover {
-    background: var(--primary-light);
     color: var(--primary-color);
   }
 
