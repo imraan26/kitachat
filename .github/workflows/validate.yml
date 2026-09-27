@@ -21,13 +21,12 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
+          node-version: '24.x'
           cache: npm
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      # Periksa apakah skrip 'check' atau 'lint' ada di package.json sebelum dijalankan
       - name: Validate package scripts
         run: |
           if npm run | grep -q "check"; then
@@ -36,12 +35,10 @@ jobs:
             echo "Skrip 'check' tidak ditemukan di package.json, melewati langkah ini..."
           fi
 
-      # Menggunakan ESLint (opsional namun direkomendasikan) ATAU mengecek file jika folder 'public' ada
-      - name: Validate frontend JavaScript
+      - name: Validate JavaScript syntax
         run: |
           STATUS=0
           
-          # Fungsi pembantu untuk mengecek eksistensi file sebelum divalidasi
           check_file() {
             if [ -f "$1" ]; then
               echo "Checking $1..."
@@ -51,26 +48,30 @@ jobs:
             fi
           }
 
-          check_file "public/app.js"
-          check_file "public/ui-helpers.js"
-          check_file "public/sw.js"
-          
-          # Jika file ada di folder backend terpisah, buka tanda pagar di bawah ini:
-          # check_file "server.js"
+          # Sesuaikan path file dengan struktur repository Anda saat ini
+          check_file "server.js"
+          check_file "app.js"
+          check_file "sw.js"
           
           exit $STATUS
 
       - name: Validate JSON files
         run: |
           node -e "
+            const fs = require('fs');
             const checkJSON = (path) => {
-              if (require('fs').existsSync(path)) {
-                JSON.parse(require('fs').readFileSync(path, 'utf8'));
-                echo = console.log('✓ ' + path + ' valid');
+              if (fs.existsSync(path)) {
+                try {
+                  JSON.parse(fs.readFileSync(path, 'utf8'));
+                  console.log('✓ ' + path + ' valid');
+                } catch (err) {
+                  console.error('✗ ' + path + ' invalid JSON:', err.message);
+                  process.exit(1);
+                }
               } else {
                 console.log('ℹ ' + path + ' tidak ditemukan (skip)');
               }
             };
             checkJSON('package.json');
-            checkJSON('public/manifest.json');
+            checkJSON('manifest.json');
           "
