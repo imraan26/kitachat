@@ -12,13 +12,12 @@ const STORAGE_KEYS = {
 
 const rtcConfig = {
   iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-    { urls: 'stun:stun.cloudflare.com:3478' }
+    { urls: 'stun:://google.com' },
+    { urls: 'stun:://google.com' }
   ],
   iceCandidatePoolSize: 10
 };
+
 
 let localStream = null;
 let peerConnection = null;
@@ -117,7 +116,8 @@ function sendCallSignal(type, toUserId, extraPayload = {}) {
 
   let eventName = '';
   if (type === 'offer') eventName = 'call_user';
-  else if (type === 'answer') eventName = 'call_answer';
+  // OPTIMASI: Pastikan diubah menjadi 'call_answer' agar cocok dengan listener socket.on('call_answer') di server.js
+  else if (type === 'answer') eventName = 'call_answer'; 
   else if (type === 'ice_candidate') eventName = 'call_ice_candidate';
   else if (type === 'end_call') eventName = 'end_call';
 
@@ -131,6 +131,7 @@ function sendCallSignal(type, toUserId, extraPayload = {}) {
     return false;
   }
 }
+
 
 async function drainIceCandidateQueue(expectedCallId, connection) {
   if (
@@ -266,11 +267,12 @@ function registerSocketEvents() {
 
   socket.on('chat_cleared', clearChatContainer);
 
-  // WebRTC Signaling Listeners via Socket.IO
+    // WebRTC Signaling Listeners via Socket.IO
   socket.on('incoming_call', data => {
     handleIncomingCall(data);
   });
 
+  // OPTIMASI: Memastikan mendengarkan 'call_answered' yang dipancarkan oleh server.js Anda
   socket.on('call_answered', data => {
     void handleCallAnswered(data);
   });
@@ -278,6 +280,7 @@ function registerSocketEvents() {
   socket.on('ice_candidate', data => {
     void handleIceCandidate(data);
   });
+
 
   socket.on('end_call', () => {
     cleanupCall(false);
